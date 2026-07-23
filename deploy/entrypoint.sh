@@ -108,5 +108,15 @@ python manage.py collectstatic --noinput || echo "WARN: collectstatic failed (co
 echo "Migrate default DB..."
 python manage.py migrate --noinput || echo "WARN: migrate failed (continuing)"
 
+# Create default login accounts on every deploy (passwords only reset if SETUP_USERS_RESET=1)
+if [ "${SETUP_DEFAULT_USERS:-1}" = "1" ]; then
+  echo "Ensuring default user accounts..."
+  if [ "${SETUP_USERS_RESET:-0}" = "1" ]; then
+    python manage.py setup_users --reset-passwords || echo "WARN: setup_users failed (continuing)"
+  else
+    python manage.py setup_users || echo "WARN: setup_users failed (continuing)"
+  fi
+fi
+
 echo "Starting: $*"
 exec "$@"

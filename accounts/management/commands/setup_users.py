@@ -21,9 +21,18 @@ DEFAULT_ROLES = [
 
 DEFAULT_USERS = [
     {
+        'username': 'seif17',
+        'email': 'seifhamisi54@gmail.com',
+        'password': 'Nlupc2026!',
+        'first_name': 'Seif',
+        'role': 'admin',
+        'is_staff': True,
+        'is_superuser': True,
+    },
+    {
         'username': 'gisadmin',
         'email': 'gisadmin@nlupc.go.tz',
-        'password': 'GisAdmin2026!',
+        'password': 'Nlupc2026!',
         'first_name': 'GIS Admin',
         'role': 'admin',
         'is_staff': True,
@@ -32,16 +41,16 @@ DEFAULT_USERS = [
     {
         'username': 'seif.hamisi',
         'email': 'seif@nlupc.go.tz',
-        'password': 'Nlupc2026',
+        'password': 'Nlupc2026!',
         'first_name': 'Seif Hamisi',
         'role': 'manager',
         'is_staff': True,
-        'is_superuser': False,
+        'is_superuser': True,
     },
     {
         'username': 'afisa.wilaya',
         'email': 'afisa@example.go.tz',
-        'password': 'Afisa2026!',
+        'password': 'Nlupc2026!',
         'first_name': 'Afisa Wilaya',
         'role': 'officer',
         'is_staff': False,
@@ -50,7 +59,7 @@ DEFAULT_USERS = [
     {
         'username': 'mtazamaji',
         'email': 'viewer@example.go.tz',
-        'password': 'Viewer2026!',
+        'password': 'Nlupc2026!',
         'first_name': 'Mtazamaji',
         'role': 'viewer',
         'is_staff': False,
@@ -107,5 +116,4 @@ class Command(BaseCommand):
             ))
 
         self.stdout.write('')
-        self.stdout.write('Django Admin: http://localhost:8000/admin/')
-        self.stdout.write('Ingia kwa gisadmin / GisAdmin2026!')
+        self.stdout.write('Login: /login/  —  seif17 / Nlupc2026!  (au gisadmin)')

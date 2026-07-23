@@ -27,3 +27,7 @@ services:
         value: "https://lumc-dodoma.onrender.com"
       - key: DONATION_SITE_URL
         value: "https://lumc-dodoma.onrender.com"
+      - key: SETUP_DEFAULT_USERS
+        value: "1"
+      - key: SETUP_USERS_RESET
+        value: "1"
