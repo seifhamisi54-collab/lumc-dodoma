@@ -102,6 +102,7 @@ from urllib.parse import urlparse, unquote
 
 
 def _postgis_config(name, user, password, host, port, search_path, sslmode=None):
+    """Build DB config. search_path is applied after connect (Neon pooler rejects -c search_path)."""
     cfg = {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
         'NAME': name,
@@ -109,17 +110,19 @@ def _postgis_config(name, user, password, host, port, search_path, sslmode=None)
         'PASSWORD': password,
         'HOST': host,
         'PORT': str(port),
-        'OPTIONS': {
-            'options': f'-c search_path={search_path}',
-        },
+        'OPTIONS': {},
     }
+    # Neon PgBouncer pooler rejects startup parameter search_path — set via signal instead.
+    # Direct (non-pooler) hosts can still use -c for slightly earlier path setup.
+    if search_path and host and 'pooler' not in host.lower():
+        cfg['OPTIONS']['options'] = f'-c search_path={search_path}'
     if sslmode:
         cfg['OPTIONS']['sslmode'] = sslmode
     return cfg
 
 
 def _config_from_database_url(url, search_path):
-    parsed = urlparse(url)
+    parsed = urlparse(url.strip().strip('"').strip("'"))
     sslmode = None
     if parsed.query:
         from urllib.parse import parse_qs
@@ -142,6 +145,12 @@ def _config_from_database_url(url, search_path):
 
 _SEARCH_DEFAULT = 'boundaries,public,admin,demographic,infrastructure,landuse,detailed_planning'
 _SEARCH_DETAILED = 'detailed_planning,public'
+
+# Applied on every new connection (required for Neon -pooler endpoints)
+DATABASE_SEARCH_PATHS = {
+    'default': _SEARCH_DEFAULT,
+    'detailed_planning': _SEARCH_DETAILED,
+}
 
 _database_url = os.environ.get('DATABASE_URL', '').strip()
 _detailed_url = os.environ.get('DETAILED_DATABASE_URL', '').strip()
@@ -178,6 +187,24 @@ else:
             _SEARCH_DETAILED,
         ),
     }
+
+# Neon pooler: always SET search_path after connect
+from django.db.backends.signals import connection_created
+
+
+def _set_search_path(sender, connection, **kwargs):
+    path = DATABASE_SEARCH_PATHS.get(connection.alias)
+    if not path:
+        return
+    # Only needed when startup -c search_path was skipped (pooler) or as safety net
+    host = (connection.settings_dict.get('HOST') or '')
+    if 'pooler' not in host.lower() and connection.settings_dict.get('OPTIONS', {}).get('options'):
+        return
+    with connection.cursor() as cursor:
+        cursor.execute(f'SET search_path TO {path}')
+
+
+connection_created.connect(_set_search_path)
 
 # Render injects RENDER_EXTERNAL_HOSTNAME
 _render_host = os.environ.get('RENDER_EXTERNAL_HOSTNAME', '').strip()
