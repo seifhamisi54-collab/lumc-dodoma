@@ -143,8 +143,8 @@ def _config_from_database_url(url, search_path):
     )
 
 
-_SEARCH_DEFAULT = 'boundaries,public,admin,demographic,infrastructure,landuse,detailed_planning'
-_SEARCH_DETAILED = 'detailed_planning,public'
+_SEARCH_DEFAULT = 'public,boundaries,admin,demographic,infrastructure,landuse,detailed_planning'
+_SEARCH_DETAILED = 'public,detailed_planning'
 
 # Applied on every new connection (required for Neon -pooler endpoints)
 DATABASE_SEARCH_PATHS = {

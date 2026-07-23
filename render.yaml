@@ -10,7 +10,7 @@ services:
     healthCheckPath: /healthz/
     envVars:
       - key: DJANGO_DEBUG
-        value: "True"
+        value: "False"
       - key: SERVE_MEDIA
         value: "1"
       - key: DJANGO_ALLOWED_HOSTS
