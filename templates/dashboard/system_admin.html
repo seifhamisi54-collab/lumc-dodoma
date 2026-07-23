@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Administration — LUMC</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Outfit:wght@600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        :root {
+            --primary: #1a237e;
+            --accent: #2563eb;
+            --bg: #eef1f6;
+            --card: #ffffff;
+            --text: #0f172a;
+            --muted: #64748b;
+            --border: #e2e8f0;
+            --ok: #15803d;
+            --warn: #b45309;
+            --danger: #b91c1c;
+            --radius: 14px;
+            --shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: 'DM Sans', system-ui, sans-serif;
+            background: linear-gradient(180deg, #e8eef8 0%, var(--bg) 40%, #f4f7f6 100%);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 28px;
+            background: rgba(255,255,255,0.96);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            box-shadow: 0 2px 12px rgba(15,23,42,0.06);
+        }
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: var(--primary);
+        }
+        .brand img { width: 42px; height: 42px; object-fit: contain; border-radius: 10px; background: #fff; border: 1px solid var(--border); }
+        .brand strong { font-family: Outfit, sans-serif; font-size: 1.1rem; display: block; }
+        .brand span { font-size: 11px; color: var(--muted); }
+        .top-actions { display: flex; gap: 10px; align-items: center; }
+        .btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 8px 14px; border-radius: 999px; border: 1px solid var(--border);
+            background: #fff; color: var(--primary); font-weight: 600; font-size: 13px;
+            text-decoration: none; cursor: pointer; font-family: inherit;
+        }
+        .btn:hover { background: #e8eaf6; }
+        .btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+        .btn-primary:hover { background: #283593; }
+        .btn-danger { background: #fee2e2; color: var(--danger); border-color: #fecaca; }
+        .layout {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            max-width: 1400px;
+            margin: 0 auto;
+            gap: 20px;
+            padding: 22px 24px 48px;
+        }
+        .nav {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 12px;
+            height: fit-content;
+            position: sticky;
+            top: 84px;
+        }
+        .nav h3 {
+            margin: 4px 10px 12px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--muted);
+            font-family: Outfit, sans-serif;
+        }
+        .nav button {
+            width: 100%;
+            text-align: left;
+            border: none;
+            background: transparent;
+            padding: 10px 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            font: inherit;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text);
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .nav button i { width: 18px; color: var(--muted); }
+        .nav button.active, .nav button:hover {
+            background: #e8eaf6;
+            color: var(--primary);
+        }
+        .nav button.active i { color: var(--accent); }
+        .badge-soon {
+            margin-left: auto;
+            font-size: 10px;
+            background: #fef3c7;
+            color: #92400e;
+            padding: 2px 7px;
+            border-radius: 999px;
+            font-weight: 700;
+        }
+        .main { min-width: 0; }
+        .panel {
+            display: none;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 22px 24px;
+        }
+        .panel.active { display: block; }
+        .panel h1 {
+            margin: 0 0 6px;
+            font-family: Outfit, sans-serif;
+            font-size: 1.45rem;
+            color: var(--primary);
+            letter-spacing: -0.02em;
+        }
+        .panel .lead { margin: 0 0 20px; color: var(--muted); font-size: 14px; line-height: 1.5; }
+        .kpis {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+            margin-bottom: 22px;
+        }
+        .kpi {
+            background: linear-gradient(160deg, #f8faff 0%, #fff 100%);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px 16px;
+        }
+        .kpi .label { font-size: 12px; color: var(--muted); font-weight: 600; }
+        .kpi .value { font-family: Outfit, sans-serif; font-size: 1.6rem; font-weight: 700; color: var(--primary); margin-top: 4px; }
+        .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; align-items: center; }
+        .toolbar input, .toolbar select, .form-grid input, .form-grid select {
+            padding: 9px 12px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font: inherit;
+            font-size: 13px;
+            min-width: 160px;
+        }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th, td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; text-align: left; }
+        th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); background: #f8fafc; }
+        .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+        .actions button {
+            border: 1px solid var(--border);
+            background: #fff;
+            border-radius: 8px;
+            padding: 5px 8px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .pill {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        .pill-ok { background: #dcfce7; color: #166534; }
+        .pill-off { background: #fee2e2; color: #991b1b; }
+        .pill-role { background: #e0e7ff; color: #3730a3; }
+        .matrix { overflow-x: auto; }
+        .matrix td.yes { color: var(--ok); font-weight: 700; text-align: center; }
+        .matrix td.no { color: #cbd5e1; text-align: center; }
+        .stub-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 12px;
+        }
+        .stub-card {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px 16px;
+            background: #fafbff;
+        }
+        .stub-card h4 { margin: 0 0 6px; font-size: 14px; }
+        .stub-card p { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.45; }
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 10px;
+            margin-bottom: 14px;
+            padding: 14px;
+            background: #f8fafc;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+        .activity li {
+            list-style: none;
+            padding: 10px 0;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        .activity { margin: 0; padding: 0; }
+        .muted { color: var(--muted); font-size: 12px; }
+        .link-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+        @media (max-width: 900px) {
+            .layout { grid-template-columns: 1fr; }
+            .nav { position: static; display: flex; flex-wrap: wrap; gap: 4px; }
+            .nav h3 { width: 100%; }
+            .nav button { width: auto; }
+        }
+    </style>
+</head>
+<body>
+    {% csrf_token %}
+    <header class="topbar">
+        <a class="brand" href="/">
+            <img src="/static/img/lumc-logo.png?v=4" alt="LUMC">
+            <div>
+                <strong>System Administration</strong>
+                <span>LUMC — Land Use Management &amp; Coordination</span>
+            </div>
+        </a>
+        <div class="top-actions">
+            <a class="btn" href="/"><i class="fas fa-home"></i> Nyumbani</a>
+            <a class="btn" href="/data-portal/"><i class="fas fa-chart-line"></i> Data Portal</a>
+            <span class="muted">{{ system_version|default:"LUMC 1.0" }}</span>
+        </div>
+    </header>
+
+    <div class="layout">
+        <aside class="nav" id="saNav">
+            <h3>Moduli</h3>
+            <button type="button" class="active" data-panel="dashboard"><i class="fas fa-gauge-high"></i> Dashboard</button>
+            <button type="button" data-panel="users"><i class="fas fa-users"></i> User Management</button>
+            <button type="button" data-panel="roles"><i class="fas fa-user-shield"></i> Roles &amp; Permissions</button>
+            <button type="button" data-panel="org"><i class="fas fa-sitemap"></i> Department / Org</button>
+            <button type="button" data-panel="settings"><i class="fas fa-sliders"></i> System Settings</button>
+            <button type="button" data-panel="security"><i class="fas fa-lock"></i> Security <span class="badge-soon">Baadaye</span></button>
+            <button type="button" data-panel="audit"><i class="fas fa-clipboard-list"></i> Audit Trail <span class="badge-soon">Baadaye</span></button>
+            <button type="button" data-panel="backup"><i class="fas fa-database"></i> Backup &amp; Restore <span class="badge-soon">Baadaye</span></button>
+            <button type="button" data-panel="notifications"><i class="fas fa-bell"></i> Notifications <span class="badge-soon">Baadaye</span></button>
+            <button type="button" data-panel="reports"><i class="fas fa-file-alt"></i> Reports</button>
+            <button type="button" data-panel="data"><i class="fas fa-folder-open"></i> Data Management</button>
+            <button type="button" data-panel="api"><i class="fas fa-key"></i> API Management <span class="badge-soon">Baadaye</span></button>
+            <button type="button" data-panel="logs"><i class="fas fa-scroll"></i> Logs</button>
+            <button type="button" data-panel="gis"><i class="fas fa-globe"></i> GIS Settings <span class="badge-soon">Baadaye</span></button>
+            <button type="button" data-panel="help"><i class="fas fa-circle-question"></i> Help &amp; Support</button>
+        </aside>
+
+        <main class="main">
+            <!-- 1 Dashboard -->
+            <section class="panel active" id="panel-dashboard">
+                <h1>Dashboard</h1>
+                <p class="lead">Muhtasari wa mfumo wa LUMC — watumiaji, vijiji, mipango ya matumizi ya ardhi na shughuli za hivi karibuni.</p>
+                <div class="kpis" id="kpiGrid">
+                    <div class="kpi"><div class="label">Jumla ya watumiaji</div><div class="value" id="kpi-users">—</div></div>
+                    <div class="kpi"><div class="label">Watumiaji walio online</div><div class="value" id="kpi-online">—</div></div>
+                    <div class="kpi"><div class="label">Jumla ya vijiji (mipango)</div><div class="value" id="kpi-villages">—</div></div>
+                    <div class="kpi"><div class="label">Mipango ya matumizi ya ardhi</div><div class="value" id="kpi-plans">—</div></div>
+                    <div class="kpi"><div class="label">Viwanja (parcels)</div><div class="value" id="kpi-parcels">—</div></div>
+                    <div class="kpi"><div class="label">Ripoti / import logs</div><div class="value" id="kpi-logs">—</div></div>
+                </div>
+                <h3 style="margin:0 0 10px;font-size:1rem;">Shughuli za hivi karibuni</h3>
+                <ul class="activity" id="recentActivity"><li class="muted">Inapakia...</li></ul>
+            </section>
+
+            <!-- 2 Users -->
+            <section class="panel" id="panel-users">
+                <h1>User Management</h1>
+                <p class="lead">Ongeza, hariri, activate/deactivate, reset password na assign roles — kwa maofisa wa GIS, Data Entry na Planners.</p>
+                {% if can_manage_users %}
+                <div class="form-grid" id="userForm">
+                    <input id="u-username" placeholder="Username *" />
+                    <input id="u-password" type="password" placeholder="Password *" />
+                    <input id="u-email" placeholder="Email" />
+                    <input id="u-phone" placeholder="Simu" />
+                    <input id="u-first" placeholder="Jina la kwanza" />
+                    <input id="u-last" placeholder="Jina la mwisho" />
+                    <select id="u-role">
+                        <option value="viewer">Viewer / Guest</option>
+                        <option value="officer">GIS / Data Entry Officer</option>
+                        <option value="manager">Planner</option>
+                        <option value="admin">Administrator</option>
+                    </select>
+                    <button type="button" class="btn btn-primary" onclick="createUser()"><i class="fas fa-plus"></i> Ongeza mtumiaji</button>
+                </div>
+                {% else %}
+                <p class="muted">Unaweza kuona orodha; kuongeza/kuhariri kunahitaji ruhusa ya manage_users.</p>
+                {% endif %}
+                <div class="toolbar">
+                    <input id="userSearch" placeholder="Tafuta username / email..." oninput="loadUsers()" />
+                    <select id="userRoleFilter" onchange="loadUsers()">
+                        <option value="">Jukumu lolote</option>
+                        <option value="admin">Administrator</option>
+                        <option value="manager">Planner</option>
+                        <option value="officer">GIS / Data Entry</option>
+                        <option value="viewer">Viewer</option>
+                    </select>
+                    <button type="button" class="btn" onclick="loadUsers()"><i class="fas fa-rotate"></i> Refresh</button>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Mtumiaji</th>
+                                <th>Jukumu</th>
+                                <th>Hali</th>
+                                <th>Login ya mwisho</th>
+                                <th>Vitendo</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersBody"><tr><td colspan="5">Inapakia...</td></tr></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 3 Roles -->
+            <section class="panel" id="panel-roles">
+                <h1>Roles &amp; Permissions</h1>
+                <p class="lead">Majukumu ya LUMC yaliyolinganishwa na asili ya mradi: GIS Portal, Data Portal, Mpango Kinaa na CCRO.</p>
+                <div class="matrix">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Jukumu</th>
+                                <th>Create</th>
+                                <th>Read</th>
+                                <th>Update</th>
+                                <th>Delete</th>
+                                <th>Export</th>
+                                <th>Approve</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rolesBody"></tbody>
+                    </table>
+                </div>
+                <p class="muted" style="margin-top:12px;">Administrator → admin · Planner → manager · GIS/Data Entry → officer · Viewer/Guest → viewer</p>
+            </section>
+
+            <!-- 4 Org -->
+            <section class="panel" id="panel-org">
+                <h1>Department / Organization</h1>
+                <p class="lead">Muundo wa ofisi za LUMC — Mkoa, Wilaya, Ofisi na Units (Locality setups).</p>
+                <div class="link-row">
+                    <a class="btn btn-primary" href="/#system-admin"><i class="fas fa-building"></i> Fungua Setups (Locality / Designation)</a>
+                    <a class="btn" href="/admin/locations/region/"><i class="fas fa-map"></i> Mikoa (Django Admin)</a>
+                    <a class="btn" href="/admin/locations/district/"><i class="fas fa-map-marker-alt"></i> Wilaya</a>
+                </div>
+                <div class="stub-grid" style="margin-top:16px;">
+                    <div class="stub-card"><h4>Ongeza idara</h4><p>Locality type = office / unit kwenye Setups.</p></div>
+                    <div class="stub-card"><h4>Mkoa / Wilaya</h4><p>Hierarchy ya kijiografia — locations + assigned_region kwa watumiaji.</p></div>
+                    <div class="stub-card"><h4>Ofisi / Units</h4><p>Ofisi za LUMC kwa uratibu wa ardhi na CCRO.</p></div>
+                </div>
+            </section>
+
+            <!-- 5 Settings -->
+            <section class="panel" id="panel-settings">
+                <h1>System Settings</h1>
+                <p class="lead">Mipangilio ya msingi ya LUMC — pamoja na <strong>passcode</strong> ya System Administration na Organizations.</p>
+
+                <div class="form-grid" style="margin-bottom:18px;">
+                    <div style="grid-column:1/-1;">
+                        <h3 style="margin:0 0 8px;font-size:1rem;color:var(--primary);"><i class="fas fa-key"></i> Passcode ya Usimamizi</h3>
+                        <p class="muted" style="margin:0 0 12px;">Bila passcode hii, hakuna anayeweza kufungua System Administration wala Organizations baada ya kuingia.</p>
+                    </div>
+                    <input type="password" id="pc-current" placeholder="Passcode ya sasa (ikiwa ipo)" />
+                    <input type="password" id="pc-new" placeholder="Passcode mpya *" minlength="4" />
+                    <input type="password" id="pc-confirm" placeholder="Thibitisha passcode mpya *" minlength="4" />
+                    <button type="button" class="btn btn-primary" onclick="savePasscode()"><i class="fas fa-save"></i> Hifadhi Passcode</button>
+                    <button type="button" class="btn" onclick="lockAdmin()"><i class="fas fa-lock"></i> Funga session</button>
+                    <div style="grid-column:1/-1;" class="muted" id="pc-status">Hali: …</div>
+                </div>
+
+                <div class="stub-grid">
+                    <div class="stub-card"><h4>Jina la mfumo</h4><p>LUMC — Land Use Management and Coordination Section</p></div>
+                    <div class="stub-card"><h4>Logo / Favicon</h4><p>static/img/lumc-logo.png — inatumika kwenye Nyumbani, Map na Data Portal.</p></div>
+                    <div class="stub-card"><h4>Lugha / Time Zone</h4><p>Kiswahili UI · Africa/Dar_es_Salaam (Django settings).</p></div>
+                    <div class="stub-card"><h4>Currency &amp; Forms</h4><p>Sarafu, fomu na CCRO — Setups kwenye Nyumbani (#system-admin).</p></div>
+                </div>
+            </section>
+
+            <!-- 6 Security -->
+            <section class="panel" id="panel-security">
+                <h1>Security</h1>
+                <p class="lead">Sera za usalama — zitaunganishwa na Django auth (sasa: password validators + session login).</p>
+                <div class="stub-grid">
+                    <div class="stub-card"><h4>2FA</h4><p>Two-factor authentication kwa Administrator na Planner.</p></div>
+                    <div class="stub-card"><h4>Password Policy</h4><p>Urefu, ugumu, muda wa kubadilisha.</p></div>
+                    <div class="stub-card"><h4>Login Attempts / Lockout</h4><p>Kuzuia akaunti baada ya majaribio mabaya.</p></div>
+                    <div class="stub-card"><h4>Session Timeout</h4><p>Kuondoka kiotomatiki baada ya muda.</p></div>
+                    <div class="stub-card"><h4>IP Whitelist</h4><p>Kwa ofisi za serikali ikiwa inahitajika.</p></div>
+                </div>
+            </section>
+
+            <!-- 7 Audit -->
+            <section class="panel" id="panel-audit">
+                <h1>Audit Trail</h1>
+                <p class="lead">Nani aliingia, alihariri au alifuta data — tarehe na muda. Sasa shughuli za import zinaonekana kwenye Dashboard; audit kamili itakuja.</p>
+                <div class="stub-grid">
+                    <div class="stub-card"><h4>Login events</h4><p>Kutoka last_login (Dashboard) → baadaye log kamili.</p></div>
+                    <div class="stub-card"><h4>Data edit / delete</h4><p>Village plans, parcels, CCRO, users.</p></div>
+                </div>
+            </section>
+
+            <!-- 8 Backup -->
+            <section class="panel" id="panel-backup">
+                <h1>Backup &amp; Restore</h1>
+                <p class="lead">Kwa LUMC: backup ya PostgreSQL (tanzania_gis_db + DETAILED PLANNING) na media/shapefiles.</p>
+                <div class="stub-grid">
+                    <div class="stub-card"><h4>Manual / Automatic Backup</h4><p>pg_dump + media archive.</p></div>
+                    <div class="stub-card"><h4>Restore / Download</h4><p>Kurudisha DB na pakua faili za backup.</p></div>
+                </div>
+            </section>
+
+            <!-- 9 Notifications -->
+            <section class="panel" id="panel-notifications">
+                <h1>Notifications</h1>
+                <p class="lead">Arifa kwa maofisa — upload imekamilika, mpango umeidhinishwa, CCRO mpya.</p>
+                <div class="stub-grid">
+                    <div class="stub-card"><h4>Email / SMS</h4><p>Arifa za nje.</p></div>
+                    <div class="stub-card"><h4>In-app</h4><p>Kengele ndani ya portal.</p></div>
+                </div>
+            </section>
+
+            <!-- 10 Reports -->
+            <section class="panel" id="panel-reports">
+                <h1>Reports</h1>
+                <p class="lead">Ripoti za watumiaji na shughuli + viungo vya ripoti za Data Portal / GIS.</p>
+                <div class="link-row">
+                    <a class="btn btn-primary" href="/data-portal/?tab=mpango"><i class="fas fa-map"></i> Mpango Kinaa Reports</a>
+                    <a class="btn" href="/data-portal/?tab=statistics"><i class="fas fa-chart-pie"></i> Takwimu</a>
+                    <a class="btn" href="/map/"><i class="fas fa-globe-africa"></i> GIS Portal</a>
+                </div>
+                <div class="stub-grid" style="margin-top:16px;">
+                    <div class="stub-card"><h4>User / Login / Activity Report</h4><p>Kutoka User Management + sessions.</p></div>
+                    <div class="stub-card"><h4>Data Entry / GIS Report</h4><p>Import logs + parcel stats.</p></div>
+                    <div class="stub-card"><h4>Export PDF / Excel</h4><p>Tayari kwenye Data Portal / download APIs.</p></div>
+                </div>
+            </section>
+
+            <!-- 11 Data -->
+            <section class="panel" id="panel-data">
+                <h1>Data Management</h1>
+                <p class="lead">Usimamizi wa data ya LUMC — shapefile, CSV/Excel, export na matengenezo.</p>
+                <div class="link-row">
+                    <a class="btn btn-primary" href="/map/"><i class="fas fa-upload"></i> Import Shapefile (GIS)</a>
+                    <a class="btn" href="/data-portal/?tab=mpango"><i class="fas fa-layer-group"></i> Viwanja / Mpango Kinaa</a>
+                    <a class="btn" href="/map/tools/"><i class="fas fa-tools"></i> GIS Tools</a>
+                </div>
+                <div class="stub-grid" style="margin-top:16px;">
+                    <div class="stub-card"><h4>Import CSV/Excel</h4><p>CCRO / CCO data — upload pages zilizopo.</p></div>
+                    <div class="stub-card"><h4>Export Data</h4><p>Excel / shapefile download APIs.</p></div>
+                    <div class="stub-card"><h4>Database Maintenance</h4><p>Vacuum / index — ops (baadaye).</p></div>
+                </div>
+            </section>
+
+            <!-- 12 API -->
+            <section class="panel" id="panel-api">
+                <h1>API Management</h1>
+                <p class="lead">Endpoints za ndani zipo (/api/planning/, /api/system-admin/). Usimamizi wa API keys utakuja baadaye.</p>
+                <div class="stub-grid">
+                    <div class="stub-card"><h4>API Keys / Tokens</h4><p>Kwa ushirikiano wa nje.</p></div>
+                    <div class="stub-card"><h4>Usage / Webhooks</h4><p>Ufuatiliaji na arifa za nje.</p></div>
+                </div>
+            </section>
+
+            <!-- 13 Logs -->
+            <section class="panel" id="panel-logs">
+                <h1>Logs</h1>
+                <p class="lead">Logi za import za GIS (zilizopo) + logs za server zitazionekana baadaye.</p>
+                <div class="link-row">
+                    <button type="button" class="btn" onclick="showPanel('dashboard')"><i class="fas fa-clock-rotate-left"></i> Recent import activity</button>
+                    <a class="btn" href="/api/import-logs/" target="_blank"><i class="fas fa-code"></i> API import-logs</a>
+                </div>
+                <div class="stub-grid" style="margin-top:16px;">
+                    <div class="stub-card"><h4>Error / Server / DB / API Logs</h4><p>UI ya kusoma log files — Phase 2.</p></div>
+                </div>
+            </section>
+
+            <!-- 14 GIS -->
+            <section class="panel" id="panel-gis">
+                <h1>GIS Settings</h1>
+                <p class="lead">Mipangilio ya anga kwa LUMC — CRS, basemap, layers. Sasa GDAL/CRS ziko kwenye settings za server.</p>
+                <div class="stub-grid">
+                    <div class="stub-card"><h4>CRS</h4><p>EPSG:4326 (display) · Arc 1960 / UTM Zone 36S / 37S kwa Tanzania.</p></div>
+                    <div class="stub-card"><h4>Default Basemap</h4><p>OpenStreetMap / satellite kwenye Map View.</p></div>
+                    <div class="stub-card"><h4>Layer / Spatial Index</h4><p>Mipaka, viwanja, CCRO — PostGIS.</p></div>
+                </div>
+            </section>
+
+            <!-- 15 Help -->
+            <section class="panel" id="panel-help">
+                <h1>Help &amp; Support</h1>
+                <p class="lead">Mwongozo wa watumiaji wa LUMC.</p>
+                <div class="stub-grid">
+                    <div class="stub-card"><h4>User Manual</h4><p>GIS Portal → chagua mkoa → upload · Data Portal → Mpango Kinaa / CCRO · SysAdmin → users &amp; roles.</p></div>
+                    <div class="stub-card"><h4>FAQs</h4><p>Igawisenga / kata, Madaba↔Songea aliases, ruhusa za upload.</p></div>
+                    <div class="stub-card"><h4>Contact Support</h4><p>Land Use Management and Coordination Section (LUMC).</p></div>
+                    <div class="stub-card"><h4>System Version</h4><p id="helpVersion">{{ system_version|default:"LUMC 1.0" }}</p></div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+<script>
+const API = '/api/system-admin/';
+const CAN_MANAGE = {{ can_manage_users|yesno:"true,false" }};
+
+function getCookie(name) {
+    const v = `; ${document.cookie}`;
+    const p = v.split(`; ${name}=`);
+    if (p.length === 2) return p.pop().split(';').shift();
+    return '';
+}
+
+function csrfToken() {
+    const el = document.querySelector('[name=csrfmiddlewaretoken]');
+    return (el && el.value) || getCookie('csrftoken') || '';
+}
+
+function apiFetch(url, options = {}) {
+    const opts = { credentials: 'same-origin', ...options };
+    opts.headers = {
+        'X-CSRFToken': csrfToken(),
+        ...(opts.headers || {}),
+    };
+    return fetch(url, opts).then(async (res) => {
+        let data = {};
+        try { data = await res.json(); } catch (e) { data = {}; }
+        if (res.status === 401) {
+            Swal.fire('Ingia tena', data.error || 'Session imeisha', 'warning').then(() => {
+                window.location.href = '/login/?next=/system-admin/';
+            });
+            throw new Error('login_required');
+        }
+        if (data.code === 'admin_passcode_required') {
+            window.location.href = '/system-admin/unlock/?next=/system-admin/&reauth=1';
+            throw new Error('passcode_required');
+        }
+        return { ok: res.ok, status: res.status, data };
+    });
+}
+
+function showPanel(name) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('#saNav button').forEach(b => b.classList.remove('active'));
+    document.getElementById('panel-' + name)?.classList.add('active');
+    document.querySelector(`#saNav button[data-panel="${name}"]`)?.classList.add('active');
+    if (name === 'dashboard') loadOverview();
+    if (name === 'users') loadUsers();
+    if (name === 'roles') loadRoles();
+    if (name === 'settings') refreshPasscodeStatus();
+    history.replaceState(null, '', '#' + name);
+}
+
+document.querySelectorAll('#saNav button').forEach(btn => {
+    btn.addEventListener('click', () => showPanel(btn.dataset.panel));
+});
+
+function fmtDate(iso) {
+    if (!iso) return '—';
+    try { return new Date(iso).toLocaleString(); } catch { return iso; }
+}
+
+function loadOverview() {
+    apiFetch(API + 'overview/').then(({ data }) => {
+        const k = data.kpis || {};
+        document.getElementById('kpi-users').textContent = k.users_total ?? '—';
+        document.getElementById('kpi-online').textContent = k.users_online ?? '—';
+        document.getElementById('kpi-villages').textContent = k.villages_total ?? '—';
+        document.getElementById('kpi-plans').textContent = k.land_use_plans_total ?? '—';
+        document.getElementById('kpi-parcels').textContent = k.parcels_total ?? '—';
+        document.getElementById('kpi-logs').textContent = k.import_logs_total ?? '—';
+        const ul = document.getElementById('recentActivity');
+        const acts = data.recent_activities || [];
+        if (!acts.length) {
+            ul.innerHTML = '<li class="muted">Hakuna shughuli za hivi karibuni</li>';
+            return;
+        }
+        ul.innerHTML = acts.map(a => `<li>
+            <span><strong>${a.action || 'event'}</strong> — ${a.message || a.username || ''}
+            ${a.status ? ` <span class="pill pill-role">${a.status}</span>` : ''}
+            ${a.user ? ` <span class="muted">· ${a.user}</span>` : ''}</span>
+            <span class="muted">${fmtDate(a.at)}</span>
+        </li>`).join('');
+    }).catch(err => console.error(err));
+}
+
+function loadRoles() {
+    apiFetch(API + 'roles/').then(({ data }) => {
+        const tbody = document.getElementById('rolesBody');
+        tbody.innerHTML = (data.roles || []).map(role => {
+            const c = role.crud || {};
+            const cell = (ok) => ok ? '<td class="yes"><i class="fas fa-check"></i></td>' : '<td class="no">—</td>';
+            return `<tr>
+                <td><strong>${role.label}</strong><div class="muted">${role.code}</div></td>
+                ${cell(c.create)}${cell(c.read)}${cell(c.update)}${cell(c.delete)}${cell(c.export)}${cell(c.approve)}
+            </tr>`;
+        }).join('');
+    }).catch(() => {});
+}
+
+function loadUsers() {
+    const q = document.getElementById('userSearch')?.value || '';
+    const role = document.getElementById('userRoleFilter')?.value || '';
+    const p = new URLSearchParams();
+    if (q) p.set('q', q);
+    if (role) p.set('role', role);
+    apiFetch(API + 'users/?' + p.toString()).then(({ data }) => {
+        const tbody = document.getElementById('usersBody');
+        const items = data.items || [];
+        if (!items.length) {
+            tbody.innerHTML = '<tr><td colspan="5">Hakuna watumiaji</td></tr>';
+            return;
+        }
+        tbody.innerHTML = items.map(u => `<tr>
+            <td><strong>${u.username}</strong><div class="muted">${u.email || ''} ${u.phone || ''}</div></td>
+            <td><span class="pill pill-role">${u.role_label || '—'}</span></td>
+            <td>${u.is_active ? '<span class="pill pill-ok">Active</span>' : '<span class="pill pill-off">Inactive</span>'}</td>
+            <td class="muted">${fmtDate(u.last_login)}</td>
+            <td class="actions">
+                ${CAN_MANAGE ? `
+                <button title="Activate/Deactivate" onclick="toggleActive(${u.id}, ${u.is_active})"><i class="fas fa-power-off"></i></button>
+                <button title="Reset password" onclick="resetPassword(${u.id})"><i class="fas fa-key"></i></button>
+                <button title="Badilisha jukumu" onclick="changeRole(${u.id}, '${u.role || 'viewer'}')"><i class="fas fa-user-tag"></i></button>
+                <button title="Futa" onclick="deleteUser(${u.id}, '${u.username}')"><i class="fas fa-trash" style="color:#b91c1c"></i></button>
+                ` : '<span class="muted">View only</span>'}
+            </td>
+        </tr>`).join('');
+    }).catch(() => {});
+}
+
+function createUser() {
+    const body = {
+        username: document.getElementById('u-username').value.trim(),
+        password: document.getElementById('u-password').value,
+        email: document.getElementById('u-email').value.trim(),
+        phone: document.getElementById('u-phone').value.trim(),
+        first_name: document.getElementById('u-first').value.trim(),
+        last_name: document.getElementById('u-last').value.trim(),
+        role: document.getElementById('u-role').value,
+    };
+    apiFetch(API + 'users/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+    }).then(({ ok, data }) => {
+        if (ok) {
+            Swal.fire('Imefanikiwa', 'Mtumiaji ameongezwa', 'success');
+            ['u-username','u-password','u-email','u-phone','u-first','u-last'].forEach(id => document.getElementById(id).value = '');
+            loadUsers();
+            loadOverview();
+        } else Swal.fire('Hitilafu', data.error || 'Imeshindikana', 'error');
+    }).catch(() => {});
+}
+
+function toggleActive(id, isActive) {
+    apiFetch(API + 'users/' + id + '/', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: !isActive }),
+    }).then(({ ok, data }) => {
+        if (ok && data.status === 'success') { loadUsers(); Swal.fire('Sawa', 'Hali imesasishwa', 'success'); }
+        else Swal.fire('Hitilafu', data.error || 'Imeshindikana', 'error');
+    }).catch(() => {});
+}
+
+function resetPassword(id) {
+    Swal.fire({
+        title: 'Reset password?',
+        text: 'Password mpya itakuwa: ChangeMe123!',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Ndiyo',
+    }).then(res => {
+        if (!res.isConfirmed) return;
+        apiFetch(API + 'users/' + id + '/', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reset_password: true, password: 'ChangeMe123!' }),
+        }).then(({ ok, data }) => {
+            if (ok && data.status === 'success') Swal.fire('Imefanikiwa', 'Password: ChangeMe123!', 'success');
+            else Swal.fire('Hitilafu', data.error || 'Imeshindikana', 'error');
+        }).catch(() => {});
+    });
+}
+
+function changeRole(id, current) {
+    Swal.fire({
+        title: 'Assign role',
+        input: 'select',
+        inputOptions: {
+            admin: 'Administrator',
+            manager: 'Planner',
+            officer: 'GIS / Data Entry Officer',
+            viewer: 'Viewer / Guest',
+        },
+        inputValue: current || 'viewer',
+        showCancelButton: true,
+    }).then(res => {
+        if (!res.isConfirmed) return;
+        apiFetch(API + 'users/' + id + '/', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role: res.value }),
+        }).then(({ ok, data }) => {
+            if (ok && data.status === 'success') { loadUsers(); Swal.fire('Sawa', 'Jukumu limesasishwa', 'success'); }
+            else Swal.fire('Hitilafu', data.error || 'Imeshindikana', 'error');
+        }).catch(() => {});
+    });
+}
+
+function deleteUser(id, username) {
+    Swal.fire({
+        title: 'Futa ' + username + '?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#b91c1c',
+        confirmButtonText: 'Futa',
+    }).then(res => {
+        if (!res.isConfirmed) return;
+        apiFetch(API + 'users/' + id + '/', {
+            method: 'DELETE',
+        }).then(({ ok, data }) => {
+            if (ok && data.status === 'success') { loadUsers(); loadOverview(); Swal.fire('Imefutwa', '', 'success'); }
+            else Swal.fire('Hitilafu', data.error || 'Imeshindikana', 'error');
+        }).catch(() => {});
+    });
+}
+
+function refreshPasscodeStatus() {
+    apiFetch(API + 'passcode/').then(({ data }) => {
+        const el = document.getElementById('pc-status');
+        if (!el) return;
+        el.textContent = data.configured
+            ? 'Hali: Passcode imewekwa · Session ' + (data.unlocked ? 'imefunguliwa' : 'imefungwa')
+            : 'Hali: Passcode HAIJAWEKWA — weka sasa';
+    }).catch(() => {});
+}
+
+function savePasscode() {
+    const current = document.getElementById('pc-current')?.value || '';
+    const neu = document.getElementById('pc-new')?.value || '';
+    const conf = document.getElementById('pc-confirm')?.value || '';
+    if (neu.length < 4) {
+        Swal.fire('Hitilafu', 'Passcode angalau herufi 4', 'error');
+        return;
+    }
+    if (neu !== conf) {
+        Swal.fire('Hitilafu', 'Passcode mpya hazifanani', 'error');
+        return;
+    }
+    apiFetch(API + 'passcode/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passcode: neu, current_passcode: current }),
+    }).then(({ ok, data }) => {
+        if (ok) {
+            Swal.fire('Imefanikiwa', data.message || 'Passcode imewekwa', 'success');
+            ['pc-current','pc-new','pc-confirm'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+            refreshPasscodeStatus();
+        } else Swal.fire('Hitilafu', data.error || 'Imeshindikana', 'error');
+    }).catch(() => {});
+}
+
+function lockAdmin() {
+    apiFetch(API + 'lock/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+    }).then(() => {
+        Swal.fire('Imefungwa', 'Passcode itahitajika tena', 'success').then(() => {
+            window.location.href = '/';
+        });
+    }).catch(() => {});
+}
+
+(function init() {
+    const hash = (location.hash || '#dashboard').replace('#', '');
+    if (document.getElementById('panel-' + hash)) showPanel(hash);
+    else showPanel('dashboard');
+    refreshPasscodeStatus();
+})();
+</script>
+</body>
+</html>

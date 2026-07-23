@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Land Use Management and Coordination Section GIS Portal</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Poppins', 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0f4c2c 0%, #1a7a3a 50%, #0d5c2a 100%);
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+        
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="rgba(255,255,255,0.03)" width="100" height="100"/><path fill="rgba(255,255,255,0.05)" d="M20,20 L80,20 L80,80 L20,80 Z"/></svg>');
+            background-size: 50px 50px;
+            pointer-events: none;
+        }
+        
+        .main-container {
+            display: flex;
+            min-height: 100vh;
+            position: relative;
+            z-index: 2;
+        }
+        
+        /* LEFT SIDE - Forms */
+        .forms-side {
+            width: 35%;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            padding: 30px 35px;
+            box-shadow: -5px 0 30px rgba(0,0,0,0.1);
+            border-radius: 0 20px 20px 0;
+        }
+        
+        .form-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            background: #f0f0f0;
+            padding: 5px;
+            border-radius: 50px;
+        }
+        
+        .tab-btn {
+            flex: 1;
+            background: transparent;
+            border: none;
+            padding: 12px 20px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 50px;
+            transition: all 0.3s ease;
+            color: #666;
+        }
+        
+        .tab-btn.active {
+            background: linear-gradient(135deg, #0f4c2c, #1a7a3a);
+            color: white;
+            box-shadow: 0 3px 10px rgba(26, 122, 58, 0.3);
+        }
+        
+        .form-panel {
+            display: none;
+        }
+        
+        .form-panel.active {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+            font-size: 13px;
+        }
+        
+        .form-group label i {
+            color: #1a7a3a;
+            margin-right: 8px;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: #1a7a3a;
+            box-shadow: 0 0 0 3px rgba(26, 122, 58, 0.1);
+        }
+        
+        .input-group {
+            position: relative;
+        }
+        
+        .toggle-password {
+            position: absolute;
+            right: 16px;
+            top: 40px;
+            cursor: pointer;
+            color: #999;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            font-size: 12px;
+        }
+        
+        .checkbox-group label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0;
+            font-weight: normal;
+            cursor: pointer;
+        }
+        
+        .forgot-link {
+            color: #1a7a3a;
+            text-decoration: none;
+            font-size: 12px;
+        }
+        
+        .btn-login, .btn-signup {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #0f4c2c, #1a7a3a);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-signup {
+            background: white;
+            color: #1a7a3a;
+            border: 2px solid #1a7a3a;
+        }
+        
+        .btn-signup:hover {
+            background: #1a7a3a;
+            color: white;
+        }
+        
+        .alert-custom {
+            padding: 12px 16px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 13px;
+        }
+        
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+        
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border-left: 4px solid #28a745;
+        }
+        
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border-left: 4px solid #17a2b8;
+        }
+        
+        /* RIGHT SIDE - Content */
+        .content-side {
+            flex: 1;
+            padding: 40px 50px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            color: white;
+        }
+        
+        .commission-header h1 {
+            font-size: 48px;
+            font-weight: 800;
+            letter-spacing: 2px;
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin: 0;
+            line-height: 1.2;
+        }
+        
+        .ministry-name p {
+            font-size: 12px;
+            color: rgba(255,255,255,0.8);
+            margin: 10px 0 30px 0;
+        }
+        
+        .welcome-text h2 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 15px;
+        }
+        
+        .welcome-text h2 span {
+            color: #FFD700;
+        }
+        
+        .welcome-text p {
+            font-size: 14px;
+            line-height: 1.7;
+            color: rgba(255,255,255,0.9);
+            max-width: 90%;
+        }
+        
+        .system-info {
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin: 20px 0 30px 0;
+            border-left: 3px solid #FFD700;
+        }
+        
+        .system-info p {
+            margin: 5px 0;
+            font-size: 13px;
+        }
+        
+        .slider-container {
+            width: 100%;
+            max-width: 650px;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+        
+        .slider {
+            position: relative;
+            height: 320px;
+        }
+        
+        .slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            transition: opacity 0.8s ease;
+        }
+        
+        .slide.active {
+            opacity: 1;
+        }
+        
+        .slide img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .slide-caption {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0,0,0,0.7));
+            padding: 15px;
+            text-align: center;
+        }
+        
+        .slide-caption p {
+            color: white;
+            font-size: 13px;
+        }
+        
+        .slider-dots {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            padding: 12px;
+            background: rgba(0,0,0,0.3);
+        }
+        
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.5);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .dot.active {
+            background: #FFD700;
+            width: 25px;
+            border-radius: 5px;
+        }
+        
+        .footer-bottom {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0,0,0,0.8);
+            padding: 10px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            color: rgba(255,255,255,0.7);
+            z-index: 100;
+        }
+        
+        .footer-bottom a {
+            color: #FFD700;
+            text-decoration: none;
+        }
+        
+        @media (max-width: 1024px) {
+            .main-container {
+                flex-direction: column-reverse;
+            }
+            .forms-side {
+                width: 100%;
+                border-radius: 20px 20px 0 0;
+            }
+            .content-side {
+                padding: 40px;
+                text-align: center;
+            }
+            .welcome-text p {
+                max-width: 100%;
+            }
+            .commission-header h1 {
+                font-size: 36px;
+            }
+            .footer-bottom {
+                position: relative;
+                margin-top: 20px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .commission-header h1 {
+                font-size: 28px;
+            }
+            .welcome-text h2 {
+                font-size: 22px;
+            }
+            .footer-bottom {
+                flex-direction: column;
+                gap: 5px;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- LEFT SIDE: Forms -->
+        <div class="forms-side">
+            <div class="form-tabs">
+                <button class="tab-btn active" onclick="switchTab('login')">🔐 LOGIN</button>
+                <button class="tab-btn" onclick="switchTab('signup')">📝 SIGN UP</button>
+            </div>
+            
+            <!-- Login Form -->
+            <div id="login-panel" class="form-panel active">
+                {% if messages %}
+                    {% for message in messages %}
+                    <div class="alert-custom alert-{% if message.tags == 'error' %}error{% elif message.tags == 'success' %}success{% else %}info{% endif %}">
+                        {{ message }}
+                    </div>
+                    {% endfor %}
+                {% endif %}
+                
+                {% if form.errors %}
+                <div class="alert-custom alert-error">
+                    <i class="fas fa-exclamation-triangle"></i> Invalid username or password.
+                </div>
+                {% endif %}
+                
+                <form method="post" action="{% url 'login' %}">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label><i class="fas fa-user"></i> Username / Email</label>
+                        <input type="text" name="username" id="id_username" class="form-control" placeholder="Enter username" required autofocus>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-lock"></i> Password</label>
+                        <div class="input-group">
+                            <input type="password" name="password" id="id_password" class="form-control" placeholder="Enter password" required>
+                            <i class="fas fa-eye-slash toggle-password" onclick="togglePassword()"></i>
+                        </div>
+                    </div>
+                    <div class="checkbox-group">
+                        <label><input type="checkbox" name="remember_me" id="remember_me"> Remember me</label>
+                        <a href="{% url 'password_reset' %}" class="forgot-link">Forgot password?</a>
+                    </div>
+                    <input type="hidden" name="next" value="{{ next }}">
+                    <button type="submit" class="btn-login">Login</button>
+                </form>
+            </div>
+            
+            <!-- Signup Form -->
+            <div id="signup-panel" class="form-panel">
+                <form method="post" action="{% url 'signup' %}">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label><i class="fas fa-user-circle"></i> Full Name</label>
+                        <input type="text" name="fullname" class="form-control" placeholder="Enter full name" required>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-envelope"></i> Email</label>
+                        <input type="email" name="email" class="form-control" placeholder="Enter email" required>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-user-tag"></i> Username</label>
+                        <input type="text" name="username" class="form-control" placeholder="Choose username" required>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-lock"></i> Password</label>
+                        <div class="input-group">
+                            <input type="password" name="password" id="signup_password" class="form-control" placeholder="Create password" required>
+                            <i class="fas fa-eye-slash toggle-password" onclick="toggleSignupPassword()"></i>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-check-circle"></i> Confirm Password</label>
+                        <div class="input-group">
+                            <input type="password" name="confirm_password" id="confirm_password" class="form-control" placeholder="Confirm password" required>
+                            <i class="fas fa-eye-slash toggle-password" onclick="toggleConfirmPassword()"></i>
+                        </div>
+                    </div>
+                    <div class="checkbox-group">
+                        <label><input type="checkbox" name="terms" required> I agree to <a href="#">Terms & Conditions</a></label>
+                    </div>
+                    <button type="submit" class="btn-signup">Create Account</button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- RIGHT SIDE: Content -->
+        <div class="content-side">
+            <div class="commission-header">
+                <img src="/static/img/lumc-logo.png?v=4" alt="LUMC" style="width:88px;height:88px;object-fit:contain;border-radius:50%;background:#fff;padding:4px;margin-bottom:14px;box-shadow:0 4px 16px rgba(0,0,0,0.25);">
+                <h1>LAND USE MANAGEMENT<br>AND COORDINATION SECTION</h1>
+            </div>
+            <div class="ministry-name">
+                <p>MINISTRY OF LANDS, HOUSING AND HUMAN SETTLEMENTS DEVELOPMENT</p>
+            </div>
+            <div class="welcome-text">
+                <h2>Welcome to <span>LUMC</span> GIS Portal</h2>
+                <p>A Geographic Information System for sustainable land use planning and management in Tanzania.</p>
+            </div>
+            <div class="system-info">
+                <p><i class="fas fa-calendar-alt"></i> <strong>System Developed:</strong> 2024 - 2026</p>
+                <p><i class="fas fa-chart-line"></i> <strong>Purpose:</strong> Manage, analyze, and visualize land use planning data.</p>
+                <p><i class="fas fa-users"></i> <strong>Users:</strong> Planners, Experts, Researchers, Citizens</p>
+            </div>
+            <div class="slider-container">
+                <div class="slider">
+                    <div class="slide active">
+                        <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=350&fit=crop" alt="Tanzania Landscape">
+                        <div class="slide-caption"><p>Sustainable Land Use Planning in Tanzania</p></div>
+                    </div>
+                    <div class="slide">
+                        <img src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800&h=350&fit=crop" alt="Mountain">
+                        <div class="slide-caption"><p>Environmental and Forest Conservation</p></div>
+                    </div>
+                    <div class="slide">
+                        <img src="https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800&h=350&fit=crop" alt="Forest">
+                        <div class="slide-caption"><p>Natural Resource Management</p></div>
+                    </div>
+                    <div class="slide">
+                        <img src="https://images.unsplash.com/photo-1482938289607-e9573fc25ebb?w=800&h=350&fit=crop" alt="Agriculture">
+                        <div class="slide-caption"><p>Modern Agriculture and Land Conservation</p></div>
+                    </div>
+                </div>
+                <div class="slider-dots">
+                    <span class="dot active"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="footer-bottom">
+        <div><i class="fas fa-copyright"></i> Tanzania GIS Portal 2026</div>
+        <div>Designed & Developed by <strong>Seif Hamisi</strong> | GIS Expert, LUMC</div>
+        <div><a href="#"><i class="fab fa-facebook"></i></a> | <a href="#"><i class="fab fa-twitter"></i></a> | <a href="#"><i class="fab fa-linkedin"></i></a></div>
+    </div>
+
+    <script>
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+        const dots = document.querySelectorAll('.dot');
+        
+        function showSlide(index) {
+            slides.forEach(s => s.classList.remove('active'));
+            dots.forEach(d => d.classList.remove('active'));
+            currentSlide = (index + slides.length) % slides.length;
+            slides[currentSlide].classList.add('active');
+            dots[currentSlide].classList.add('active');
+        }
+        
+        dots.forEach((dot, i) => dot.addEventListener('click', () => showSlide(i)));
+        setInterval(() => showSlide(currentSlide + 1), 5000);
+        
+        function switchTab(tab) {
+            const loginPanel = document.getElementById('login-panel');
+            const signupPanel = document.getElementById('signup-panel');
+            const tabs = document.querySelectorAll('.tab-btn');
+            if (tab === 'login') {
+                loginPanel.classList.add('active');
+                signupPanel.classList.remove('active');
+                tabs[0].classList.add('active');
+                tabs[1].classList.remove('active');
+            } else {
+                loginPanel.classList.remove('active');
+                signupPanel.classList.add('active');
+                tabs[0].classList.remove('active');
+                tabs[1].classList.add('active');
+            }
+        }
+        
+        function togglePassword() {
+            const field = document.getElementById('id_password');
+            const icon = field.nextElementSibling;
+            if (field.type === 'password') { field.type = 'text'; icon.classList.remove('fa-eye-slash'); icon.classList.add('fa-eye'); }
+            else { field.type = 'password'; icon.classList.remove('fa-eye'); icon.classList.add('fa-eye-slash'); }
+        }
+        
+        function toggleSignupPassword() {
+            const field = document.getElementById('signup_password');
+            const icon = field.nextElementSibling;
+            if (field.type === 'password') { field.type = 'text'; icon.classList.remove('fa-eye-slash'); icon.classList.add('fa-eye'); }
+            else { field.type = 'password'; icon.classList.remove('fa-eye'); icon.classList.add('fa-eye-slash'); }
+        }
+        
+        function toggleConfirmPassword() {
+            const field = document.getElementById('confirm_password');
+            const icon = field.nextElementSibling;
+            if (field.type === 'password') { field.type = 'text'; icon.classList.remove('fa-eye-slash'); icon.classList.add('fa-eye'); }
+            else { field.type = 'password'; icon.classList.remove('fa-eye'); icon.classList.add('fa-eye-slash'); }
+        }
+        
+        const rememberCheckbox = document.getElementById('remember_me');
+        const usernameInput = document.getElementById('id_username');
+        if (localStorage.getItem('remembered_username')) {
+            usernameInput.value = localStorage.getItem('remembered_username');
+            if (rememberCheckbox) rememberCheckbox.checked = true;
+        }
+        
+        const loginForm = document.querySelector('#login-panel form');
+        if (loginForm) {
+            loginForm.addEventListener('submit', function() {
+                if (rememberCheckbox && rememberCheckbox.checked) {
+                    localStorage.setItem('remembered_username', usernameInput.value);
+                } else {
+                    localStorage.removeItem('remembered_username');
+                }
+            });
+        }
+        
+        const signupForm = document.querySelector('#signup-panel form');
+        if (signupForm) {
+            signupForm.addEventListener('submit', function(e) {
+                const password = document.getElementById('signup_password').value;
+                const confirm = document.getElementById('confirm_password').value;
+                if (password !== confirm) {
+                    e.preventDefault();
+                    Swal.fire({ icon: 'error', title: 'Password Mismatch', text: 'Passwords do not match!', confirmButtonColor: '#1a7a3a' });
+                }
+                if (password.length < 6) {
+                    e.preventDefault();
+                    Swal.fire({ icon: 'error', title: 'Weak Password', text: 'Password must be at least 6 characters!', confirmButtonColor: '#1a7a3a' });
+                }
+            });
+        }
+    </script>
+</body>
+</html>

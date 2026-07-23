@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Passcode — System Administration</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&family=Outfit:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        :root { --primary: #1a237e; --accent: #2563eb; }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; min-height: 100vh;
+            font-family: 'DM Sans', system-ui, sans-serif;
+            background: linear-gradient(160deg, #1a237e 0%, #283593 45%, #3949ab 100%);
+            display: flex; align-items: center; justify-content: center;
+            padding: 24px;
+        }
+        .card {
+            width: 100%; max-width: 420px;
+            background: rgba(255,255,255,0.96);
+            border-radius: 20px;
+            padding: 28px 26px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+        }
+        .logo { width: 56px; height: 56px; object-fit: contain; border-radius: 12px; background: #fff; border: 1px solid #e2e8f0; }
+        h1 { font-family: Outfit, sans-serif; font-size: 1.35rem; color: var(--primary); margin: 14px 0 6px; }
+        p { margin: 0 0 18px; color: #64748b; font-size: 14px; line-height: 1.5; }
+        label { display: block; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 6px; }
+        input {
+            width: 100%; padding: 12px 14px; border: 1px solid #e2e8f0; border-radius: 12px;
+            font: inherit; font-size: 15px; margin-bottom: 12px;
+        }
+        .btn {
+            width: 100%; border: none; border-radius: 12px; padding: 12px;
+            background: var(--primary); color: #fff; font-weight: 700; font-size: 14px;
+            cursor: pointer; font-family: inherit; margin-top: 4px;
+        }
+        .btn:hover { background: #283593; }
+        .btn-link {
+            width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px;
+            background: #f8fafc; color: var(--primary); font-weight: 600; font-size: 13px;
+            cursor: pointer; font-family: inherit; margin-top: 10px;
+        }
+        .back { display: inline-block; margin-top: 14px; color: #64748b; font-size: 13px; text-decoration: none; }
+        .back:hover { color: var(--accent); }
+        .hint { font-size: 12px; color: #b45309; background: #fffbeb; border: 1px solid #fde68a; padding: 10px 12px; border-radius: 10px; margin-bottom: 14px; }
+        .okhint { font-size: 12px; color: #166534; background: #dcfce7; border: 1px solid #bbf7d0; padding: 10px 12px; border-radius: 10px; margin-bottom: 14px; }
+        #resetBox { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid #e2e8f0; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <img class="logo" src="/static/img/lumc-logo.png?v=4" alt="LUMC">
+        {% if setup_mode and not passcode_configured %}
+        <h1>Weka Passcode Mpya</h1>
+        <p>Passcode imefutwa / haijawekwa. Chagua passcode mpya sasa (angalau herufi 4).</p>
+        {% if not can_setup %}
+        <div class="hint">Passcode haijawekwa. Mwambie Administrator aweke passcode kwanza.</div>
+        <a class="back" href="/"><i class="fas fa-arrow-left"></i> Rudi Nyumbani</a>
+        {% else %}
+        <div class="okhint"><i class="fas fa-key"></i> Andika passcode utakayotumia kila unapoingia System Administration.</div>
+        <form id="setupForm">
+            {% csrf_token %}
+            <label>Passcode mpya</label>
+            <input type="password" id="newCode" required minlength="4" autocomplete="new-password" placeholder="Andika passcode">
+            <label>Thibitisha passcode</label>
+            <input type="password" id="confirmCode" required minlength="4" autocomplete="new-password" placeholder="Andika tena">
+            <button class="btn" type="submit"><i class="fas fa-save"></i> Hifadhi Passcode</button>
+        </form>
+        {% endif %}
+        {% else %}
+        <h1>Ingiza Passcode</h1>
+        <p>Ingiza passcode ya System Administration ili kuendelea.</p>
+        <form id="unlockForm">
+            {% csrf_token %}
+            <label>Passcode</label>
+            <input type="password" id="passcode" required autocomplete="off" placeholder="Passcode yako" autofocus>
+            <button class="btn" type="submit"><i class="fas fa-unlock"></i> Fungua</button>
+        </form>
+        {% if can_setup %}
+        <button type="button" class="btn-link" id="showReset">Nimesahau passcode — weka upya</button>
+        <div id="resetBox">
+            <div class="hint">Thibitisha kwa <strong>password ya login</strong> yako, kisha weka passcode mpya.</div>
+            <label>Password ya akaunti (login)</label>
+            <input type="password" id="loginPassword" autocomplete="current-password" placeholder="Password ya login">
+            <label>Passcode mpya</label>
+            <input type="password" id="resetNew" minlength="4" autocomplete="new-password" placeholder="Passcode mpya">
+            <label>Thibitisha passcode mpya</label>
+            <input type="password" id="resetConfirm" minlength="4" autocomplete="new-password" placeholder="Thibitisha">
+            <button type="button" class="btn" id="doReset"><i class="fas fa-rotate"></i> Weka Passcode Upya</button>
+        </div>
+        {% endif %}
+        {% endif %}
+        <a class="back" href="/"><i class="fas fa-arrow-left"></i> Rudi Nyumbani</a>
+    </div>
+<script>
+const NEXT_URL = "{{ next_url|default:'/system-admin/'|escapejs }}";
+
+function csrfToken() {
+    const el = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (el && el.value) return el.value;
+    const v = '; ' + document.cookie;
+    const p = v.split('; csrftoken=');
+    if (p.length === 2) return p.pop().split(';').shift();
+    return '';
+}
+
+async function postJson(url, body) {
+    const res = await fetch(url, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken(),
+        },
+        body: JSON.stringify(body),
+    });
+    let data = {};
+    const text = await res.text();
+    try { data = JSON.parse(text); } catch (e) {
+        if (res.status === 403) data = { error: 'CSRF / ruhusa imekataa. Refresh ukurasa kisha jaribu tena.' };
+        else data = { error: 'Jibu si sahihi kutoka server' };
+    }
+    return { ok: res.ok, status: res.status, data };
+}
+
+document.getElementById('unlockForm')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const code = document.getElementById('passcode').value;
+    const { ok, data } = await postJson('/api/system-admin/unlock/', { passcode: code, next: NEXT_URL });
+    if (ok) window.location.href = data.next || NEXT_URL;
+    else Swal.fire('Hitilafu', data.error || 'Passcode si sahihi', 'error');
+});
+
+document.getElementById('setupForm')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const a = document.getElementById('newCode').value.trim();
+    const b = document.getElementById('confirmCode').value.trim();
+    if (a.length < 4) {
+        Swal.fire('Hitilafu', 'Passcode angalau herufi 4', 'error');
+        return;
+    }
+    if (a !== b) {
+        Swal.fire('Hitilafu', 'Passcode hazifanani', 'error');
+        return;
+    }
+    const { ok, data } = await postJson('/api/system-admin/passcode/', { passcode: a });
+    if (ok) {
+        await Swal.fire('Imefanikiwa', 'Passcode imewekwa. Tumia hii kuanzia sasa.', 'success');
+        window.location.href = NEXT_URL;
+    } else {
+        Swal.fire('Hitilafu', data.error || 'Imeshindikana', 'error');
+    }
+});
+
+document.getElementById('showReset')?.addEventListener('click', function() {
+    const box = document.getElementById('resetBox');
+    box.style.display = box.style.display === 'block' ? 'none' : 'block';
+});
+
+document.getElementById('doReset')?.addEventListener('click', async function() {
+    const loginPassword = document.getElementById('loginPassword').value;
+    const a = document.getElementById('resetNew').value.trim();
+    const b = document.getElementById('resetConfirm').value.trim();
+    if (!loginPassword) {
+        Swal.fire('Hitilafu', 'Andika password ya login', 'error');
+        return;
+    }
+    if (a.length < 4 || a !== b) {
+        Swal.fire('Hitilafu', 'Passcode mpya si sahihi au hazifanani', 'error');
+        return;
+    }
+    const { ok, data } = await postJson('/api/system-admin/passcode/reset/', {
+        login_password: loginPassword,
+        passcode: a,
+    });
+    if (ok) {
+        await Swal.fire('Imefanikiwa', 'Passcode mpya imewekwa', 'success');
+        window.location.href = NEXT_URL;
+    } else {
+        Swal.fire('Hitilafu', data.error || 'Imeshindikana', 'error');
+    }
+});
+</script>
+</body>
+</html>

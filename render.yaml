@@ -1,0 +1,45 @@
+# LUMC-Dodoma — Render Blueprint
+# Docs: deploy/DEPLOY_RENDER.md
+# Dashboard: https://dashboard.render.com → New → Blueprint
+
+services:
+  - type: web
+    name: lumc-dodoma
+    runtime: docker
+    plan: free
+    healthCheckPath: /login/
+    envVars:
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: SERVE_MEDIA
+        value: "1"
+      - key: DJANGO_ALLOWED_HOSTS
+        value: ".onrender.com,localhost"
+      - key: DJANGO_CSRF_TRUSTED_ORIGINS
+        sync: false
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: lumc-gis-db
+          property: connectionString
+      - key: DETAILED_DATABASE_URL
+        fromDatabase:
+          name: lumc-detailed-db
+          property: connectionString
+      - key: GIS_PORTAL_URL
+        sync: false
+      - key: DONATION_SITE_URL
+        sync: false
+
+databases:
+  # Basic plan recommended — PostGIS needs enough RAM; free Postgres is not available.
+  - name: lumc-gis-db
+    plan: basic-256mb
+    databaseName: tanzania_gis_db
+    user: lumc
+
+  - name: lumc-detailed-db
+    plan: basic-256mb
+    databaseName: detailed_planning
+    user: lumc

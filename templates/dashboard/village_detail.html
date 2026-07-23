@@ -1,0 +1,57 @@
+﻿{% extends 'base.html' %}
+
+{% block title %}{{ village.name }} - Tanzania GIS{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card shadow">
+                <div class="card-header bg-warning text-dark">
+                    <h4>{{ village.name }}</h4>
+                    <p>{{ village.ward.name }} - {{ village.ward.district.name }}</p>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Taarifa za Kijiji</h5>
+                            <table class="table table-bordered">
+                                <tr>
+                                    <th>Wakazi:</th>
+                                    <td>{{ village.population|default:"-" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Kaya:</th>
+                                    <td>{{ village.households|default:"-" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Eneo (Hekta):</th>
+                                    <td>{{ village.area_hectares|default:"-" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Matumizi ya Ardhi</h5>
+                            <ul class="list-group">
+                                {% for record in landuse_records %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    {{ record.landuse_type.name }}
+                                    <span class="badge bg-primary rounded-pill">{{ record.percentage }}%</span>
+                                </li>
+                                {% empty %}
+                                <li class="list-group-item text-muted">Hakuna data ya matumizi ya ardhi</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <a href="{% url 'dashboard:district_detail' village.ward.district.id %}" class="btn btn-secondary">
+                        Rudi kwenye Wilaya
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,10 @@
+-- Schema ya Detailed Planning (PostgreSQL 13 + PostGIS)
+-- Tazama faili kamili: scripts/create_detailed_planning_tables.sql
+--
+-- pgAdmin 4 (PostgreSQL 13):
+--   1. Servers → PostgreSQL 13 → Databases → "DETAILED PLANNNING"
+--   2. Query Tool → Open → create_detailed_planning_tables.sql → F5
+--
+-- psql:
+--   $env:PGPASSWORD='1701'
+--   & "C:\Program Files\PostgreSQL\13\bin\psql.exe" -h localhost -p 5433 -U postgres -d "DETAILED PLANNNING " -f scripts/create_detailed_planning_tables.sql

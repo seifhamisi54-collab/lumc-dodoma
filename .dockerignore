@@ -1,0 +1,15 @@
+web/
+db/
+venv/
+__pycache__/
+*.pyc
+.env
+.env.production
+media/
+staticfiles/
+deploy/db-dumps/
+deploy/nginx/ssl/*.pem
+.git
+tutorial_env/
+*.md
+!deploy/DEPLOY_GCP.md

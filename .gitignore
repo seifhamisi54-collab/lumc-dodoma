@@ -1,0 +1,31 @@
+# Deploy / local secrets — do not commit
+.env
+.env.production
+.env.local
+deploy/nginx/ssl/*.pem
+deploy/nginx/ssl/*.key
+deploy/certbot/
+deploy/db-dumps/*.dump
+
+# Python
+venv/
+tutorial_env/
+__pycache__/
+*.py[cod]
+_pip_freeze.txt
+*.pyc
+
+# Media / static collected
+media/
+staticfiles/
+db.sqlite3
+*.lnk
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.cursor/
+_audit_*_out.txt
+_inspect_out.txt
+_shell_test.txt
+_pip_freeze.txt

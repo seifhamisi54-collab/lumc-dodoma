@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lipa Mchango — {{ donation.reference }}</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #1a237e 0%, #283593 50%, #1a7a3a 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+.pay-card {
+    background: #fff;
+    border-radius: 12px;
+    max-width: 440px;
+    width: 100%;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+    overflow: hidden;
+}
+.pay-header {
+    background: #1a7a3a;
+    color: #fff;
+    padding: 20px;
+    text-align: center;
+}
+.pay-header h1 { font-size: 18px; margin-bottom: 6px; }
+.pay-header .amount { font-size: 28px; font-weight: 700; }
+.pay-body { padding: 24px; }
+.summary {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    line-height: 1.6;
+}
+.method-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+.method-card { background: #e3f2fd; color: #1565c0; }
+.method-merchant { background: #fff3e0; color: #e65100; }
+label { display: block; font-size: 11px; font-weight: 600; color: #555; margin: 10px 0 4px; text-transform: uppercase; }
+input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+}
+.row { display: flex; gap: 10px; }
+.row > div { flex: 1; }
+.btn-pay {
+    width: 100%;
+    margin-top: 16px;
+    padding: 14px;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    color: #fff;
+    background: linear-gradient(135deg, #28a745, #1a7a3a);
+}
+.btn-pay:hover { opacity: 0.92; }
+.btn-pay:disabled { opacity: 0.6; cursor: not-allowed; }
+.merchant-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.merchant-opt {
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 12px 8px;
+    text-align: center;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+.merchant-opt:hover, .merchant-opt.selected { border-color: #1a7a3a; background: #f0fff4; }
+.merchant-opt i { display: block; font-size: 20px; margin-bottom: 4px; color: #1a7a3a; }
+.demo-note {
+    font-size: 11px;
+    color: #888;
+    text-align: center;
+    margin-top: 12px;
+    line-height: 1.5;
+}
+.secure { text-align: center; font-size: 11px; color: #999; margin-top: 10px; }
+.secure i { color: #28a745; }
+</style>
+</head>
+<body>
+<div class="pay-card">
+    <div class="pay-header">
+        <h1><i class="fas fa-heart"></i> Mchango wa Kupakua Data</h1>
+        <div class="amount">
+            {% if donation.currency == 'TZS' %}
+                TSh {{ donation.amount|floatformat:0 }}
+            {% else %}
+                ${{ donation.amount }}
+            {% endif %}
+        </div>
+        <div style="font-size:12px; opacity:0.9; margin-top:4px;">{{ donation.reference }}</div>
+    </div>
+    <div class="pay-body">
+        {% if cancelled %}
+        <div style="background:#fff3cd; color:#856404; padding:10px; border-radius:6px; margin-bottom:12px; font-size:12px;">
+            Malipo yameghairiwa. Jaribu tena.
+        </div>
+        {% endif %}
+
+        <div class="summary">
+            <strong>Data:</strong> {{ donation.download_data_type }}<br>
+            <strong>Format:</strong> {{ donation.download_format }}<br>
+            {% if donation.download_region %}<strong>Mkoa:</strong> {{ donation.download_region }}<br>{% endif %}
+            {% if donation.download_district %}<strong>Wilaya:</strong> {{ donation.download_district }}<br>{% endif %}
+        </div>
+
+        {% if donation.payment_method == 'card' %}
+        <span class="method-badge method-card"><i class="fas fa-credit-card"></i> Lipa kwa Kadi</span>
+        <form id="pay-form">
+            <label>Jina kwenye Kadi</label>
+            <input type="text" id="card-name" placeholder="Mfano: Juma Hassan" value="{{ donation.payer_name }}" required>
+
+            <label>Namba ya Kadi</label>
+            <input type="text" id="card-number" placeholder="4242 4242 4242 4242" maxlength="19" inputmode="numeric" required>
+
+            <div class="row">
+                <div>
+                    <label>Mwezi / Mwaka</label>
+                    <input type="text" id="card-exp" placeholder="MM/YY" maxlength="5" required>
+                </div>
+                <div>
+                    <label>CVV</label>
+                    <input type="password" id="card-cvv" placeholder="123" maxlength="4" required>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-pay" id="btn-pay">
+                <i class="fas fa-lock"></i> Lipa & Pakua Data
+            </button>
+        </form>
+
+        {% else %}
+        <span class="method-badge method-merchant"><i class="fas fa-store"></i> Pay Merchant</span>
+        <p style="font-size:12px; color:#666; margin-bottom:8px;">Chagua njia ya malipo:</p>
+        <div class="merchant-options">
+            <div class="merchant-opt selected" data-channel="mpesa">
+                <i class="fas fa-mobile-alt"></i> M-Pesa
+            </div>
+            <div class="merchant-opt" data-channel="tigo">
+                <i class="fas fa-mobile-alt"></i> Mix by Yas
+            </div>
+            <div class="merchant-opt" data-channel="airtel">
+                <i class="fas fa-mobile-alt"></i> Airtel Money
+            </div>
+            <div class="merchant-opt" data-channel="card">
+                <i class="fas fa-credit-card"></i> Kadi
+            </div>
+        </div>
+
+        <label>Namba ya Simu</label>
+        <input type="tel" id="phone" placeholder="07XXXXXXXX" value="{{ donation.payer_phone }}" required>
+
+        <button type="button" class="btn-pay" id="btn-pay-merchant">
+            <i class="fas fa-check-circle"></i> Thibitisha Malipo & Pakua
+        </button>
+        {% endif %}
+
+        <p class="demo-note">
+            {% if donation.provider == 'demo' %}
+            Hali ya majaribio: hakuna malipo halisi yatachukuliwa. Weka funguo za Stripe au Pesapal kwa malipo ya kweli.
+            {% else %}
+            Malipo yanalindwa na mfumo wa malipo salama.
+            {% endif %}
+        </p>
+        <p class="secure"><i class="fas fa-shield-alt"></i> Muunganisho salama (SSL)</p>
+    </div>
+</div>
+
+<script>
+var ref = '{{ donation.reference }}';
+var selectedChannel = 'mpesa';
+
+document.querySelectorAll('.merchant-opt').forEach(function(el) {
+    el.addEventListener('click', function() {
+        document.querySelectorAll('.merchant-opt').forEach(function(x) { x.classList.remove('selected'); });
+        el.classList.add('selected');
+        selectedChannel = el.getAttribute('data-channel');
+    });
+});
+
+function submitPayment(extra) {
+    var btn = document.getElementById('btn-pay') || document.getElementById('btn-pay-merchant');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Inachakata...';
+
+    var body = new FormData();
+    if (extra) {
+        Object.keys(extra).forEach(function(k) { body.append(k, extra[k]); });
+    }
+
+    fetch('/api/donation/lipa-demo/' + ref + '/', {
+        method: 'POST',
+        body: body,
+        headers: { 'X-CSRFToken': getCookie('csrftoken') }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.success) {
+            window.location.href = data.redirect_url;
+        } else {
+            Swal.fire({ icon: 'error', title: 'Malipo Yameshindwa', text: data.error || 'Jaribu tena.' });
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-lock"></i> Lipa & Pakua Data';
+        }
+    })
+    .catch(function() {
+        Swal.fire({ icon: 'error', title: 'Hitilafu', text: 'Muunganisho umeshindwa.' });
+        btn.disabled = false;
+    });
+}
+
+var payForm = document.getElementById('pay-form');
+if (payForm) {
+    payForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var num = document.getElementById('card-number').value.replace(/\s/g, '');
+        submitPayment({ card_last4: num.slice(-4) });
+    });
+}
+
+var btnMerchant = document.getElementById('btn-pay-merchant');
+if (btnMerchant) {
+    btnMerchant.addEventListener('click', function() {
+        var phone = document.getElementById('phone').value.trim();
+        if (!phone) {
+            Swal.fire({ icon: 'warning', title: 'Namba ya Simu', text: 'Weka namba ya simu.' });
+            return;
+        }
+        submitPayment({ channel: selectedChannel, phone: phone });
+    });
+}
+
+function getCookie(name) {
+    var value = '; ' + document.cookie;
+    var parts = value.split('; ' + name + '=');
+    if (parts.length === 2) return parts.pop().split(';').shift();
+}
+</script>
+</body>
+</html>

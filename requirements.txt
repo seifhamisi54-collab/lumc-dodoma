@@ -1,0 +1,14 @@
+# Production / Docker dependencies (GDAL lib comes from system packages)
+Django==4.2.7
+asgiref==3.11.1
+sqlparse==0.5.5
+psycopg2-binary==2.9.12
+Pillow==11.3.0
+numpy==2.0.2
+pandas==2.3.3
+openpyxl==3.1.5
+python-dateutil==2.9.0.post0
+pytz==2026.2
+tzdata==2026.2
+gunicorn==22.0.0
+whitenoise==6.7.0

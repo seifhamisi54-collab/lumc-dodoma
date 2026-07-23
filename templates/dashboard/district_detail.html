@@ -1,0 +1,42 @@
+﻿{% extends 'base.html' %}
+
+{% block title %}{{ district.name }} - Tanzania GIS{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card shadow">
+                <div class="card-header bg-info text-white">
+                    <h4>{{ district.name }} Wilaya</h4>
+                    <p>Mkoa: {{ district.location.name }}</p>
+                </div>
+                <div class="card-body">
+                    <h5>Vijiji katika Wilaya hii</h5>
+                    <div class="row">
+                        {% for village in villages %}
+                        <div class="col-md-3 mb-3">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6>{{ village.name }}</h6>
+                                    <p>Kata: {{ village.ward.name }}</p>
+                                    <a href="{% url 'dashboard:village_detail' village.id %}" class="btn btn-sm btn-primary">
+                                        Angalia Ramani
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="col-md-12">
+                            <div class="alert alert-info">
+                                Hakuna vijiji vilivyopo kwenye wilaya hii bado.
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

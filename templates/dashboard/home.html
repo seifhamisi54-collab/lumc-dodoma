@@ -1,0 +1,1685 @@
+﻿<!DOCTYPE html>
+<html lang="sw">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LUMC — Nyumbani</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1a237e;
+            --primary-soft: #e8eaf6;
+            --accent: #2563eb;
+            --bg: #eef1f6;
+            --white: #ffffff;
+            --text: #1e293b;
+            --muted: #64748b;
+            --border: #e2e8f0;
+            --shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.04);
+            --radius: 14px;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: 'DM Sans', system-ui, sans-serif;
+            background: #efe9df;
+            color: var(--text);
+            min-height: 100vh;
+            position: relative;
+        }
+
+        /* Picha inaonekana YOTE (hakuna crop / overlay nyeusi) */
+        .page-bg {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            background: #efe9df;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .page-bg img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            object-position: center center;
+            display: block;
+        }
+
+        .page-content {
+            position: relative;
+            z-index: 1;
+            min-height: 100vh;
+            background: transparent;
+        }
+
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 40px;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 16px rgba(15, 23, 42, 0.08);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: var(--primary);
+        }
+
+        .brand-mark {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: #fff;
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+        }
+
+        .brand-mark img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
+        .brand-text {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            font-size: 1.15rem;
+            letter-spacing: -0.02em;
+        }
+
+        .brand-sub {
+            font-size: 11px;
+            color: var(--muted);
+            font-weight: 500;
+            margin-top: 1px;
+        }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--primary-soft);
+            color: var(--primary);
+            padding: 8px 14px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .logout-btn {
+            background: #fee2e2;
+            color: #b91c1c;
+            padding: 8px 16px;
+            border-radius: 999px;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        .logout-btn:hover { background: #fecaca; }
+
+        /* ── Hero ── */
+        .hero {
+            max-width: 1120px;
+            margin: 0 auto;
+            padding: 28px 40px 8px;
+        }
+
+        .hero-panel {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.22);
+            border: 1px solid rgba(255, 255, 255, 0.45);
+            border-radius: 20px;
+            padding: 16px 22px;
+            box-shadow: 0 8px 32px rgba(15, 23, 42, 0.12);
+            backdrop-filter: blur(18px) saturate(1.2);
+            -webkit-backdrop-filter: blur(18px) saturate(1.2);
+        }
+
+        .hero h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            margin: 0 0 6px;
+            color: var(--primary);
+        }
+
+        .hero p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 14px;
+            max-width: 480px;
+            line-height: 1.5;
+        }
+
+        .modules {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 18px;
+            max-width: 1120px;
+            margin: 20px auto 40px;
+            padding: 16px 40px 40px;
+            background: transparent;
+            border: none;
+            box-shadow: none;
+        }
+
+        .module-card {
+            --card-accent: #2563eb;
+            --card-tint: rgba(37, 99, 235, 0.22);
+            --card-tint-2: rgba(14, 165, 233, 0.18);
+            --card-border: rgba(147, 197, 253, 0.55);
+            --card-glow: rgba(37, 99, 235, 0.28);
+            background:
+                linear-gradient(155deg, var(--card-tint) 0%, rgba(255,255,255,0.28) 48%, var(--card-tint-2) 100%);
+            border: 1px solid var(--card-border);
+            border-radius: 22px;
+            padding: 22px 22px 18px;
+            display: flex;
+            flex-direction: column;
+            min-height: 190px;
+            text-decoration: none;
+            color: inherit;
+            box-shadow:
+                0 10px 36px var(--card-glow),
+                inset 0 1px 0 rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(20px) saturate(1.35);
+            -webkit-backdrop-filter: blur(20px) saturate(1.35);
+            transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease, filter 0.22s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .module-card::before {
+            content: '';
+            position: absolute;
+            top: -40%;
+            right: -30%;
+            width: 160px;
+            height: 160px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255,255,255,0.35) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .module-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(255, 255, 255, 0.7);
+            box-shadow:
+                0 18px 44px var(--card-glow),
+                inset 0 1px 0 rgba(255, 255, 255, 0.6);
+            filter: saturate(1.1);
+        }
+
+        .module-card:focus-visible {
+            outline: 2px solid var(--card-accent);
+            outline-offset: 2px;
+        }
+
+        .module-card.card-blue {
+            --card-accent: #1d4ed8;
+            --card-tint: rgba(37, 99, 235, 0.32);
+            --card-tint-2: rgba(56, 189, 248, 0.22);
+            --card-border: rgba(125, 211, 252, 0.6);
+            --card-glow: rgba(37, 99, 235, 0.3);
+        }
+        .module-card.card-green {
+            --card-accent: #15803d;
+            --card-tint: rgba(34, 197, 94, 0.3);
+            --card-tint-2: rgba(16, 185, 129, 0.22);
+            --card-border: rgba(134, 239, 172, 0.6);
+            --card-glow: rgba(22, 163, 74, 0.28);
+        }
+        .module-card.card-amber {
+            --card-accent: #b45309;
+            --card-tint: rgba(251, 191, 36, 0.34);
+            --card-tint-2: rgba(249, 115, 22, 0.2);
+            --card-border: rgba(253, 224, 71, 0.65);
+            --card-glow: rgba(217, 119, 6, 0.28);
+        }
+        .module-card.card-rose {
+            --card-accent: #be123c;
+            --card-tint: rgba(244, 63, 94, 0.28);
+            --card-tint-2: rgba(251, 113, 133, 0.2);
+            --card-border: rgba(253, 164, 175, 0.6);
+            --card-glow: rgba(225, 29, 72, 0.26);
+        }
+        .module-card.card-slate {
+            --card-accent: #0f766e;
+            --card-tint: rgba(20, 184, 166, 0.28);
+            --card-tint-2: rgba(45, 212, 191, 0.18);
+            --card-border: rgba(94, 234, 212, 0.55);
+            --card-glow: rgba(13, 148, 136, 0.26);
+        }
+        .module-card.card-orange {
+            --card-accent: #c2410c;
+            --card-tint: rgba(249, 115, 22, 0.32);
+            --card-tint-2: rgba(251, 146, 60, 0.2);
+            --card-border: rgba(253, 186, 116, 0.65);
+            --card-glow: rgba(234, 88, 12, 0.28);
+        }
+
+        .module-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .module-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            background: rgba(255, 255, 255, 0.55);
+            border: 1px solid rgba(255, 255, 255, 0.65);
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.1);
+        }
+
+        .module-arrow {
+            color: var(--card-accent);
+            font-size: 14px;
+            opacity: 0.75;
+            transition: transform 0.2s, opacity 0.2s;
+        }
+
+        .module-card:hover .module-arrow {
+            opacity: 1;
+            transform: translateX(4px);
+        }
+
+        .module-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.05rem;
+            font-weight: 700;
+            margin: 0 0 8px;
+            letter-spacing: -0.02em;
+            color: #0f172a;
+            position: relative;
+            z-index: 1;
+        }
+
+        .module-desc {
+            margin: 0;
+            font-size: 13px;
+            line-height: 1.45;
+            color: #1e293b;
+            flex: 1;
+            position: relative;
+            z-index: 1;
+        }
+
+        .module-cta {
+            margin-top: 18px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(255, 255, 255, 0.4);
+            text-align: center;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--card-accent);
+            position: relative;
+            z-index: 1;
+        }
+
+        .icon-blue { color: #1d4ed8; background: rgba(219, 234, 254, 0.9); }
+        .icon-green { color: #15803d; background: rgba(220, 252, 231, 0.9); }
+        .icon-amber { color: #b45309; background: rgba(254, 243, 199, 0.95); }
+        .icon-orange { color: #c2410c; background: rgba(255, 237, 213, 0.95); }
+        .icon-teal { color: #0f766e; background: rgba(204, 251, 241, 0.95); }
+        .icon-indigo { color: #4338ca; background: rgba(224, 231, 255, 0.95); }
+        .icon-slate { color: #0f766e; background: rgba(204, 251, 241, 0.95); }
+        .icon-rose { color: #be123c; background: rgba(255, 228, 230, 0.95); }
+
+        /* ── System Admin panel (expandable) ── */
+        .sysadmin-section {
+            max-width: 1120px;
+            margin: 0 auto 48px;
+            padding: 0 40px;
+            display: none;
+        }
+
+        .sysadmin-section.open { display: block; }
+
+        .sysadmin-panel {
+            background: var(--white);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        .sysadmin-header {
+            background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
+            color: #fff;
+            padding: 18px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .sysadmin-header h2 { margin: 0; font-size: 1.1rem; font-family: 'Outfit', sans-serif; }
+
+        .sysadmin-close {
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: #fff;
+            padding: 6px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .sysadmin-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 12px 20px;
+            background: #f0f3ff;
+            border-bottom: 1px solid #dde3ff;
+        }
+
+        .sysadmin-tab {
+            padding: 8px 16px;
+            border: none;
+            background: #fff;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            color: #444;
+            font-family: inherit;
+        }
+
+        .sysadmin-tab.active { background: var(--accent); color: #fff; }
+
+        .sysadmin-body { padding: 20px 24px 28px; }
+
+        .setup-subtabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+
+        .setup-subtab {
+            padding: 6px 14px;
+            border: 1px solid #ccc;
+            background: #fff;
+            border-radius: 16px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            font-family: inherit;
+        }
+
+        .setup-subtab.active { background: #1a237e; color: #fff; border-color: #1a237e; }
+
+        .admin-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .admin-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            font-family: inherit;
+        }
+
+        .admin-btn-primary { background: var(--accent); color: #fff; }
+        .admin-btn-danger { background: #dc3545; color: #fff; }
+        .admin-btn-sm { padding: 4px 10px; font-size: 12px; }
+
+        .admin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .admin-table th, .admin-table td { padding: 10px 12px; border-bottom: 1px solid #eee; text-align: left; }
+        .admin-table th { background: #f8f9ff; font-weight: 700; color: #1a237e; }
+        .admin-table tr:hover { background: #fafbff; }
+
+        .badge-active { background: #d4edda; color: #155724; padding: 2px 8px; border-radius: 10px; font-size: 11px; }
+        .badge-inactive { background: #f8d7da; color: #721c24; padding: 2px 8px; border-radius: 10px; font-size: 11px; }
+
+        .ccro-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+
+        .ccro-stat {
+            background: #f0f3ff;
+            border-radius: 10px;
+            padding: 14px;
+            text-align: center;
+        }
+
+        .ccro-stat-num { font-size: 24px; font-weight: 700; color: #1a237e; }
+        .ccro-stat-label { font-size: 11px; color: #666; margin-top: 4px; }
+
+        .tab-pane { display: none; }
+        .tab-pane.active { display: block; }
+
+        .admin-form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+            text-align: left;
+        }
+
+        .admin-form-grid input, .admin-form-grid select, .admin-form-grid textarea {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 13px;
+            box-sizing: border-box;
+        }
+
+        .admin-form-grid label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #555;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .loading { text-align: center; padding: 24px; color: #666; }
+
+        /* ── Chagua Mkoa (GIS Portal) ── */
+        .mikoa-section {
+            display: none;
+            max-width: 1120px;
+            margin: 0 auto 48px;
+            padding: 20px 40px 40px;
+            background: rgba(255,255,255,0.72);
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.8);
+            box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
+            backdrop-filter: blur(6px);
+        }
+
+        .mikoa-section.open { display: block; }
+
+        .mikoa-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .mikoa-toolbar h2 {
+            margin: 0;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            color: var(--primary);
+            letter-spacing: -0.02em;
+        }
+
+        .mikoa-toolbar p {
+            margin: 4px 0 0;
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .back-modules-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border: 1px solid var(--border);
+            background: #fff;
+            border-radius: 999px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--primary);
+            transition: background 0.2s, border-color 0.2s;
+        }
+
+        .back-modules-btn:hover {
+            background: var(--primary-soft);
+            border-color: #c7d2fe;
+        }
+
+        .region-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 16px;
+        }
+
+        .region-card {
+            background: rgba(255,255,255,0.94);
+            border: 1px solid rgba(255,255,255,0.5);
+            border-radius: var(--radius);
+            padding: 18px 12px 14px;
+            text-align: center;
+            box-shadow: 0 8px 28px rgba(0,0,0,0.16);
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            backdrop-filter: blur(6px);
+        }
+
+        .region-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 28px rgba(26, 35, 126, 0.12);
+            border-color: #c7d2fe;
+        }
+
+        .region-icon-wrap {
+            width: 96px;
+            height: 96px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 10px;
+            padding: 8px;
+            background: linear-gradient(145deg, #f8faff 0%, #eef2ff 100%);
+            border-radius: 12px;
+            border: 1px solid #e3e8ff;
+            overflow: hidden;
+        }
+
+        .region-icon-wrap img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .region-icon-fallback {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3b59ff 0%, #1a237e 100%);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 22px;
+        }
+
+        .region-name {
+            font-weight: 700;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: #2c3e50;
+            line-height: 1.3;
+        }
+
+        .home-view-modules .mikoa-section { display: none; }
+        .home-view-mikoa .modules { display: none; }
+        .home-view-mikoa .hero { display: none; }
+        .home-view-mikoa .sysadmin-section { display: none !important; }
+        .home-view-mikoa .page-bg { display: none !important; }
+        .home-view-mikoa {
+            background: #eef1f6 !important;
+        }
+        .home-view-mikoa .mikoa-section {
+            background: transparent;
+            border: none;
+            box-shadow: none;
+            backdrop-filter: none;
+            max-width: 1300px;
+        }
+
+        @media (max-width: 1024px) {
+            .modules { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 640px) {
+            .modules, .hero, .sysadmin-section, .mikoa-section { padding-left: 16px; padding-right: 16px; }
+            .modules { grid-template-columns: 1fr; margin-left: 16px; margin-right: 16px; max-width: none; }
+            .mikoa-section { margin-left: 16px; margin-right: 16px; max-width: none; }
+            .region-grid { grid-template-columns: repeat(2, 1fr); }
+            .topbar { padding: 12px 16px; }
+            .brand-sub { display: none; }
+            .page-bg img { object-fit: cover; object-position: left center; }
+        }
+    </style>
+</head>
+<body>
+    <div class="page-bg" aria-hidden="true">
+        <img src="/static/img/home-bg.png?v=3" alt="Background">
+    </div>
+    <div class="page-content">
+
+    <header class="topbar">
+        <a href="/" class="brand">
+            <div class="brand-mark">
+                <img src="/static/img/lumc-logo.png?v=4" alt="LUMC logo">
+            </div>
+            <div>
+                <div class="brand-text">LUMC</div>
+                <div class="brand-sub">Land Use Management &amp; Coordination</div>
+            </div>
+        </a>
+        <div class="topbar-right">
+            <div class="user-pill">
+                <i class="fas fa-user-circle"></i> {{ user.username }}
+            </div>
+            <a href="{% url 'logout' %}" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</a>
+        </div>
+    </header>
+
+    <section class="hero" id="homeHero">
+        <div class="hero-panel">
+            <h1>Nyumbani</h1>
+            <p>Chagua moduli ili kuendelea — GIS, data, migogoro ya ardhi, CCRO na usimamizi wa mfumo.</p>
+        </div>
+    </section>
+
+    <section class="modules" id="modulesSection" aria-label="Moduli za mfumo">
+
+        <a href="#gis-mikoa" class="module-card card-blue" id="gisPortalCard">
+            <div class="module-top">
+                <div class="module-icon icon-blue"><i class="fas fa-map"></i></div>
+                <i class="fas fa-arrow-right module-arrow"></i>
+            </div>
+            <h3 class="module-title">GIS Portal</h3>
+            <p class="module-desc">Ramani za mikoa, wilaya, kata na viwanja — upload, uchambuzi na uhariri wa data ya kijiografia.</p>
+            <div class="module-cta">Access Module</div>
+        </a>
+
+        <a href="/data-portal/" class="module-card card-green">
+            <div class="module-top">
+                <div class="module-icon icon-green"><i class="fas fa-chart-line"></i></div>
+                <i class="fas fa-arrow-right module-arrow"></i>
+            </div>
+            <h3 class="module-title">Data Portal</h3>
+            <p class="module-desc">Takwimu, Mpango Kinaa, CCRO / wamiliki na ripoti za vijiji kwa kiwango cha mkoa hadi kijiji.</p>
+            <div class="module-cta">Access Module</div>
+        </a>
+
+        <a href="/migogoro/" class="module-card card-orange">
+            <div class="module-top">
+                <div class="module-icon icon-orange"><i class="fas fa-balance-scale"></i></div>
+                <i class="fas fa-arrow-right module-arrow"></i>
+            </div>
+            <h3 class="module-title">Migogoro ya Ardhi</h3>
+            <p class="module-desc">Database ya kesi za migogoro ya ardhi — usajili, ufuatiliaji na usuluhishi kutoka mkoa hadi kijiji.</p>
+            <div class="module-cta">Access Module</div>
+        </a>
+
+        {% if can_admin %}
+        <a href="/system-admin/unlock/?next=/system-admin/&reauth=1" class="module-card card-amber" id="sysAdminCard">
+            <div class="module-top">
+                <div class="module-icon icon-amber"><i class="fas fa-cogs"></i></div>
+                <i class="fas fa-arrow-right module-arrow"></i>
+            </div>
+            <h3 class="module-title">System Administration</h3>
+            <p class="module-desc">Dashboard, watumiaji, majukumu — inahitaji passcode ya usimamizi.</p>
+            <div class="module-cta">Access Module</div>
+        </a>
+        {% else %}
+        <div class="module-card card-amber" style="opacity:0.55; cursor:not-allowed;" title="Inahitaji ruhusa ya Admin">
+            <div class="module-top">
+                <div class="module-icon icon-amber"><i class="fas fa-cogs"></i></div>
+                <i class="fas fa-lock module-arrow"></i>
+            </div>
+            <h3 class="module-title">System Administration</h3>
+            <p class="module-desc">Usimamizi wa mfumo — inapatikana kwa Admin pekee.</p>
+            <div class="module-cta" style="color:#94a3b8;">Restricted</div>
+        </div>
+        {% endif %}
+
+        <a href="/map/tools/" class="module-card card-rose">
+            <div class="module-top">
+                <div class="module-icon icon-rose"><i class="fas fa-tools"></i></div>
+                <i class="fas fa-arrow-right module-arrow"></i>
+            </div>
+            <h3 class="module-title">GIS Tools</h3>
+            <p class="module-desc">Zana za uchambuzi — topology, data cleaning, editing na georeferencing.</p>
+            <div class="module-cta">Access Module</div>
+        </a>
+
+        {% if can_admin %}
+        <a href="/system-admin/unlock/?next=/admin/&reauth=1" class="module-card card-slate" id="orgAdminCard">
+            <div class="module-top">
+                <div class="module-icon icon-slate"><i class="fas fa-building"></i></div>
+                <i class="fas fa-arrow-right module-arrow"></i>
+            </div>
+            <h3 class="module-title">Organizations</h3>
+            <p class="module-desc">Django Admin — inahitaji passcode ya usimamizi kama System Administration.</p>
+            <div class="module-cta">Access Module</div>
+        </a>
+        {% else %}
+        <div class="module-card card-slate" style="opacity:0.55; cursor:not-allowed;" title="Inahitaji ruhusa + passcode">
+            <div class="module-top">
+                <div class="module-icon icon-slate"><i class="fas fa-building"></i></div>
+                <i class="fas fa-lock module-arrow"></i>
+            </div>
+            <h3 class="module-title">Organizations</h3>
+            <p class="module-desc">Inapatikana kwa Admin pekee baada ya passcode.</p>
+            <div class="module-cta" style="color:#94a3b8;">Restricted</div>
+        </div>
+        {% endif %}
+
+    </section>
+
+    <section class="mikoa-section" id="mikoaSection" aria-label="Chagua mkoa">
+        <div class="mikoa-toolbar">
+            <div>
+                <h2><i class="fas fa-map-marked-alt"></i> GIS Portal — Chagua Mkoa</h2>
+                <p>Bofya mkoa ili kufungua ramani (Map View)</p>
+            </div>
+            <button type="button" class="back-modules-btn" id="backToModules">
+                <i class="fas fa-arrow-left"></i> Rudi Nyumbani
+            </button>
+        </div>
+        <div class="region-grid" id="regionGrid">
+            <div class="loading"><i class="fas fa-spinner fa-spin"></i> Inapakia mikoa...</div>
+        </div>
+    </section>
+
+    {% if can_admin %}
+    <div class="sysadmin-section" id="sysAdminSection">
+        <div class="sysadmin-panel">
+            <div class="sysadmin-header">
+                <h2><i class="fas fa-shield-alt"></i> System Administration</h2>
+                <button type="button" class="sysadmin-close" id="closeSysAdmin">Funga</button>
+            </div>
+            <div class="sysadmin-tabs">
+                <button type="button" class="sysadmin-tab active" data-tab="forms"><i class="fas fa-file-alt"></i> Form Management</button>
+                <button type="button" class="sysadmin-tab" data-tab="ccro"><i class="fas fa-certificate"></i> CCRO Management</button>
+                <button type="button" class="sysadmin-tab" data-tab="setups"><i class="fas fa-sliders-h"></i> Setups</button>
+            </div>
+            <div class="sysadmin-body">
+                <div class="tab-pane active" id="tab-forms">
+                    <div class="admin-toolbar">
+                        <strong>Fomu za Mfumo</strong>
+                        <button type="button" class="admin-btn admin-btn-primary" onclick="openFormModal()"><i class="fas fa-plus"></i> Ongeza Fomu</button>
+                    </div>
+                    <div id="forms-table-wrap"><div class="loading">Inapakia...</div></div>
+                </div>
+                <div class="tab-pane" id="tab-ccro">
+                    <div class="ccro-stats" id="ccroStats"></div>
+                    <div class="admin-toolbar">
+                        <strong>Chaguo za CCRO</strong>
+                        <div>
+                            <a href="/data-portal/?tab=ccro" class="admin-btn admin-btn-primary" style="text-decoration:none;display:inline-block;margin-right:8px;">
+                                <i class="fas fa-external-link-alt"></i> Data Portal CCRO
+                            </a>
+                            <button type="button" class="admin-btn admin-btn-primary" onclick="openCcroModal()"><i class="fas fa-plus"></i> Ongeza Chaguo</button>
+                        </div>
+                    </div>
+                    <div id="ccro-table-wrap"><div class="loading">Inapakia...</div></div>
+                </div>
+                <div class="tab-pane" id="tab-setups">
+                    <div class="setup-subtabs">
+                        <button type="button" class="setup-subtab active" data-setup="currency"><i class="fas fa-coins"></i> Currency</button>
+                        <button type="button" class="setup-subtab" data-setup="locality"><i class="fas fa-map-marker-alt"></i> Locality</button>
+                        <button type="button" class="setup-subtab" data-setup="mpango"><i class="fas fa-layer-group"></i> Mpango SHP</button>
+                        <button type="button" class="setup-subtab" data-setup="designation"><i class="fas fa-id-badge"></i> Designation</button>
+                    </div>
+                    <div id="setup-currency" class="setup-pane">
+                        <div class="admin-toolbar">
+                            <strong>Sarafu (Currency)</strong>
+                            <button type="button" class="admin-btn admin-btn-primary" onclick="openCurrencyModal()"><i class="fas fa-plus"></i> Ongeza Sarafu</button>
+                        </div>
+                        <div id="currency-table-wrap"><div class="loading">Inapakia...</div></div>
+                    </div>
+                    <div id="setup-locality" class="setup-pane" style="display:none;">
+                        <div class="admin-toolbar">
+                            <strong>Maeneo (Locality)</strong>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                                <button type="button" class="admin-btn admin-btn-primary" onclick="openLocalityModal()"><i class="fas fa-plus"></i> Ongeza Eneo</button>
+                                <button type="button" class="admin-btn admin-btn-primary" onclick="openLocalityBoundaryUpload()"><i class="fas fa-upload"></i> Pakia Mipaka (Wilaya/Kata)</button>
+                            </div>
+                        </div>
+                        <p style="font-size:12px;color:#64748b;margin:0 0 12px;">
+                            Shapefile za <strong>Wilaya</strong> na <strong>Kata</strong> zinasimamiwa hapa.
+                            Viwanja, Kijiji na Matumizi — fungua kichupo <strong>Mpango SHP</strong>.
+                        </p>
+                        <div id="locality-table-wrap"><div class="loading">Inapakia...</div></div>
+                        <div style="margin-top:20px;">
+                            <div class="admin-toolbar" style="margin-bottom:8px;">
+                                <strong><i class="fas fa-draw-polygon"></i> Mipaka ya Wilaya / Kata (Shapefile)</strong>
+                                <button type="button" class="admin-btn admin-btn-sm" onclick="loadLocalityBoundaries()"><i class="fas fa-sync"></i></button>
+                            </div>
+                            <div id="locality-boundaries-wrap"><div class="loading">Inapakia...</div></div>
+                        </div>
+                        <input type="file" id="loc-boundary-file" accept=".zip,.shp,.geojson,.gpkg" style="display:none">
+                    </div>
+                    <div id="setup-mpango" class="setup-pane" style="display:none;">
+                        <div class="admin-toolbar">
+                            <strong>Shapefile za Mpango</strong>
+                            <button type="button" class="admin-btn admin-btn-primary" onclick="openOrgMpangoUpload()"><i class="fas fa-upload"></i> Pakia SHP</button>
+                        </div>
+                        <p style="font-size:12px;color:#64748b;margin:0 0 12px;">
+                            Simamia <strong>Viwanja</strong>, <strong>Mpaka wa Kijiji</strong> na <strong>Matumizi ya Ardhi</strong> kutoka Organization.
+                        </p>
+                        <div class="admin-form-grid" style="margin-bottom:12px;">
+                            <div>
+                                <label>Mkoa</label>
+                                <select id="org-mp-region" class="filter-select" onchange="onOrgMpangoRegionChange()">
+                                    <option value="">-- Chagua Mkoa --</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label>Wilaya</label>
+                                <input id="org-mp-district" placeholder="mf. Songea" onchange="loadOrgMpangoShapefiles()">
+                            </div>
+                            <div>
+                                <label>Kata</label>
+                                <input id="org-mp-ward" placeholder="hiari" onchange="loadOrgMpangoShapefiles()">
+                            </div>
+                            <div>
+                                <label>Kijiji</label>
+                                <input id="org-mp-village" placeholder="hiari" onchange="loadOrgMpangoShapefiles()">
+                            </div>
+                        </div>
+                        <div class="admin-toolbar" style="margin-bottom:8px;">
+                            <button type="button" class="admin-btn admin-btn-sm" onclick="loadOrgMpangoShapefiles()"><i class="fas fa-search"></i> Onyesha</button>
+                        </div>
+                        <div id="org-mpango-shp-wrap"><div class="text-muted">Chagua mkoa kuona shapefile</div></div>
+                        <input type="file" id="org-mpango-file" accept=".zip,.shp,.geojson,.gpkg" style="display:none">
+                    </div>
+                    <div id="setup-designation" class="setup-pane" style="display:none;">
+                        <div class="admin-toolbar">
+                            <strong>Majina ya Kazi (Designation)</strong>
+                            <button type="button" class="admin-btn admin-btn-primary" onclick="openDesignationModal()"><i class="fas fa-plus"></i> Ongeza Cheo</button>
+                        </div>
+                        <div id="designation-table-wrap"><div class="loading">Inapakia...</div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    </div><!-- /.page-content -->
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        var ALL_MIKOA = [
+            'Arusha', 'Dar es Salaam', 'Dodoma', 'Geita', 'Iringa', 'Kagera', 'Katavi',
+            'Kigoma', 'Kilimanjaro', 'Lindi', 'Manyara', 'Mara', 'Mbeya', 'Morogoro',
+            'Mtwara', 'Mwanza', 'Njombe', 'Pwani', 'Pemba Kaskazini', 'Pemba Kusini',
+            'Rukwa', 'Ruvuma', 'Shinyanga', 'Simiyu', 'Singida', 'Songwe', 'Tabora',
+            'Tanga', 'Unguja Kaskazini', 'Unguja Kusini', 'Unguja Mjini Magharibi'
+        ];
+
+        var REGION_SVG_ALIASES = {
+            'Dar es Salaam': 'Dar_es_Salaam',
+            'Pemba Kaskazini': 'Kaskazini_Pemba',
+            'Pemba Kusini': 'Kusini_Pemba',
+            'Kaskazini Pemba': 'Kaskazini_Pemba',
+            'Kusini Pemba': 'Kusini_Pemba',
+            'Unguja Kaskazini': 'Kaskazini_Unguja',
+            'Unguja Kusini': 'Kusini_Unguja',
+            'Kaskazini Unguja': 'Kaskazini_Unguja',
+            'Kusini Unguja': 'Kusini_Unguja',
+            'Unguja Mjini Magharibi': 'Mjini_Magharibi',
+            'Mjini Magharibi': 'Mjini_Magharibi'
+        };
+
+        function regionNameToSvgSlug(name) {
+            return REGION_SVG_ALIASES[name] || name.replace(/\s+/g, '_');
+        }
+
+        function regionSvgUrl(name) {
+            return '/static/svg/regions/' + regionNameToSvgSlug(name) + '.svg';
+        }
+
+        function showModulesView() {
+            document.body.classList.remove('home-view-mikoa');
+            document.body.classList.add('home-view-modules');
+            document.getElementById('mikoaSection').classList.remove('open');
+            if (window.location.hash === '#gis-mikoa') {
+                history.replaceState(null, '', window.location.pathname);
+            }
+        }
+
+        function showMikoaView() {
+            document.body.classList.remove('home-view-modules');
+            document.body.classList.add('home-view-mikoa');
+            document.getElementById('mikoaSection').classList.add('open');
+            var sa = document.getElementById('sysAdminSection');
+            if (sa) sa.classList.remove('open');
+            loadRegions();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function mergeWithAllMikoa(apiRegions) {
+            var byName = {};
+            (apiRegions || []).forEach(function(item) {
+                if (item && item.name) byName[item.name] = item;
+            });
+            return ALL_MIKOA.map(function(name) {
+                return byName[name] || { name: name };
+            });
+        }
+
+        function navigateToMap(region) {
+            var url = '/map/?region_name=' + encodeURIComponent(region.name);
+            if (region.id) {
+                url = '/map/?region_id=' + region.id + '&region_name=' + encodeURIComponent(region.name);
+            }
+            window.location.href = url;
+        }
+
+        function renderRegionCards(display) {
+            var grid = document.getElementById('regionGrid');
+            grid.innerHTML = '';
+            display.forEach(function(region) {
+                var card = document.createElement('div');
+                card.className = 'region-card';
+                card.innerHTML =
+                    '<div class="region-icon-wrap">' +
+                        '<img src="' + regionSvgUrl(region.name) + '" alt="' + region.name + '" ' +
+                        'onerror="this.style.display=\'none\'; this.nextElementSibling.style.display=\'flex\';">' +
+                        '<div class="region-icon-fallback"><i class="fas fa-map-marker-alt"></i></div>' +
+                    '</div>' +
+                    '<div class="region-name">' + region.name + '</div>';
+                card.onclick = function() { navigateToMap(region); };
+                grid.appendChild(card);
+            });
+        }
+
+        function loadRegions() {
+            var grid = document.getElementById('regionGrid');
+            grid.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Inapakia mikoa...</div>';
+            fetch('/api/regions/')
+                .then(function(res) {
+                    if (!res.ok) throw new Error('Network error');
+                    return res.json();
+                })
+                .then(function(regions) {
+                    renderRegionCards(mergeWithAllMikoa(Array.isArray(regions) ? regions : []));
+                })
+                .catch(function() {
+                    renderRegionCards(mergeWithAllMikoa([]));
+                });
+        }
+
+        document.getElementById('gisPortalCard').addEventListener('click', function(e) {
+            e.preventDefault();
+            showMikoaView();
+        });
+
+        document.getElementById('backToModules').addEventListener('click', showModulesView);
+        document.body.classList.add('home-view-modules');
+
+        if (window.location.hash === '#gis-mikoa') {
+            showMikoaView();
+        }
+
+        {% if can_admin %}
+        var SYS_API = '/api/system-admin/';
+        var csrfToken = '{{ csrf_token }}';
+
+        function getCookie(name) {
+            var v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+            return v ? v.pop() : '';
+        }
+
+        function apiFetch(url, opts) {
+            opts = opts || {};
+            opts.headers = opts.headers || {};
+            if (opts.body && !opts.headers['Content-Type']) {
+                opts.headers['Content-Type'] = 'application/json';
+            }
+            opts.headers['X-CSRFToken'] = csrfToken || getCookie('csrftoken');
+            return fetch(url, opts).then(function(r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.json();
+            });
+        }
+
+        function openSysAdmin() {
+            showModulesView();
+            var sec = document.getElementById('sysAdminSection');
+            sec.classList.add('open');
+            sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            loadAllAdminData();
+        }
+
+        function closeSysAdmin() {
+            document.getElementById('sysAdminSection').classList.remove('open');
+        }
+
+        var closeBtn = document.getElementById('closeSysAdmin');
+        if (closeBtn) closeBtn.addEventListener('click', closeSysAdmin);
+
+        if (window.location.hash === '#system-admin') {
+            openSysAdmin();
+        }
+
+        document.querySelectorAll('.sysadmin-tab').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.sysadmin-tab').forEach(function(b) { b.classList.remove('active'); });
+                document.querySelectorAll('.tab-pane').forEach(function(p) { p.classList.remove('active'); });
+                btn.classList.add('active');
+                document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+            });
+        });
+
+        document.querySelectorAll('.setup-subtab').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.setup-subtab').forEach(function(b) { b.classList.remove('active'); });
+                btn.classList.add('active');
+                ['currency', 'locality', 'mpango', 'designation'].forEach(function(s) {
+                    var el = document.getElementById('setup-' + s);
+                    if (el) el.style.display = (btn.dataset.setup === s) ? 'block' : 'none';
+                });
+                if (btn.dataset.setup === 'mpango') {
+                    fillOrgMpangoRegions();
+                    loadOrgMpangoShapefiles();
+                }
+            });
+        });
+
+        function loadAllAdminData() {
+            loadForms(); loadCcroConfig(); loadCurrencies(); loadLocalities(); loadDesignations();
+            fillOrgMpangoRegions();
+        }
+
+        function renderTable(containerId, headers, rows) {
+            var html = '<table class="admin-table"><thead><tr>';
+            headers.forEach(function(h) { html += '<th>' + h + '</th>'; });
+            html += '</tr></thead><tbody>';
+            if (!rows.length) html += '<tr><td colspan="' + headers.length + '">Hakuna data</td></tr>';
+            else rows.forEach(function(r) { html += r; });
+            html += '</tbody></table>';
+            document.getElementById(containerId).innerHTML = html;
+        }
+
+        function loadForms() {
+            apiFetch(SYS_API + 'forms/').then(function(d) {
+                var rows = (d.items || []).map(function(f) {
+                    return '<tr><td><strong>' + f.name + '</strong></td><td>' + f.code + '</td><td>' + (f.category_label || f.category) + '</td><td>' + f.version + '</td><td>' + (f.is_active ? '<span class="badge-active">Active</span>' : '<span class="badge-inactive">Inactive</span>') + '</td><td><button type="button" class="admin-btn admin-btn-danger admin-btn-sm" onclick="deleteItem(\'forms\',\'' + f.id + '\')"><i class="fas fa-trash"></i></button></td></tr>';
+                });
+                renderTable('forms-table-wrap', ['Jina', 'Msimbo', 'Kategoria', 'Toleo', 'Hali', ''], rows);
+            }).catch(function() {
+                document.getElementById('forms-table-wrap').innerHTML = '<p style="color:red;">Hitilafu ya kupakia fomu</p>';
+            });
+        }
+
+        function loadCcroConfig() {
+            apiFetch(SYS_API + 'ccro-config/').then(function(d) {
+                var s = d.stats || {};
+                document.getElementById('ccroStats').innerHTML =
+                    '<div class="ccro-stat"><div class="ccro-stat-num">' + (s.total_parcels || 0) + '</div><div class="ccro-stat-label">Viwanja Jumla</div></div>' +
+                    '<div class="ccro-stat"><div class="ccro-stat-num">' + (s.identified_parcels || 0) + '</div><div class="ccro-stat-label">Vilivyotambuliwa</div></div>' +
+                    '<div class="ccro-stat"><div class="ccro-stat-num">' + (s.villages_with_ccro || 0) + '</div><div class="ccro-stat-label">Vijiji</div></div>';
+                var rows = (d.items || []).map(function(o) {
+                    return '<tr><td>' + (o.category_label || o.category) + '</td><td>' + o.value + '</td><td>' + o.label + '</td><td>' + o.sort_order + '</td><td>' + (o.is_active ? '<span class="badge-active">Active</span>' : '<span class="badge-inactive">Inactive</span>') + '</td><td><button type="button" class="admin-btn admin-btn-danger admin-btn-sm" onclick="deleteItem(\'ccro-config\',\'' + o.id + '\')"><i class="fas fa-trash"></i></button></td></tr>';
+                });
+                renderTable('ccro-table-wrap', ['Kategoria', 'Thamani', 'Lebo', 'Mpangilio', 'Hali', ''], rows);
+            }).catch(function() {
+                document.getElementById('ccro-table-wrap').innerHTML = '<p style="color:red;">Hitilafu</p>';
+            });
+        }
+
+        function loadCurrencies() {
+            apiFetch(SYS_API + 'currencies/').then(function(d) {
+                var rows = (d.items || []).map(function(c) {
+                    return '<tr><td><strong>' + c.code + '</strong></td><td>' + c.name + '</td><td>' + (c.symbol || '') + '</td><td>' + c.exchange_rate + '</td><td>' + (c.is_default ? '✓' : '') + '</td><td>' + (c.is_active ? '<span class="badge-active">Active</span>' : '<span class="badge-inactive">Inactive</span>') + '</td><td><button type="button" class="admin-btn admin-btn-danger admin-btn-sm" onclick="deleteItem(\'currencies\',\'' + c.id + '\')"><i class="fas fa-trash"></i></button></td></tr>';
+                });
+                renderTable('currency-table-wrap', ['Msimbo', 'Jina', 'Alama', 'Kiwango/TZS', 'Default', 'Hali', ''], rows);
+            }).catch(function() {
+                document.getElementById('currency-table-wrap').innerHTML = '<p style="color:red;">Hitilafu</p>';
+            });
+        }
+
+        function loadLocalities() {
+            apiFetch(SYS_API + 'localities/').then(function(d) {
+                var rows = (d.items || []).map(function(l) {
+                    var shpBtns = '';
+                    if (l.locality_type === 'district' || l.locality_type === 'ward') {
+                        shpBtns = '<button type="button" class="admin-btn admin-btn-sm" title="Pakia SHP" onclick="uploadShpForLocality(\'' + l.id + '\',\'' + l.locality_type + '\',' + JSON.stringify(l.name || '') + ',' + JSON.stringify(l.region_name || '') + ',' + JSON.stringify(l.district_name || '') + ',' + JSON.stringify(l.ward_name || '') + ')"><i class="fas fa-upload"></i></button>';
+                        if (l.has_boundary && l.boundary_id) {
+                            shpBtns += ' <button type="button" class="admin-btn admin-btn-danger admin-btn-sm" title="Futa SHP" onclick="deleteLocalityBoundary(\'' + l.boundary_id + '\',\'' + (l.boundary_level || l.locality_type) + '\')"><i class="fas fa-map"></i></button>';
+                        }
+                    }
+                    var shpStatus = (l.locality_type === 'district' || l.locality_type === 'ward')
+                        ? (l.has_boundary ? '<span class="badge-active">SHP</span>' : '<span class="badge-inactive">Hakuna SHP</span>')
+                        : '—';
+                    return '<tr><td>' + (l.locality_type_label || l.locality_type) + '</td><td><strong>' + l.name + '</strong></td><td>' + (l.region_name || '') + '</td><td>' + (l.district_name || '') + '</td><td>' + shpStatus + '</td><td>' + (l.is_active ? '<span class="badge-active">Active</span>' : '<span class="badge-inactive">Inactive</span>') + '</td><td style="white-space:nowrap;">' + shpBtns + ' <button type="button" class="admin-btn admin-btn-danger admin-btn-sm" onclick="deleteItem(\'localities\',\'' + l.id + '\')" title="Futa eneo"><i class="fas fa-trash"></i></button></td></tr>';
+                });
+                renderTable('locality-table-wrap', ['Aina', 'Jina', 'Mkoa', 'Wilaya', 'Mipaka', 'Hali', ''], rows);
+            }).catch(function() {
+                document.getElementById('locality-table-wrap').innerHTML = '<p style="color:red;">Hitilafu</p>';
+            });
+            loadLocalityBoundaries();
+        }
+
+        function loadLocalityBoundaries() {
+            var wrap = document.getElementById('locality-boundaries-wrap');
+            if (!wrap) return;
+            apiFetch(SYS_API + 'localities/boundaries/').then(function(d) {
+                var items = d.items || [];
+                if (!items.length) {
+                    wrap.innerHTML = '<p class="text-muted" style="font-size:13px;">Hakuna mipaka ya Wilaya/Kata iliyopakiwa bado.</p>';
+                    return;
+                }
+                var rows = items.map(function(b) {
+                    var place = b.level === 'ward'
+                        ? ((b.ward_name || '') + ' / ' + (b.district_name || ''))
+                        : (b.district_name || b.title || '');
+                    var delBtn = '<button type="button" class="admin-btn admin-btn-danger admin-btn-sm" onclick="deleteLocalityBoundary(\'' + b.id + '\',\'' + b.level + '\')"><i class="fas fa-trash"></i> Futa SHP</button>';
+                    return '<tr><td>' + (b.level_label || b.level) + '</td><td><strong>' + place + '</strong></td><td>' + (b.region_name || '') + '</td><td>' + (b.shapefile_name || '—') + '</td><td>' + (b.has_geom ? '<span class="badge-active">Geom</span>' : '<span class="badge-inactive">Tupu</span>') + '</td><td>' + delBtn + '</td></tr>';
+                });
+                renderTable('locality-boundaries-wrap', ['Aina', 'Jina', 'Mkoa', 'Faili', 'Hali', ''], rows);
+            }).catch(function() {
+                wrap.innerHTML = '<p style="color:red;">Hitilafu ya kupakia mipaka</p>';
+            });
+        }
+
+        var _locShpPending = null;
+
+        function openLocalityBoundaryUpload() {
+            Swal.fire({
+                title: 'Pakia Mipaka (Wilaya / Kata)',
+                html: '<div class="admin-form-grid">' +
+                    '<div><label>Aina</label><select id="loc-bnd-level"><option value="district">Wilaya</option><option value="ward">Kata</option></select></div>' +
+                    '<div><label>Mkoa</label><input id="loc-bnd-reg" placeholder="mf. Ruvuma"></div>' +
+                    '<div><label>Wilaya</label><input id="loc-bnd-dist" placeholder="mf. Songea"></div>' +
+                    '<div><label>Kata (kwa Kata)</label><input id="loc-bnd-ward" placeholder="mf. Matimira"></div>' +
+                    '</div><p style="font-size:12px;margin-top:8px;color:#64748b;">Baada ya OK, chagua faili .zip/.shp/.geojson</p>',
+                showCancelButton: true,
+                confirmButtonText: 'Chagua faili',
+                preConfirm: function() {
+                    var level = document.getElementById('loc-bnd-level').value;
+                    var region = document.getElementById('loc-bnd-reg').value.trim();
+                    var district = document.getElementById('loc-bnd-dist').value.trim();
+                    var ward = document.getElementById('loc-bnd-ward').value.trim();
+                    if (!region || !district) {
+                        Swal.showValidationMessage('Mkoa na Wilaya vinahitajika');
+                        return false;
+                    }
+                    if (level === 'ward' && !ward) {
+                        Swal.showValidationMessage('Jina la Kata linahitajika');
+                        return false;
+                    }
+                    return { level: level, region_name: region, district_name: district, ward_name: ward };
+                }
+            }).then(function(r) {
+                if (!r.isConfirmed) return;
+                _locShpPending = r.value;
+                var input = document.getElementById('loc-boundary-file');
+                if (input) { input.value = ''; input.click(); }
+            });
+        }
+
+        function uploadShpForLocality(id, locType, name, region, district, ward) {
+            _locShpPending = {
+                level: locType === 'ward' ? 'ward' : 'district',
+                region_name: region || '',
+                district_name: district || (locType === 'district' ? name : ''),
+                ward_name: ward || (locType === 'ward' ? name : ''),
+                locality_id: id
+            };
+            if (!_locShpPending.region_name || !_locShpPending.district_name) {
+                Swal.fire('Taarifa', 'Eneo linahitaji Mkoa na Wilaya kabla ya kupakia SHP. Hariri eneo kwanza.', 'info');
+                return;
+            }
+            if (_locShpPending.level === 'ward' && !_locShpPending.ward_name) {
+                Swal.fire('Taarifa', 'Kata inahitaji jina la kata', 'info');
+                return;
+            }
+            Swal.fire({
+                title: 'Pakia SHP',
+                text: 'Chagua shapefile ya mipaka kwa ' + name,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Chagua faili'
+            }).then(function(r) {
+                if (!r.isConfirmed) { _locShpPending = null; return; }
+                var input = document.getElementById('loc-boundary-file');
+                if (input) { input.value = ''; input.click(); }
+            });
+        }
+
+        function deleteLocalityBoundary(boundaryId, level) {
+            Swal.fire({
+                title: 'Futa Shapefile ya Mipaka?',
+                text: 'Geom na jina la faili vitaondolewa. Rekodi ya Locality inaweza kubaki.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Ndiyo, futa SHP',
+                confirmButtonColor: '#dc3545'
+            }).then(function(r) {
+                if (!r.isConfirmed) return;
+                fetch(SYS_API + 'localities/boundaries/' + boundaryId + '/?level=' + encodeURIComponent(level), {
+                    method: 'DELETE',
+                    headers: { 'X-CSRFToken': csrfToken || getCookie('csrftoken') }
+                }).then(function(res) {
+                    return res.json().then(function(body) { return { ok: res.ok, body: body }; });
+                }).then(function(r2) {
+                    if (r2.ok && r2.body.status === 'success') {
+                        Swal.fire('Imefutwa', r2.body.message || 'SHP imeondolewa', 'success');
+                        loadLocalities();
+                    } else {
+                        Swal.fire('Hitilafu', (r2.body && r2.body.error) || 'Imeshindikana', 'error');
+                    }
+                }).catch(function(err) {
+                    Swal.fire('Hitilafu', err.message || String(err), 'error');
+                });
+            });
+        }
+
+        (function bindLocBoundaryFile() {
+            var input = document.getElementById('loc-boundary-file');
+            if (!input) return;
+            input.addEventListener('change', function() {
+                var file = this.files && this.files[0];
+                var meta = _locShpPending;
+                _locShpPending = null;
+                if (!file || !meta) return;
+                var fd = new FormData();
+                fd.append('file', file);
+                fd.append('shapefile', file);
+                fd.append('level', meta.level);
+                fd.append('region_name', meta.region_name || '');
+                fd.append('district_name', meta.district_name || '');
+                if (meta.ward_name) fd.append('ward_name', meta.ward_name);
+                Swal.fire({ title: 'Inapakia mipaka...', allowOutsideClick: false, didOpen: function() { Swal.showLoading(); } });
+                fetch(SYS_API + 'localities/upload-boundary/', {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': csrfToken || getCookie('csrftoken') },
+                    body: fd
+                }).then(function(res) {
+                    return res.json().then(function(body) { return { ok: res.ok, body: body }; });
+                }).then(function(r) {
+                    if (r.ok && r.body.status === 'success') {
+                        Swal.fire('Imefanikiwa', r.body.message || 'Mipaka imepakiwa', 'success');
+                        loadLocalities();
+                    } else {
+                        Swal.fire('Hitilafu', (r.body && r.body.error) || 'Imeshindikana kupakia', 'error');
+                    }
+                }).catch(function(err) {
+                    Swal.fire('Hitilafu', err.message || String(err), 'error');
+                });
+            });
+        })();
+
+        var _orgMpangoItems = {};
+        var _orgMpangoUploadMeta = null;
+
+        function fillOrgMpangoRegions() {
+            var sel = document.getElementById('org-mp-region');
+            if (!sel || sel.options.length > 1) return;
+            ALL_MIKOA.forEach(function(name) {
+                var opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                sel.appendChild(opt);
+            });
+        }
+
+        function onOrgMpangoRegionChange() {
+            loadOrgMpangoShapefiles();
+        }
+
+        function orgMpangoQuery() {
+            var p = new URLSearchParams();
+            var region = document.getElementById('org-mp-region')?.value || '';
+            var district = document.getElementById('org-mp-district')?.value?.trim() || '';
+            var ward = document.getElementById('org-mp-ward')?.value?.trim() || '';
+            var village = document.getElementById('org-mp-village')?.value?.trim() || '';
+            if (region) p.set('region', region);
+            if (district) p.set('district', district);
+            if (ward) p.set('ward', ward);
+            if (village) p.set('village', village);
+            return p;
+        }
+
+        function loadOrgMpangoShapefiles() {
+            var wrap = document.getElementById('org-mpango-shp-wrap');
+            if (!wrap) return;
+            var region = document.getElementById('org-mp-region')?.value || '';
+            if (!region) {
+                wrap.innerHTML = '<div class="text-muted">Chagua mkoa kuona shapefile</div>';
+                return;
+            }
+            wrap.innerHTML = '<div class="loading">Inapakia...</div>';
+            apiFetch(SYS_API + 'mpango-shapefiles/?' + orgMpangoQuery().toString()).then(function(d) {
+                _orgMpangoItems = {};
+                var items = d.items || [];
+                if (!items.length) {
+                    wrap.innerHTML = '<p class="text-muted">Hakuna shapefile za Mpango kwa eneo hili</p>';
+                    return;
+                }
+                var rows = items.map(function(shp, idx) {
+                    var key = 'omp-' + idx;
+                    _orgMpangoItems[key] = shp;
+                    var name = shp.shapefile_name || shp.original_filename || shp.title || '—';
+                    var count = shp.parcel_count != null ? shp.parcel_count : (shp.feature_count || 0);
+                    var typeLabel = shp.type_label || shp.source || '—';
+                    var date = shp.uploaded_at ? String(shp.uploaded_at).slice(0, 10) : '—';
+                    return '<tr><td><strong>' + name + '</strong></td><td>' + typeLabel + '</td><td>' + count + '</td><td>' + date + '</td>' +
+                        '<td><button type="button" class="admin-btn admin-btn-danger admin-btn-sm" onclick="deleteOrgMpangoShp(\'' + key + '\')"><i class="fas fa-trash"></i> Futa</button></td></tr>';
+                });
+                renderTable('org-mpango-shp-wrap', ['Jina', 'Aina', 'Idadi', 'Tarehe', ''], rows);
+            }).catch(function() {
+                wrap.innerHTML = '<p style="color:red;">Hitilafu ya kupakia shapefile</p>';
+            });
+        }
+
+        function deleteOrgMpangoShp(key) {
+            var item = _orgMpangoItems[key];
+            if (!item) return;
+            var name = item.shapefile_name || item.original_filename || item.title || 'shapefile';
+            Swal.fire({
+                title: 'Futa Shapefile ya Mpango?',
+                html: 'Futa <strong>' + (item.type_label || item.source) + '</strong>:<br><em>' + name + '</em>?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Ndiyo, futa',
+                confirmButtonColor: '#dc3545'
+            }).then(function(r) {
+                if (!r.isConfirmed) return;
+                var body = {
+                    source: item.source,
+                    id: item.id,
+                    shapefile_name: item.shapefile_name || item.original_filename || item.title,
+                    boundary_level: item.boundary_level,
+                    region: document.getElementById('org-mp-region')?.value || item.region_name,
+                    district: document.getElementById('org-mp-district')?.value?.trim() || item.district_name,
+                    ward: document.getElementById('org-mp-ward')?.value?.trim() || item.ward_name,
+                    village: document.getElementById('org-mp-village')?.value?.trim() || item.village_name
+                };
+                Swal.fire({ title: 'Inafuta...', allowOutsideClick: false, didOpen: function() { Swal.showLoading(); } });
+                fetch(SYS_API + 'mpango-shapefiles/delete/', {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken || getCookie('csrftoken')
+                    },
+                    body: JSON.stringify(body)
+                }).then(function(res) {
+                    return res.json().then(function(b) { return { ok: res.ok, body: b }; });
+                }).then(function(r2) {
+                    if (r2.ok && r2.body.status === 'success') {
+                        Swal.fire('Imefutwa', r2.body.message || 'Imefutwa', 'success');
+                        loadOrgMpangoShapefiles();
+                    } else {
+                        Swal.fire('Hitilafu', (r2.body && r2.body.error) || 'Imeshindikana', 'error');
+                    }
+                }).catch(function(err) {
+                    Swal.fire('Hitilafu', err.message || String(err), 'error');
+                });
+            });
+        }
+
+        function openOrgMpangoUpload() {
+            var region = document.getElementById('org-mp-region')?.value || '';
+            Swal.fire({
+                title: 'Pakia Shapefile ya Mpango',
+                html: '<div class="admin-form-grid">' +
+                    '<div><label>Aina</label><select id="org-mp-type">' +
+                    '<option value="parcels">Viwanja</option>' +
+                    '<option value="village_boundary">Mpaka wa Kijiji</option>' +
+                    '<option value="landuse">Matumizi ya Ardhi</option>' +
+                    '</select></div>' +
+                    '<div><label>Mkoa</label><input id="org-up-reg" value="' + (region || '') + '"></div>' +
+                    '<div><label>Wilaya</label><input id="org-up-dist" value="' + (document.getElementById('org-mp-district')?.value || '') + '"></div>' +
+                    '<div><label>Kata</label><input id="org-up-ward" value="' + (document.getElementById('org-mp-ward')?.value || '') + '"></div>' +
+                    '<div><label>Kijiji</label><input id="org-up-vill" value="' + (document.getElementById('org-mp-village')?.value || '') + '"></div>' +
+                    '</div><p style="font-size:12px;color:#64748b;margin-top:8px;">Baada ya OK, chagua faili .zip/.shp/.geojson</p>',
+                showCancelButton: true,
+                confirmButtonText: 'Chagua faili',
+                preConfirm: function() {
+                    var data_type = document.getElementById('org-mp-type').value;
+                    var reg = document.getElementById('org-up-reg').value.trim();
+                    var dist = document.getElementById('org-up-dist').value.trim();
+                    var ward = document.getElementById('org-up-ward').value.trim();
+                    var vill = document.getElementById('org-up-vill').value.trim();
+                    if (!reg || !dist) {
+                        Swal.showValidationMessage('Mkoa na Wilaya vinahitajika');
+                        return false;
+                    }
+                    if ((data_type === 'parcels' || data_type === 'village_boundary') && !ward) {
+                        Swal.showValidationMessage('Kata inahitajika');
+                        return false;
+                    }
+                    if (data_type === 'village_boundary' && !vill) {
+                        Swal.showValidationMessage('Kijiji kinahitajika');
+                        return false;
+                    }
+                    return { data_type: data_type, region: reg, district: dist, ward: ward, village: vill };
+                }
+            }).then(function(r) {
+                if (!r.isConfirmed) return;
+                _orgMpangoUploadMeta = r.value;
+                var input = document.getElementById('org-mpango-file');
+                if (input) { input.value = ''; input.click(); }
+            });
+        }
+
+        (function bindOrgMpangoFile() {
+            var input = document.getElementById('org-mpango-file');
+            if (!input) return;
+            input.addEventListener('change', function() {
+                var file = this.files && this.files[0];
+                var meta = _orgMpangoUploadMeta;
+                _orgMpangoUploadMeta = null;
+                if (!file || !meta) return;
+                var fd = new FormData();
+                fd.append('file', file);
+                fd.append('shapefile', file);
+                fd.append('data_type', meta.data_type);
+                fd.append('region', meta.region);
+                fd.append('district', meta.district);
+                if (meta.ward) fd.append('ward', meta.ward);
+                if (meta.village) fd.append('village', meta.village);
+                Swal.fire({ title: 'Inapakia SHP...', allowOutsideClick: false, didOpen: function() { Swal.showLoading(); } });
+                fetch(SYS_API + 'mpango-shapefiles/upload/', {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': csrfToken || getCookie('csrftoken') },
+                    body: fd
+                }).then(function(res) {
+                    return res.json().then(function(body) { return { ok: res.ok, body: body }; });
+                }).then(function(r) {
+                    if (r.ok && r.body.status === 'success') {
+                        Swal.fire('Imefanikiwa', r.body.message || 'Imepakiwa', 'success');
+                        var regEl = document.getElementById('org-mp-region');
+                        var distEl = document.getElementById('org-mp-district');
+                        var wardEl = document.getElementById('org-mp-ward');
+                        var villEl = document.getElementById('org-mp-village');
+                        if (regEl && meta.region) regEl.value = meta.region;
+                        if (distEl) distEl.value = meta.district || '';
+                        if (wardEl) wardEl.value = meta.ward || '';
+                        if (villEl) villEl.value = meta.village || '';
+                        loadOrgMpangoShapefiles();
+                    } else {
+                        Swal.fire('Hitilafu', (r.body && r.body.error) || 'Imeshindikana', 'error');
+                    }
+                }).catch(function(err) {
+                    Swal.fire('Hitilafu', err.message || String(err), 'error');
+                });
+            });
+        })();
+
+        function loadDesignations() {
+            apiFetch(SYS_API + 'designations/').then(function(d) {
+                var rows = (d.items || []).map(function(dg) {
+                    return '<tr><td><strong>' + dg.name + '</strong></td><td>' + (dg.code || '') + '</td><td>' + (dg.category || '') + '</td><td>' + dg.sort_order + '</td><td>' + (dg.is_active ? '<span class="badge-active">Active</span>' : '<span class="badge-inactive">Inactive</span>') + '</td><td><button type="button" class="admin-btn admin-btn-danger admin-btn-sm" onclick="deleteItem(\'designations\',\'' + dg.id + '\')"><i class="fas fa-trash"></i></button></td></tr>';
+                });
+                renderTable('designation-table-wrap', ['Jina', 'Msimbo', 'Kategoria', 'Mpangilio', 'Hali', ''], rows);
+            }).catch(function() {
+                document.getElementById('designation-table-wrap').innerHTML = '<p style="color:red;">Hitilafu</p>';
+            });
+        }
+
+        function deleteItem(endpoint, id) {
+            Swal.fire({ title: 'Una uhakika?', icon: 'warning', showCancelButton: true, confirmButtonText: 'Ndiyo, futa' }).then(function(r) {
+                if (!r.isConfirmed) return;
+                apiFetch(SYS_API + endpoint + '/' + id + '/', { method: 'DELETE' }).then(function() {
+                    Swal.fire('Imefutwa', '', 'success');
+                    loadAllAdminData();
+                }).catch(function() {
+                    Swal.fire('Hitilafu', 'Imeshindwa kufuta', 'error');
+                });
+            });
+        }
+
+        function openFormModal() {
+            Swal.fire({
+                title: 'Ongeza Fomu',
+                html: '<div class="admin-form-grid"><div><label>Jina</label><input id="fm-name"></div><div><label>Msimbo</label><input id="fm-code"></div><div><label>Kategoria</label><select id="fm-cat"><option value="ccro">CCRO</option><option value="vlup">VLUP</option><option value="general">Jumla</option><option value="report">Ripoti</option></select></div><div><label>Toleo</label><input id="fm-ver" value="1.0"></div></div>',
+                showCancelButton: true,
+                confirmButtonText: 'Hifadhi',
+                preConfirm: function() {
+                    return {
+                        name: document.getElementById('fm-name').value,
+                        code: document.getElementById('fm-code').value,
+                        category: document.getElementById('fm-cat').value,
+                        version: document.getElementById('fm-ver').value
+                    };
+                }
+            }).then(function(r) {
+                if (!r.isConfirmed) return;
+                apiFetch(SYS_API + 'forms/', { method: 'POST', body: JSON.stringify(r.value) }).then(function() {
+                    Swal.fire('Imehifadhiwa', '', 'success');
+                    loadForms();
+                });
+            });
+        }
+
+        function openCcroModal() {
+            Swal.fire({
+                title: 'Ongeza Chaguo la CCRO',
+                html: '<div class="admin-form-grid"><div><label>Kategoria</label><select id="cc-cat"><option value="land_use">Matumizi ya Ardhi</option><option value="ownership_type">Aina ya Umiliki</option><option value="topography">Mkao wa Ardhi</option><option value="season">Msimu</option></select></div><div><label>Thamani</label><input id="cc-val"></div><div><label>Lebo</label><input id="cc-lbl"></div></div>',
+                showCancelButton: true,
+                confirmButtonText: 'Hifadhi',
+                preConfirm: function() {
+                    return {
+                        category: document.getElementById('cc-cat').value,
+                        value: document.getElementById('cc-val').value,
+                        label: document.getElementById('cc-lbl').value
+                    };
+                }
+            }).then(function(r) {
+                if (!r.isConfirmed) return;
+                apiFetch(SYS_API + 'ccro-config/', { method: 'POST', body: JSON.stringify(r.value) }).then(function() {
+                    Swal.fire('Imehifadhiwa', '', 'success');
+                    loadCcroConfig();
+                });
+            });
+        }
+
+        function openCurrencyModal() {
+            Swal.fire({
+                title: 'Ongeza Sarafu',
+                html: '<div class="admin-form-grid"><div><label>Msimbo</label><input id="cur-code" placeholder="TZS"></div><div><label>Jina</label><input id="cur-name"></div><div><label>Alama</label><input id="cur-sym"></div><div><label>Kiwango/TZS</label><input id="cur-rate" type="number" value="1"></div></div>',
+                showCancelButton: true,
+                confirmButtonText: 'Hifadhi',
+                preConfirm: function() {
+                    return {
+                        code: document.getElementById('cur-code').value,
+                        name: document.getElementById('cur-name').value,
+                        symbol: document.getElementById('cur-sym').value,
+                        exchange_rate: parseFloat(document.getElementById('cur-rate').value) || 1
+                    };
+                }
+            }).then(function(r) {
+                if (!r.isConfirmed) return;
+                apiFetch(SYS_API + 'currencies/', { method: 'POST', body: JSON.stringify(r.value) }).then(function() {
+                    Swal.fire('Imehifadhiwa', '', 'success');
+                    loadCurrencies();
+                });
+            });
+        }
+
+        function openLocalityModal() {
+            Swal.fire({
+                title: 'Ongeza Eneo',
+                html: '<div class="admin-form-grid"><div><label>Aina</label><select id="loc-type"><option value="region">Mkoa</option><option value="district">Wilaya</option><option value="ward">Kata</option><option value="village">Kijiji</option><option value="hamlet">Kitongoji</option><option value="office">Ofisi</option></select></div><div><label>Jina</label><input id="loc-name"></div><div><label>Mkoa</label><input id="loc-reg"></div><div><label>Wilaya</label><input id="loc-dist"></div><div><label>Kata</label><input id="loc-ward" placeholder="kwa Kata"></div></div><p style="font-size:12px;color:#64748b;margin-top:8px;">Kwa Wilaya/Kata: baada ya kuhifadhi, tumia <b>Pakia Mipaka</b> au kitufe cha upload kwenye jedwali.</p>',
+                showCancelButton: true,
+                confirmButtonText: 'Hifadhi',
+                preConfirm: function() {
+                    var t = document.getElementById('loc-type').value;
+                    var name = document.getElementById('loc-name').value;
+                    var district = document.getElementById('loc-dist').value;
+                    var ward = document.getElementById('loc-ward').value;
+                    return {
+                        locality_type: t,
+                        name: name,
+                        region_name: document.getElementById('loc-reg').value,
+                        district_name: district || (t === 'district' ? name : ''),
+                        ward_name: ward || (t === 'ward' ? name : '')
+                    };
+                }
+            }).then(function(r) {
+                if (!r.isConfirmed) return;
+                apiFetch(SYS_API + 'localities/', { method: 'POST', body: JSON.stringify(r.value) }).then(function() {
+                    Swal.fire('Imehifadhiwa', '', 'success');
+                    loadLocalities();
+                });
+            });
+        }
+
+        function openDesignationModal() {
+            Swal.fire({
+                title: 'Ongeza Cheo',
+                html: '<div class="admin-form-grid"><div><label>Jina</label><input id="des-name"></div><div><label>Msimbo</label><input id="des-code"></div><div><label>Kategoria</label><input id="des-cat" placeholder="staff / ccro"></div></div>',
+                showCancelButton: true,
+                confirmButtonText: 'Hifadhi',
+                preConfirm: function() {
+                    return {
+                        name: document.getElementById('des-name').value,
+                        code: document.getElementById('des-code').value,
+                        category: document.getElementById('des-cat').value
+                    };
+                }
+            }).then(function(r) {
+                if (!r.isConfirmed) return;
+                apiFetch(SYS_API + 'designations/', { method: 'POST', body: JSON.stringify(r.value) }).then(function() {
+                    Swal.fire('Imehifadhiwa', '', 'success');
+                    loadDesignations();
+                });
+            });
+        }
+        {% endif %}
+    </script>
+</body>
+</html>

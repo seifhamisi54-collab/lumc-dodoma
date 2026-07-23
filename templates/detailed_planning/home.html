@@ -1,0 +1,294 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Detailed Planning - LUMC GIS{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dp-page { padding: 20px; background: #f4f7f6; min-height: 100vh; }
+    .dp-header { background: linear-gradient(135deg, #1a237e, #283593); color: #fff; padding: 24px; border-radius: 12px; margin-bottom: 20px; }
+    .dp-header h1 { margin: 0; font-size: 1.6rem; }
+    .filter-card, .stats-grid, .parcel-card { background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+    .filter-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+    .filter-row label { font-size: 12px; font-weight: 700; color: #555; display: block; margin-bottom: 4px; }
+    .filter-row select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; }
+    .stat-box { text-align: center; padding: 16px; border-radius: 10px; background: #f8f9ff; border: 1px solid #e8eaf6; }
+    .stat-box .num { font-size: 2rem; font-weight: 800; color: #1a237e; }
+    .stat-box .lbl { font-size: 12px; color: #666; margin-top: 4px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+    .btn-dp { background: #1a237e; color: #fff; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+    .btn-dp:hover { background: #283593; }
+    .btn-outline { background: #fff; color: #1a237e; border: 2px solid #1a237e; }
+    .parcel-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .parcel-table th, .parcel-table td { padding: 10px; border-bottom: 1px solid #eee; text-align: left; }
+    .parcel-table th { background: #f5f5f5; }
+    .badge-id { background: #2e7d32; color: #fff; padding: 2px 8px; border-radius: 10px; font-size: 11px; }
+    .badge-unid { background: #c62828; color: #fff; padding: 2px 8px; border-radius: 10px; font-size: 11px; }
+    #map-dp { height: 320px; border-radius: 10px; border: 1px solid #ddd; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+</style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+{% endblock %}
+
+{% block content %}
+<div class="dp-page">
+    <div class="dp-header">
+        <h1><i class="fas fa-drafting-compass"></i> Detailed Planning</h1>
+        <p style="margin:8px 0 0; opacity:0.9;">Mipango ya kina — chagua mkoa, wilaya, kata na kijiji</p>
+    </div>
+
+    <div class="filter-card">
+        <h5><i class="fas fa-filter"></i> Chagua Eneo</h5>
+        <div class="filter-row">
+            <div>
+                <label>Mkoa</label>
+                <select id="sel-region"><option value="">-- Chagua Mkoa --</option></select>
+            </div>
+            <div>
+                <label>Wilaya</label>
+                <select id="sel-district" disabled><option value="">-- Chagua Wilaya --</option></select>
+            </div>
+            <div>
+                <label>Kata</label>
+                <select id="sel-ward" disabled><option value="">-- Chagua Kata --</option></select>
+            </div>
+            <div>
+                <label>Kijiji</label>
+                <select id="sel-village" disabled><option value="">-- Chagua Kijiji --</option></select>
+            </div>
+        </div>
+        <div class="actions">
+            <button class="btn-dp" id="btn-load"><i class="fas fa-search"></i> Onyesha Takwimu</button>
+            <button class="btn-dp btn-outline" id="btn-generate"><i class="fas fa-hashtag"></i> Tengeneza Namba za Viwanja</button>
+        </div>
+    </div>
+
+    <div class="stats-grid" id="stats-grid">
+        <div class="stat-box"><div class="num" id="st-owners">0</div><div class="lbl">Waliomiliki</div></div>
+        <div class="stat-box"><div class="num" id="st-women">0</div><div class="lbl">Wanawake</div></div>
+        <div class="stat-box"><div class="num" id="st-men">0</div><div class="lbl">Wanaume</div></div>
+        <div class="stat-box"><div class="num" id="st-children">0</div><div class="lbl">Watoto &lt;18</div></div>
+        <div class="stat-box"><div class="num" id="st-identified">0</div><div class="lbl">Viwanja Vilivyotambuliwa</div></div>
+        <div class="stat-box"><div class="num" id="st-unidentified">0</div><div class="lbl">Visivyotambuliwa</div></div>
+    </div>
+
+    <div class="filter-card">
+        <h5><i class="fas fa-map"></i> Ramani ya Eneo</h5>
+        <div id="map-dp"></div>
+    </div>
+
+    <div class="parcel-card">
+        <h5><i class="fas fa-th-list"></i> Viwanja (Namba zilizotengenezwa)</h5>
+        <table class="parcel-table">
+            <thead>
+                <tr>
+                    <th>Namba ya Kiwanja</th>
+                    <th>Kijiji</th>
+                    <th>Hali</th>
+                    <th>Mmiliki</th>
+                    <th>Jinsia</th>
+                </tr>
+            </thead>
+            <tbody id="parcel-body">
+                <tr><td colspan="5" style="text-align:center;color:#999;">Chagua kijiji kuona viwanja</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="filter-card">
+        <h5><i class="fas fa-upload"></i> Pakia Shapefile</h5>
+        <div class="filter-row">
+            <div>
+                <label>Kiwango</label>
+                <select id="upload-level">
+                    <option value="district">Wilaya</option>
+                    <option value="ward">Kata</option>
+                    <option value="village">Kijiji</option>
+                </select>
+            </div>
+            <div>
+                <label>Faili (.zip / .geojson)</label>
+                <input type="file" id="upload-file" accept=".zip,.shp,.shx,.dbf,.prj,.geojson,.json" multiple class="form-control" />
+            </div>
+        </div>
+        <div class="actions">
+            <button class="btn-dp" id="btn-upload"><i class="fas fa-cloud-upload-alt"></i> Pakia</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const BASE = '/detailed-planning/api/';
+const selRegion = document.getElementById('sel-region');
+const selDistrict = document.getElementById('sel-district');
+const selWard = document.getElementById('sel-ward');
+const selVillage = document.getElementById('sel-village');
+
+let map = L.map('map-dp').setView([-6.5, 35.5], 6);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
+let boundaryLayer = null;
+
+function getCsrf() {
+    const c = document.cookie.match(/csrftoken=([^;]+)/);
+    return c ? c[1] : '';
+}
+
+function resetSelect(sel, placeholder, disabled) {
+    sel.innerHTML = `<option value="">${placeholder}</option>`;
+    sel.disabled = disabled;
+}
+
+async function loadRegions() {
+    const res = await fetch(BASE + 'regions/');
+    const data = await res.json();
+    resetSelect(selRegion, '-- Chagua Mkoa --', false);
+    data.forEach(r => {
+        const o = document.createElement('option');
+        o.value = r.name; o.textContent = r.name;
+        selRegion.appendChild(o);
+    });
+}
+
+selRegion.addEventListener('change', async () => {
+    resetSelect(selDistrict, '-- Chagua Wilaya --', true);
+    resetSelect(selWard, '-- Chagua Kata --', true);
+    resetSelect(selVillage, '-- Chagua Kijiji --', true);
+    if (!selRegion.value) return;
+    const res = await fetch(BASE + 'districts/' + encodeURIComponent(selRegion.value) + '/');
+    const data = await res.json();
+    resetSelect(selDistrict, '-- Chagua Wilaya --', false);
+    data.forEach(d => { const o = document.createElement('option'); o.value = d.name; o.textContent = d.name; selDistrict.appendChild(o); });
+});
+
+selDistrict.addEventListener('change', async () => {
+    resetSelect(selWard, '-- Chagua Kata --', true);
+    resetSelect(selVillage, '-- Chagua Kijiji --', true);
+    if (!selDistrict.value) return;
+    const url = BASE + 'wards/' + encodeURIComponent(selRegion.value) + '/' + encodeURIComponent(selDistrict.value) + '/';
+    const res = await fetch(url);
+    const data = await res.json();
+    resetSelect(selWard, '-- Chagua Kata --', false);
+    data.forEach(w => { const o = document.createElement('option'); o.value = w.name; o.textContent = w.name; selWard.appendChild(o); });
+});
+
+selWard.addEventListener('change', async () => {
+    resetSelect(selVillage, '-- Chagua Kijiji --', true);
+    if (!selWard.value) return;
+    const url = BASE + 'villages/' + encodeURIComponent(selRegion.value) + '/' + encodeURIComponent(selDistrict.value) + '/' + encodeURIComponent(selWard.value) + '/';
+    const res = await fetch(url);
+    const data = await res.json();
+    resetSelect(selVillage, '-- Chagua Kijiji --', false);
+    data.forEach(v => { const o = document.createElement('option'); o.value = v.name; o.textContent = v.name; selVillage.appendChild(o); });
+});
+
+function queryParams() {
+    const p = new URLSearchParams();
+    if (selRegion.value) p.set('region', selRegion.value);
+    if (selDistrict.value) p.set('district', selDistrict.value);
+    if (selWard.value) p.set('ward', selWard.value);
+    if (selVillage.value) p.set('village', selVillage.value);
+    return p.toString();
+}
+
+async function loadStats() {
+    const res = await fetch(BASE + 'stats/?' + queryParams());
+    const s = await res.json();
+    document.getElementById('st-owners').textContent = s.total_landowners;
+    document.getElementById('st-women').textContent = s.female_landowners;
+    document.getElementById('st-men').textContent = s.male_landowners;
+    document.getElementById('st-children').textContent = s.children_under_18;
+    document.getElementById('st-identified').textContent = s.identified_parcels;
+    document.getElementById('st-unidentified').textContent = s.unidentified_parcels;
+}
+
+async function loadBoundary() {
+    let level = 'district';
+    if (selVillage.value) level = 'village';
+    else if (selWard.value) level = 'ward';
+    const res = await fetch(BASE + 'boundary/?level=' + level + '&' + queryParams());
+    const geo = await res.json();
+    if (boundaryLayer) map.removeLayer(boundaryLayer);
+    if (geo.features && geo.features.length) {
+        boundaryLayer = L.geoJSON(geo).addTo(map);
+        map.fitBounds(boundaryLayer.getBounds(), { padding: [20, 20] });
+    }
+}
+
+async function loadParcels() {
+    const res = await fetch(BASE + 'parcels/?' + queryParams());
+    const data = await res.json();
+    const tbody = document.getElementById('parcel-body');
+    tbody.innerHTML = '';
+    if (!data.parcels.length) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#999;">Hakuna viwanja bado</td></tr>';
+        return;
+    }
+    data.parcels.forEach(p => {
+        const tr = document.createElement('tr');
+        const badge = p.is_identified
+            ? '<span class="badge-id">Imetambuliwa</span>'
+            : '<span class="badge-unid">Haijatambuliwa</span>';
+        tr.innerHTML = `<td><strong>${p.parcel_number}</strong></td><td>${p.village_name}</td><td>${badge}</td><td>${p.owner_name || '—'}</td><td>${p.owner_gender || '—'}</td>`;
+        tbody.appendChild(tr);
+    });
+}
+
+document.getElementById('btn-load').addEventListener('click', () => {
+    loadStats(); loadBoundary(); loadParcels();
+});
+
+document.getElementById('btn-generate').addEventListener('click', async () => {
+    if (!selVillage.value) { alert('Chagua kijiji kwanza'); return; }
+    const count = prompt('Idadi ya viwanja kutengeneza:', '5');
+    if (!count) return;
+    const res = await fetch(BASE + 'parcels/generate/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+        body: JSON.stringify({
+            region: selRegion.value, district: selDistrict.value,
+            ward: selWard.value, village: selVillage.value,
+            count: parseInt(count, 10), is_identified: false
+        })
+    });
+    const data = await res.json();
+    if (data.status === 'success') {
+        alert('Viwanja ' + data.count + ' vimetengenezwa!');
+        loadStats(); loadParcels();
+    } else {
+        alert(data.error || 'Hitilafu');
+    }
+});
+
+document.getElementById('btn-upload').addEventListener('click', async () => {
+    const fileInput = document.getElementById('upload-file');
+    const files = fileInput.files;
+    if (!files || !files.length) { alert('Chagua faili'); return; }
+    const fd = new FormData();
+    for (let i = 0; i < files.length; i++) {
+        fd.append('file', files[i]);
+    }
+    fd.append('level', document.getElementById('upload-level').value);
+    fd.append('region', selRegion.value);
+    fd.append('district', selDistrict.value);
+    fd.append('ward', selWard.value);
+    fd.append('village', selVillage.value);
+    const res = await fetch(BASE + 'upload-shapefile/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCsrf() },
+        body: fd
+    });
+    const data = await res.json();
+    if (data.status === 'success') {
+        alert('Shapefile imepakiwa (' + data.saved + ' features)');
+        loadBoundary();
+    } else {
+        alert(data.error || 'Hitilafu');
+    }
+});
+
+loadRegions();
+</script>
+{% endblock %}

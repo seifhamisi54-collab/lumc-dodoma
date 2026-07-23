@@ -1,0 +1,4434 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>{% if tools_page %}GIS Tools{% else %}GIS Portal{% endif %} - {{ region_name }} Landuse Management</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="/static/js/landuse_symbology.js?v=4"></script>
+{% if tools_page %}
+<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+<script src="https://unpkg.com/shpjs@4.0.4/dist/shp.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/georaster@1.5.6/dist/georaster.browser.bundle.min.js"></script>
+<script src="https://unpkg.com/georaster-layer-for-leaflet@3.10.0/dist/georaster-layer-for-leaflet.min.js"></script>
+<script src="/static/js/gis_tools.js"></script>
+<script src="/static/js/gis_editing.js"></script>
+{% endif %}
+
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'DM Sans', system-ui, sans-serif; font-size: 12px; background: #f0f2f5; color: #333; }
+
+.navbar {
+    background: rgba(15, 23, 55, 0.92);
+    backdrop-filter: blur(16px) saturate(1.2);
+    -webkit-backdrop-filter: blur(16px) saturate(1.2);
+    color: white;
+    padding: 10px 22px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 8px 28px rgba(15, 23, 42, 0.22);
+    min-height: 58px;
+}
+.navbar .logo { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.navbar .logo img.brand-logo {
+    width: 38px; height: 38px; border-radius: 10px; object-fit: contain;
+    background: #fff; padding: 2px; flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+}
+.navbar .logo h2 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+}
+.navbar .logo h2 small {
+    display: block;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    opacity: 0.65;
+    letter-spacing: 0;
+}
+.navbar .tools { display: flex; gap: 8px; flex-wrap: wrap; }
+.navbar .tools button {
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: white;
+    padding: 7px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 600;
+}
+.navbar .tools button:hover { background: rgba(255,255,255,0.22); }
+.navbar .nav-links {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+}
+.navbar .nav-links a {
+    color: rgba(255,255,255,0.82);
+    text-decoration: none;
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 7px 12px;
+    border-radius: 9px;
+    transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+.navbar .nav-links a:hover {
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+    transform: translateY(-1px);
+}
+.navbar .nav-links a.active {
+    background: #fbbf24;
+    color: #1a237e;
+    box-shadow: 0 2px 10px rgba(251, 191, 36, 0.35);
+}
+.navbar .user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+.navbar .user-info > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.12);
+    padding: 6px 11px;
+    border-radius: 9px;
+}
+.logout-btn {
+    background: rgba(254, 226, 226, 0.95);
+    color: #b91c1c;
+    padding: 7px 13px;
+    border-radius: 9px;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: background 0.2s ease;
+}
+.logout-btn:hover { background: #fecaca; color: #991b1b; }
+
+.main-wrapper {
+    display: flex;
+    margin-top: {% if tools_page %}164{% else %}58{% endif %}px;
+    height: calc(100vh - {% if tools_page %}164{% else %}58{% endif %}px);
+}
+
+/* Upper GIS Dashboard */
+.upper-dashboard {
+    position: fixed;
+    top: 58px;
+    left: 0;
+    right: 0;
+    z-index: 999;
+    background: linear-gradient(180deg, #ffffff 0%, #f8f9fc 100%);
+    border-bottom: 2px solid #e0e0e0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    padding: 8px 16px;
+}
+.ud-row { display: flex; gap: 12px; align-items: stretch; flex-wrap: wrap; }
+.ud-stats { display: flex; gap: 8px; flex-wrap: wrap; flex: 1; }
+.ud-stat {
+    background: #fff;
+    border: 1px solid #e8e8e8;
+    border-radius: 8px;
+    padding: 6px 14px;
+    text-align: center;
+    min-width: 72px;
+}
+.ud-stat span { display: block; font-size: 18px; font-weight: 700; color: #1a237e; line-height: 1.2; }
+.ud-stat label { font-size: 9px; color: #888; text-transform: uppercase; letter-spacing: 0.4px; }
+.ud-stat.error span { color: #dc3545; }
+.ud-stat.warn span { color: #ff9800; }
+.ud-stat.ok span { color: #28a745; }
+.ud-stat.quality span { font-size: 20px; }
+.ud-table-wrap {
+    flex: 2;
+    min-width: 280px;
+    max-height: 72px;
+    overflow-y: auto;
+    border: 1px solid #e8e8e8;
+    border-radius: 8px;
+    background: #fff;
+}
+.ud-table { width: 100%; border-collapse: collapse; font-size: 10px; }
+.ud-table th { background: #1a237e; color: #fff; padding: 4px 8px; text-align: left; position: sticky; top: 0; }
+.ud-table td { padding: 3px 8px; border-bottom: 1px solid #f0f0f0; }
+.issue-badge { color: #fff; padding: 2px 6px; border-radius: 3px; font-size: 9px; white-space: nowrap; }
+.ud-status-text { font-size: 11px; color: #555; padding: 4px 0; }
+.qgis-rules-grid { max-height: 140px; overflow-y: auto; border: 1px solid #eee; border-radius: 6px; padding: 6px; margin: 6px 0; }
+.qgis-rules-grid label { font-size: 10px; display: flex; align-items: flex-start; gap: 6px; padding: 3px 0; cursor: pointer; text-transform: none; letter-spacing: 0; }
+.qgis-rules-grid input { width: auto; margin-top: 2px; }
+.measure-readout {
+    background: #1a237e;
+    color: #fff;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    margin-top: 8px;
+    line-height: 1.6;
+}
+.measure-readout strong { color: #FFD700; }
+.sidebar {
+    width: 380px;
+    background: white;
+    overflow-y: auto;
+    padding: 12px;
+    box-shadow: 2px 0 8px rgba(0,0,0,0.05);
+}
+.card {
+    background: #fff;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    border: 1px solid #e5e5e5;
+    overflow: hidden;
+}
+.card-header {
+    background: #3b59ff;
+    color: white;
+    padding: 10px 12px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 600;
+}
+.card-header .arrow { transition: transform 0.3s; font-size: 10px; }
+.card.closed .arrow { transform: rotate(180deg); }
+.card-body { padding: 12px; }
+.card.closed .card-body { display: none; }
+
+.label-title {
+    display: block;
+    font-size: 10px;
+    font-weight: 600;
+    color: #555;
+    margin-top: 10px;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+select, input {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 11px;
+}
+select:focus, input:focus {
+    outline: none;
+    border-color: #3b59ff;
+}
+.btn {
+    padding: 6px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 10px;
+    border: none;
+    margin-top: 8px;
+    margin-right: 5px;
+}
+.btn-primary { background: #3b59ff; color: white; }
+.btn-primary:hover { background: #2a45cc; }
+.btn-success { background: #28a745; color: white; }
+.btn-success:hover { background: #218838; }
+.btn-danger { background: #dc3545; color: white; }
+.btn-danger:hover { background: #c82333; }
+.btn-secondary { background: #6c757d; color: white; }
+.btn-secondary:hover { background: #5a6268; }
+.btn-warning { background: #ffc107; color: #333; }
+.btn-warning:hover { background: #e0a800; }
+.btn-sm { padding: 4px 8px; font-size: 10px; }
+
+.donation-box {
+    margin-top: 12px;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px dashed #ffc107;
+    background: linear-gradient(135deg, #fffbeb 0%, #fff8e1 100%);
+}
+.donation-box h4 {
+    font-size: 11px;
+    color: #856404;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.currency-toggle {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+.currency-toggle button {
+    flex: 1;
+    padding: 6px;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 600;
+}
+.currency-toggle button.active {
+    border-color: #1a7a3a;
+    background: #e8f5e9;
+    color: #1a7a3a;
+}
+.amount-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin: 6px 0;
+}
+.amount-presets button {
+    padding: 4px 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 10px;
+}
+.amount-presets button.active {
+    background: #1a7a3a;
+    color: #fff;
+    border-color: #1a7a3a;
+}
+.payment-methods {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+.payment-method {
+    flex: 1;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    padding: 8px 4px;
+    text-align: center;
+    cursor: pointer;
+    font-size: 10px;
+    background: #fff;
+}
+.payment-method i { display: block; font-size: 16px; margin-bottom: 3px; color: #3b59ff; }
+.payment-method.active {
+    border-color: #1a7a3a;
+    background: #f0fff4;
+}
+.payment-method.merchant.active i { color: #e65100; }
+.download-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 10px;
+}
+
+#map {
+    flex: 1;
+    height: 100%;
+    background: #ffffff;
+    overflow: hidden;
+}
+.main-wrapper {
+    background: #ffffff;
+}
+
+.ward-name-label {
+    background: transparent !important;
+    border: none !important;
+}
+.ward-name-label span {
+    color: #dc3545;
+    font-style: italic;
+    font-weight: 600;
+    font-size: 11px;
+    white-space: nowrap;
+    text-shadow: 0 0 4px #ffffff, 0 0 4px #ffffff;
+    pointer-events: none;
+}
+.layer-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 8px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    margin-bottom: 4px;
+    font-size: 11px;
+}
+
+/* Tools — navbar dropdown */
+.nav-dropdown { position: relative; display: inline-block; }
+.nav-dropdown-toggle {
+    color: white;
+    text-decoration: none;
+    font-size: 12px;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+.nav-dropdown-toggle:hover,
+.nav-dropdown.open .nav-dropdown-toggle { background: rgba(255,255,255,0.2); }
+.nav-tools-highlight {
+    background: #FFD700 !important;
+    color: #1a237e !important;
+    font-weight: 700 !important;
+}
+.nav-tools-highlight:hover { background: #ffeb3b !important; }
+.nav-tools-highlight.active {
+    box-shadow: inset 0 0 0 2px #1a237e;
+}
+.nav-dropdown-menu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    min-width: 220px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+    padding: 6px 0;
+    z-index: 2000;
+    margin-top: 4px;
+}
+.nav-dropdown.open .nav-dropdown-menu { display: block; }
+.nav-dropdown-menu a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    color: #333 !important;
+    font-size: 12px;
+    text-decoration: none;
+    border-radius: 0;
+}
+.nav-dropdown-menu a:hover { background: #f0f4ff; color: #1a237e !important; }
+.nav-dropdown-menu a i { width: 18px; color: #3b59ff; }
+
+/* Tools — sidebar */
+.work-upload-card .card-header { background: #1565c0; }
+.tools-card .card-header { background: #6a1b9a; }
+.tools-nav {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+.tools-nav button {
+    padding: 8px 6px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: 600;
+    text-align: center;
+    line-height: 1.3;
+    transition: all 0.2s;
+}
+.tools-nav button i { display: block; font-size: 16px; margin-bottom: 4px; color: #6a1b9a; }
+.tools-nav button:hover { border-color: #9c27b0; background: #faf5fc; }
+.tools-nav button.active {
+    border-color: #6a1b9a;
+    background: linear-gradient(135deg, #f3e5f5, #ede7f6);
+    color: #4a148c;
+}
+.tools-nav.tools-nav-wide {
+    grid-template-columns: repeat(3, 1fr);
+}
+.edit-cmd-list {
+    max-height: 160px;
+    overflow-y: auto;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    margin: 6px 0;
+    background: #fafafa;
+}
+.edit-cmd-item {
+    padding: 6px 8px;
+    font-size: 10px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    gap: 6px;
+}
+.edit-cmd-item:hover { background: #e8eaf6; }
+.edit-cmd-item.active { background: #c5cae9; font-weight: 600; }
+.edit-cmd-item .cmd-name { color: #3949ab; font-family: monospace; }
+.edit-cmd-item .cmd-badge {
+    font-size: 8px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    background: #ff9800;
+    color: #fff;
+}
+.edit-cmd-params input[type="text"],
+.edit-cmd-params input[type="number"],
+.edit-cmd-params select {
+    width: 100%;
+    margin-bottom: 6px;
+    padding: 4px 6px;
+    font-size: 11px;
+}
+.edit-cmd-desc {
+    font-size: 10px;
+    color: #555;
+    margin: 4px 0 8px;
+    line-height: 1.4;
+}
+.tool-panel { display: none; }
+.tool-panel.active { display: block; }
+.tool-panel .info-note { margin-top: 8px; }
+.tool-result {
+    margin-top: 8px;
+    padding: 8px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    font-size: 10px;
+    max-height: 120px;
+    overflow-y: auto;
+    line-height: 1.5;
+}
+.tool-status-bar {
+    position: absolute;
+    top: 170px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1001;
+    background: #6a1b9a;
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    display: none;
+    align-items: center;
+    gap: 10px;
+}
+.tool-status-bar.show { display: flex; }
+/* QGIS Editor toolbar kwenye ramani */
+.map-edit-toolbar {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 1001;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    background: rgba(255,255,255,0.97);
+    padding: 6px;
+    border-radius: 8px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.22);
+    border: 1px solid #b0bec5;
+}
+.map-edit-toolbar .tb-title {
+    font-size: 9px;
+    font-weight: 700;
+    color: #1565c0;
+    text-align: center;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #e0e0e0;
+    margin-bottom: 2px;
+}
+.map-edit-toolbar button {
+    width: 38px;
+    height: 34px;
+    border: 1px solid #cfd8dc;
+    background: #fff;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #37474f;
+}
+.map-edit-toolbar button:hover { background: #e3f2fd; border-color: #90caf9; }
+.map-edit-toolbar button.active {
+    background: #1976d2;
+    color: #fff;
+    border-color: #1565c0;
+}
+.map-edit-toolbar button.tb-trace.active { background: #e65100; border-color: #bf360c; }
+.qgis-editor-card .card-header { background: #1976d2; }
+.qgis-edit-btns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin: 8px 0;
+}
+.qgis-edit-btns button {
+    padding: 8px 4px;
+    font-size: 10px;
+    border: 2px solid #e0e0e0;
+    border-radius: 6px;
+    background: #fff;
+    cursor: pointer;
+    font-weight: 600;
+}
+.qgis-edit-btns button i { display: block; font-size: 15px; margin-bottom: 3px; }
+.qgis-edit-btns button:hover { border-color: #1976d2; background: #e3f2fd; }
+.qgis-edit-btns button.active { border-color: #1976d2; background: #bbdefb; color: #0d47a1; }
+.tool-status-bar button {
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: #fff;
+    padding: 3px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 10px;
+}
+.gcp-list { font-size: 10px; margin: 6px 0; }
+.gcp-list div {
+    padding: 4px 6px;
+    background: #fff3e0;
+    border-radius: 4px;
+    margin-bottom: 3px;
+}
+.upload-area {
+    border: 2px dashed #ccc;
+    padding: 12px;
+    text-align: center;
+    border-radius: 6px;
+    cursor: pointer;
+    margin: 8px 0;
+    font-size: 11px;
+    transition: all 0.3s;
+}
+.upload-area:hover { border-color: #3b59ff; background: #f0f8ff; }
+.region-badge {
+    background: linear-gradient(135deg, #1a237e, #283593);
+    color: white;
+    padding: 10px 12px;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    text-align: center;
+    font-weight: bold;
+}
+
+.legend {
+    background: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    font-size: 11px;
+}
+.legend span {
+    display: inline-block;
+    width: 20px;
+    height: 3px;
+    margin-right: 5px;
+    vertical-align: middle;
+}
+.landuse-upload-legend {
+    max-height: 220px;
+    overflow-y: auto;
+    line-height: 1.45;
+}
+.landuse-upload-legend .lu-leg-item {
+    margin: 3px 0;
+    white-space: nowrap;
+}
+.landuse-upload-legend .lu-swatch {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    margin-right: 6px;
+    border: 1px solid #333;
+    vertical-align: middle;
+    border-radius: 2px;
+}
+.info-note {
+    background: #e3f2fd;
+    border-left: 3px solid #3b59ff;
+    padding: 8px;
+    margin-top: 10px;
+    border-radius: 4px;
+    font-size: 10px;
+    color: #1565c0;
+}
+.upload-option {
+    margin-bottom: 10px;
+}
+.upload-option label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 4px;
+    transition: background 0.3s;
+}
+.upload-option label:hover {
+    background: #f0f0f0;
+}
+.upload-option input[type="radio"] {
+    width: auto;
+    margin: 0;
+}
+</style>
+</head>
+<body>
+
+<div class="navbar">
+    <div class="logo">
+        <img src="/static/img/lumc-logo.png?v=4" alt="LUMC" class="brand-logo">
+        <h2>LUMC <span id="region-name-display">{{ region_name }}</span><small>Land Use Management</small></h2>
+    </div>
+    <div class="nav-links">
+        <a href="/"><i class="fas fa-home"></i> Nyumbani</a>
+        <a href="/map/{% if region_name and region_name != 'Tanzania' %}?region_name={{ region_name|urlencode }}{% endif %}" class="{% if not tools_page %}active{% endif %}"><i class="fas fa-map"></i> GIS Portal</a>
+        <a href="{% if region_name and region_name != 'Tanzania' %}{% url 'dashboard:gis_tools' %}?region_name={{ region_name|urlencode }}{% else %}{% url 'dashboard:gis_tools' %}{% endif %}" class="nav-tools-highlight {% if tools_page %}active{% endif %}">
+            <i class="fas fa-toolbox"></i> GIS Tools
+        </a>
+        <a href="{% if region_name and region_name != 'Tanzania' %}/data-portal/?region_name={{ region_name|urlencode }}{% else %}/data-portal/{% endif %}"><i class="fas fa-chart-line"></i> Data Portal</a>
+        <a href="/upload/landuse/"><i class="fas fa-upload"></i> Upload</a>
+        <a href="/download/shapefile/"><i class="fas fa-download"></i> Download</a>
+    </div>
+    <div class="user-info">
+        <span><i class="fas fa-user-circle"></i> {{ user.username }}</span>
+        <a href="{% url 'logout' %}" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Toka</a>
+    </div>
+</div>
+
+{% if tools_page %}
+<!-- Upper GIS Quality Dashboard -->
+<div class="upper-dashboard" id="upper-dashboard">
+    <div class="ud-row">
+        <div class="ud-stats">
+            <div class="ud-stat"><span id="ud-features">0</span><label>Features</label></div>
+            <div class="ud-stat error"><span id="ud-errors">0</span><label>Makosa</label></div>
+            <div class="ud-stat warn"><span id="ud-warnings">0</span><label>Maonyo</label></div>
+            <div class="ud-stat ok"><span id="ud-fixed">0</span><label>Zilizosafishwa</label></div>
+            <div class="ud-stat quality"><span id="ud-quality">100%</span><label>Ubora wa GIS</label></div>
+        </div>
+        <div class="ud-table-wrap">
+            <table class="ud-table">
+                <thead>
+                    <tr>
+                        <th>Sheria (QGIS)</th>
+                        <th>Feature</th>
+                        <th>Maelezo</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="gis-issues-tbody">
+                    <tr><td colspan="4" style="text-align:center;color:#999;">Kagua topology au safisha data kuona matokeo</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="ud-status-text"><i class="fas fa-info-circle"></i> Hali: <strong id="ud-status">Tayari</strong></div>
+</div>
+{% endif %}
+
+<div class="main-wrapper">
+    <div class="sidebar">
+        <div class="region-badge">
+            <i class="fas fa-map-marker-alt"></i> Mkoa: <strong>{{ region_name }}</strong>
+        </div>
+
+        {% if not tools_page %}
+        <!-- Administrative Levels Card -->
+        <div class="card">
+            <div class="card-header" onclick="toggleCard(this)">
+                <span><i class="fas fa-tree"></i> Administrative Levels</span>
+                <span class="arrow">▲</span>
+            </div>
+            <div class="card-body">
+                <label class="label-title"><i class="fas fa-map"></i> Mkoa</label>
+                <select id="region-select" onchange="onRegionChange()">
+                    <option value="">-- Chagua Mkoa --</option>
+                </select>
+
+                <label class="label-title"><i class="fas fa-city"></i> Wilaya</label>
+                <select id="district-select" onchange="onDistrictChange()" disabled>
+                    <option value="">-- Chagua Wilaya --</option>
+                </select>
+
+                <label class="label-title"><i class="fas fa-layer-group"></i> Kata</label>
+                <select id="ward-select" onchange="onWardChange()" disabled>
+                    <option value="">-- Chagua Kata --</option>
+                </select>
+
+                <label class="label-title"><i class="fas fa-home"></i> Kijiji</label>
+                <select id="village-select" onchange="onVillageChange()" disabled>
+                    <option value="">Vijiji vyote — Onyesha viwanja vyote kata</option>
+                </select>
+
+                <div style="margin-top: 10px;">
+                    <button class="btn btn-secondary btn-sm" onclick="resetView()"><i class="fas fa-crosshairs"></i> Rejesha Mwonekano</button>
+                    <button class="btn btn-danger btn-sm" onclick="resetAllLevels()"><i class="fas fa-trash"></i> Futa Chujio</button>
+                </div>
+                <div class="info-note">
+                    Chagua mkoa → wilaya → kata. Acha kijiji kuwa «Vijiji vyote» kuona viwanja vyote kwenye kata.
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Planning Layer -->
+        <div class="card">
+            <div class="card-header" onclick="toggleCard(this)">
+                <span><i class="fas fa-drafting-compass"></i> Mipango ya Kina (Detailed Planning)</span>
+                <span class="arrow">▲</span>
+            </div>
+            <div class="card-body">
+                <input type="checkbox" id="dp-boundary-toggle" checked style="display:none" onchange="togglePlanningBoundaryLayer()">
+                <input type="checkbox" id="dp-parcels-toggle" checked style="display:none" onchange="togglePlanningParcelsLayer()">
+                <div class="ud-stats" style="margin-top:8px;">
+                    <div class="ud-stat"><span id="dp-st-total">0</span><label>Viwanja (DB)</label></div>
+                    <div class="ud-stat"><span id="dp-st-shown">0</span><label>Kwenye Ramani</label></div>
+                    <div class="ud-stat"><span id="dp-st-owners">0</span><label>Waliomiliki</label></div>
+                    <div class="ud-stat"><span id="dp-st-identified">0</span><label>Vimetambuliwa</label></div>
+                    <div class="ud-stat"><span id="dp-st-unidentified">0</span><label>Visivyotambuliwa</label></div>
+                </div>
+                <div id="dp-matumizi-legend" class="landuse-upload-legend" style="margin-top:10px;display:none;"></div>
+                <div class="info-note">
+                    Takwimu kamili na namba za viwanja: <a href="/data-portal/" style="color:#1565c0;">Data Portal → Mipango ya Kina</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if tools_page %}
+        <!-- Pakia data ya kufanyia kazi -->
+        <div class="card work-upload-card" id="work-upload-card">
+            <div class="card-header" onclick="toggleCard(this)">
+                <span><i class="fas fa-file-upload"></i> Pakia Data ya Kufanyia Kazi</span>
+                <span class="arrow">▲</span>
+            </div>
+            <div class="card-body">
+                <label class="label-title">Aina ya Faili</label>
+                <select id="work-file-type" onchange="onWorkFileTypeChange()">
+                    <option value="shapefile">Shapefile (.zip, .shp)</option>
+                    <option value="geotiff">GeoTIFF (.tif, .tiff)</option>
+                    <option value="jpeg">Picha (JPEG / JPG)</option>
+                </select>
+
+                <div class="upload-area" onclick="document.getElementById('work-file-input').click()">
+                    <i class="fas fa-cloud-upload-alt" style="font-size: 24px;"></i>
+                    <p>Bofya kuchagua faili</p>
+                    <small id="work-file-hint">.zip, .shp, .geojson</small>
+                </div>
+                <input type="file" id="work-file-input" style="display:none" onchange="handleWorkFileUpload(this)">
+
+                <label class="label-title" id="work-opacity-label" style="display:none">Uwazi wa Ramani/Picha</label>
+                <input type="range" id="work-opacity" min="0.2" max="1" step="0.1" value="0.7" style="display:none" oninput="setWorkOpacity(this.value)">
+
+                <div style="margin-top: 8px;">
+                    <button class="btn btn-danger btn-sm" onclick="clearWorkLayer()">
+                        <i class="fas fa-trash"></i> Futa Iliyopakiwa
+                    </button>
+                    <button class="btn btn-secondary btn-sm" onclick="resetView()">
+                        <i class="fas fa-crosshairs"></i> Rejesha Mwonekano
+                    </button>
+                </div>
+                <div class="info-note">
+                    Shapefile: pakia <strong>.zip</strong> yenye .shp, .shx, .dbf pamoja. GeoTIFF/JPEG kwa picha na raster.
+                </div>
+                <div class="tool-result" id="work-upload-result">Hakuna faili bado. Chagua aina na pakia data yako.</div>
+            </div>
+        </div>
+        <!-- GIS Tools Card -->
+        <div class="card tools-card" id="tools-card">
+            <div class="card-header" onclick="toggleCard(this)">
+                <span><i class="fas fa-toolbox"></i> Tools</span>
+                <span class="arrow">▲</span>
+            </div>
+            <div class="card-body">
+                <div class="tools-nav tools-nav-wide">
+                    <button type="button" class="active" data-tool="qgis-editor" onclick="switchGisTool('qgis-editor')">
+                        <i class="fas fa-draw-polygon"></i> QGIS Editor
+                    </button>
+                    <button type="button" data-tool="topology" onclick="switchGisTool('topology')">
+                        <i class="fas fa-project-diagram"></i> Topology Tools
+                    </button>
+                    <button type="button" data-tool="measures" onclick="switchGisTool('measures')">
+                        <i class="fas fa-ruler-combined"></i> Measure Tools
+                    </button>
+                    <button type="button" data-tool="editing" onclick="switchGisTool('editing')">
+                        <i class="fas fa-terminal"></i> Editing Commands
+                    </button>
+                    <button type="button" data-tool="data-cleaning" onclick="switchGisTool('data-cleaning')">
+                        <i class="fas fa-broom"></i> Data Cleaning
+                    </button>
+                    <button type="button" data-tool="georeferencing" onclick="switchGisTool('georeferencing')">
+                        <i class="fas fa-crosshairs"></i> Georeferencing
+                    </button>
+                    <button type="button" data-tool="ai-digitization" onclick="switchGisTool('ai-digitization')">
+                        <i class="fas fa-robot"></i> AI Digitize
+                    </button>
+                </div>
+
+                <!-- QGIS Editor (tracing, digitize, vertex) -->
+                <div class="tool-panel active" id="panel-qgis-editor">
+                    <label class="label-title"><i class="fas fa-magnet"></i> Tracing (kama QGIS)</label>
+                    <div class="upload-option">
+                        <label><input type="checkbox" id="qgis-trace-enable" onchange="setTraceEnabled(this.checked)"> Wezesha Tracing</label>
+                    </div>
+                    <div class="upload-option">
+                        <label><input type="checkbox" id="qgis-snap-vertex" checked> Snap kwa vertex</label>
+                    </div>
+                    <label class="label-title">Umbali wa trace/snap (m)</label>
+                    <input type="number" id="qgis-trace-tol" value="15" min="1" max="500" step="1">
+
+                    <label class="label-title">Zana za Kuchora</label>
+                    <div class="qgis-edit-btns">
+                        <button type="button" id="btn-edit-polygon" onclick="startQgisEdit('polygon')">
+                            <i class="fas fa-draw-polygon"></i> Ongeza Polygon
+                        </button>
+                        <button type="button" id="btn-edit-line" onclick="startQgisEdit('line')">
+                            <i class="fas fa-minus"></i> Ongeza Line
+                        </button>
+                        <button type="button" id="btn-edit-point" onclick="startQgisEdit('point')">
+                            <i class="fas fa-map-pin"></i> Ongeza Point
+                        </button>
+                        <button type="button" id="btn-edit-vertex" onclick="startQgisEdit('vertex')">
+                            <i class="fas fa-vector-square"></i> Vertex Tool
+                        </button>
+                    </div>
+
+                    <button class="btn btn-success btn-sm" onclick="finishQgisSketch()">
+                        <i class="fas fa-check"></i> Maliza & Hifadhi Feature
+                    </button>
+                    <button class="btn btn-warning btn-sm" onclick="undoQgisPoint()">
+                        <i class="fas fa-undo"></i> Rudisha Pointi
+                    </button>
+                    <button class="btn btn-danger btn-sm" onclick="cancelQgisEdit()">
+                        <i class="fas fa-times"></i> Ghairi
+                    </button>
+
+                    <div class="info-note">
+                        <strong>Tracing:</strong> wezesha trace, kisha chora polygon/line — pointi zinasnap kwenye mipaka ya layer iliyopakiwa (kama QGIS trace).
+                        Bofya mara mbili kumaliza. Vertex tool: bofya vertex kuhamisha.
+                    </div>
+                    <div class="tool-result" id="qgis-editor-result">Chagua zana na chora kwenye ramani.</div>
+                </div>
+
+                <!-- AI Digitization -->
+                <div class="tool-panel" id="panel-ai-digitization">
+                    <label class="label-title">Pakia Picha / Ramani (JPG, PNG)</label>
+                    <div class="upload-area" onclick="document.getElementById('ai-image-input').click()">
+                        <i class="fas fa-image"></i> Bofya kupakia picha ya kudigitize
+                    </div>
+                    <input type="file" id="ai-image-input" accept="image/*" style="display:none" onchange="loadAiImage(this)">
+                    <label class="label-title">Uwazi wa Picha</label>
+                    <input type="range" id="ai-opacity" min="0.2" max="1" step="0.1" value="0.7" oninput="setAiOpacity(this.value)">
+                    <button class="btn btn-primary btn-sm" onclick="startAiDigitize()">
+                        <i class="fas fa-pen"></i> Anza AI Digitization
+                    </button>
+                    <button class="btn btn-success btn-sm" onclick="finishAiDigitize()">
+                        <i class="fas fa-check"></i> Maliza & Hifadhi
+                    </button>
+                    <button class="btn btn-danger btn-sm" onclick="cancelAiDigitize()">
+                        <i class="fas fa-times"></i> Ghairi
+                    </button>
+                    <div class="info-note">AI inasaidia kugundua mipaka kwenye picha. Bofya ramani kuweka pointi; bofya mara mbili kumaliza polygon.</div>
+                    <div class="tool-result" id="ai-digitize-result">Hakuna shughuli bado.</div>
+                </div>
+
+                <!-- Smart Georeferencing -->
+                <div class="tool-panel" id="panel-georeferencing">
+                    <label class="label-title">Pakia Layer Isiyorejelewa (GeoJSON)</label>
+                    <div class="upload-area" onclick="document.getElementById('georef-input').click()">
+                        <i class="fas fa-file-import"></i> Pakia GeoJSON ya kurejea
+                    </div>
+                    <input type="file" id="georef-input" accept=".geojson,.json" style="display:none" onchange="loadGeorefLayer(this)">
+                    <label class="label-title">Pointi za Kudhibiti (GCP)</label>
+                    <button class="btn btn-primary btn-sm" onclick="startGcpMode()">
+                        <i class="fas fa-map-pin"></i> Ongeza GCP
+                    </button>
+                    <button class="btn btn-success btn-sm" onclick="applySmartGeoref()">
+                        <i class="fas fa-magic"></i> Tumia Smart Georeference
+                    </button>
+                    <div class="gcp-list" id="gcp-list"><em>Hakuna GCP bado.</em></div>
+                    <div class="info-note">Chagua angalau pointi 2: bofya kwenye layer halisi, kisha bofya mahali sahihi kwenye ramani.</div>
+                    <div class="tool-result" id="georef-result">—</div>
+                </div>
+
+                <!-- Data Cleaning -->
+                <div class="tool-panel" id="panel-data-cleaning">
+                    <label class="label-title">Chagua Layer</label>
+                    <select id="clean-layer-select" onchange="onCleanLayerSelectChange(this)">
+                        <option value="work" selected>Data Iliyopakiwa</option>
+                        <option value="active">Layer iliyo hai</option>
+                        <option value="upload">Pakia GeoJSON...</option>
+                    </select>
+                    <input type="file" id="clean-upload-input" accept=".geojson,.json" style="display:none" onchange="loadCleanLayer(this)">
+                    <label class="label-title">Safisha Makosa ya GIS (kama QGIS)</label>
+                    <div class="upload-option"><label><input type="checkbox" id="clean-gaps" checked> Rekebisha gaps (pengo)</label></div>
+                    <div class="upload-option"><label><input type="checkbox" id="clean-overlaps" checked> Rekebisha overlaps</label></div>
+                    <div class="upload-option"><label><input type="checkbox" id="clean-invalid" checked> Rekebisha invalid geometry</label></div>
+                    <div class="upload-option"><label><input type="checkbox" id="clean-dupes" checked> Ondoa duplicates</label></div>
+                    <div class="upload-option"><label><input type="checkbox" id="clean-slivers" checked> Ondoa sliver polygons</label></div>
+                    <div class="upload-option"><label><input type="checkbox" id="clean-coords" checked> Safisha coordinates (clean coords)</label></div>
+                    <label class="label-title">Eneo la chini (m²) — sliver</label>
+                    <input type="number" id="clean-min-area" value="100" min="1" step="10">
+                    <button class="btn btn-primary btn-sm" onclick="runDataCleaning()">
+                        <i class="fas fa-broom"></i> Safisha & Onyesha Ramani
+                    </button>
+                    <button class="btn btn-warning btn-sm" onclick="runTopologyCheck()">
+                        <i class="fas fa-search"></i> Kagua Kabla ya Kusafisha
+                    </button>
+                    <button class="btn btn-success btn-sm" onclick="exportCleanedLayer()">
+                        <i class="fas fa-download"></i> Pakua Iliyosafishwa
+                    </button>
+                    <div class="tool-result" id="clean-result">Matokeo yataonekana hapa na kwenye dashboard juu.</div>
+                </div>
+
+                <!-- Topology Tools (QGIS Rules) -->
+                <div class="tool-panel" id="panel-topology">
+                    <label class="label-title">Layer ya Kukagua</label>
+                    <select id="topo-layer-select">
+                        <option value="work" selected>Data Iliyopakiwa</option>
+                        <option value="active">Layer iliyo hai</option>
+                    </select>
+                    <label class="label-title">Sheria za Topology (QGIS Topology Checker)</label>
+                    <div class="qgis-rules-grid" id="qgis-rules-grid"></div>
+                    <label class="label-title">Eneo la chini (m²)</label>
+                    <input type="number" id="topo-min-area" value="100" min="1" step="10">
+                    <button class="btn btn-primary btn-sm" onclick="runTopologyCheck()">
+                        <i class="fas fa-search"></i> Kagua Topology (QGIS)
+                    </button>
+                    <button class="btn btn-warning btn-sm" onclick="highlightTopoIssues()">
+                        <i class="fas fa-highlighter"></i> Onyesha kwenye Ramani
+                    </button>
+                    <button class="btn btn-danger btn-sm" onclick="clearGisHighlights()">
+                        <i class="fas fa-eraser"></i> Futa Uangazio
+                    </button>
+                    <div class="tool-result" id="topo-result">Chagua sheria za QGIS na bofya Kagua. Matokeo kwa GEOS/GDAL (sawa na QGIS).</div>
+                </div>
+
+                <!-- Measure Tools -->
+                <div class="tool-panel" id="panel-measures">
+                    <label class="label-title">Zana ya Kupima</label>
+                    <button class="btn btn-primary btn-sm" onclick="startMeasure('distance')">
+                        <i class="fas fa-ruler"></i> Pima Umbali
+                    </button>
+                    <button class="btn btn-primary btn-sm" onclick="startMeasure('area')">
+                        <i class="fas fa-draw-polygon"></i> Pima Eneo
+                    </button>
+                    <button class="btn btn-secondary btn-sm" onclick="startMeasure('coordinate')">
+                        <i class="fas fa-map-pin"></i> Soma Kuratibu
+                    </button>
+                    <button class="btn btn-danger btn-sm" onclick="stopMeasure()">
+                        <i class="fas fa-stop"></i> Sitisha
+                    </button>
+                    <div class="measure-readout" id="measure-readout">
+                        <strong>Kipimo:</strong> —<br>
+                        Bofya zana hapo juu kuanza.
+                    </div>
+                    <div class="info-note">Umbali: m/km. Eneo: m²/ha/km². Bofya mara mbili kumaliza umbali/eneo.</div>
+                </div>
+
+                <!-- Editing Commands (Mapshaper-style) -->
+                <div class="tool-panel" id="panel-editing">
+                    <label class="label-title">Tafuta amri</label>
+                    <input type="text" id="edit-cmd-search" placeholder="-buffer, clean, dissolve..." oninput="filterEditingCommands(this.value)">
+
+                    <label class="label-title">Kategoria</label>
+                    <select id="edit-cmd-category" onchange="filterEditingCommands()">
+                        <option value="">Zote</option>
+                    </select>
+
+                    <div class="edit-cmd-list" id="edit-cmd-list"></div>
+
+                    <div class="edit-cmd-desc" id="edit-cmd-desc">Chagua amri kutoka orodha.</div>
+                    <div class="edit-cmd-params" id="edit-cmd-params"></div>
+
+                    <button class="btn btn-primary btn-sm" onclick="runEditingCommand()">
+                        <i class="fas fa-play"></i> Tekeleza Amri
+                    </button>
+                    <button class="btn btn-success btn-sm" onclick="exportEditedLayer()">
+                        <i class="fas fa-download"></i> Pakua GeoJSON
+                    </button>
+                    <button class="btn btn-secondary btn-sm" onclick="showEditingHelp()">
+                        <i class="fas fa-question-circle"></i> Msaada
+                    </button>
+                    <div class="tool-result" id="edit-cmd-result">Amri za GEOS/GDAL (buffer, dissolve, clean, nk.) — kama Mapshaper/QGIS.</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if not tools_page %}
+        <!-- Upload Shapefile Card -->
+        <div class="card">
+            <div class="card-header" onclick="toggleCard(this)">
+                <span><i class="fas fa-upload"></i> Upload Shapefile / Data</span>
+                <span class="arrow">▲</span>
+            </div>
+            <div class="card-body">
+                <div class="upload-option">
+                    <label>
+                        <input type="radio" name="upload_type" value="parcels" checked>
+                        <i class="fas fa-th-large"></i> Viwanja / Parcels (CCO)
+                    </label>
+                </div>
+                <div class="upload-option">
+                    <label>
+                        <input type="radio" name="upload_type" value="landuse">
+                        <i class="fas fa-tree"></i> Land Use
+                    </label>
+                </div>
+                <div class="upload-option">
+                    <label>
+                        <input type="radio" name="upload_type" value="village_boundary">
+                        <i class="fas fa-home"></i> Mpaka wa Kijiji
+                    </label>
+                </div>
+
+                <div class="upload-area" onclick="document.getElementById('shapefileInput').click()">
+                    <i class="fas fa-cloud-upload-alt" style="font-size: 24px;"></i>
+                    <p>Bonyeza kuupload Shapefile</p>
+                    <small>.zip (.shp+.shx+.dbf) au .geojson</small>
+                </div>
+                <input type="file" id="shapefileInput" accept=".zip,.shp,.shx,.dbf,.prj,.geojson" multiple style="display:none">
+                <div class="info-note" style="margin-top:8px;">
+                    <strong>Muhimu (Viwanja / Mpaka wa Kijiji):</strong> shapefile iwe na column
+                    <code>Kijiji</code> au <code>village</code> — andika jina la kijiji husika kwa kila feature
+                    ili kisomeke ndani ya kata.<br>
+                    <strong>Viwanja:</strong> chagua wilaya + kata.<br>
+                    <strong>Mpaka wa Kijiji:</strong> wilaya + kata (+ kijiji UI ikiwa column haipo).<br>
+                    <strong>Land Use:</strong> wilaya (+ kata) — onyesha kwenye ramani.
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="uploadShapefileWithType()"><i class="fas fa-upload"></i> Pakia Sasa</button>
+
+                <div style="margin-top:12px;border-top:1px solid #e0e0e0;padding-top:10px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                        <strong style="font-size:11px;"><i class="fas fa-folder-open"></i> Shapefile za Mpango</strong>
+                        <button type="button" class="btn btn-sm" style="font-size:10px;padding:2px 6px;" onclick="loadMapMpangoShapefiles()" title="Onyesha upya"><i class="fas fa-sync"></i></button>
+                    </div>
+                    <div id="map-mpango-shp-list" style="max-height:160px;overflow:auto;font-size:11px;">
+                        <div class="text-muted">Chagua wilaya kuona orodha</div>
+                    </div>
+                    <input type="file" id="map-shp-replace-input" accept=".zip,.shp,.geojson" style="display:none">
+                </div>
+            </div>
+        </div>
+
+        <!-- Download Card -->
+        <div class="card">
+            <div class="card-header" onclick="toggleCard(this)">
+                <span><i class="fas fa-download"></i> Download Data</span>
+                <span class="arrow">▲</span>
+            </div>
+            <div class="card-body">
+                <label class="label-title">Aina ya Data</label>
+                <select id="download-data-type">
+                    <option value="village_data">Taarifa za Vijiji (Land Use)</option>
+                    <option value="village_boundaries">Mipaka ya Vijiji</option>
+                    <option value="ward_boundaries">Mipaka ya Kata</option>
+                    <option value="district_boundaries">Mipaka ya Wilaya</option>
+                    <option value="region_boundary">Mipaka ya Mkoa</option>
+                    <option value="social_services">Huduma za Jamii</option>
+                    <option value="parcels">Viwanja (Parcels)</option>
+                </select>
+                
+                <label class="label-title">Format ya Kupakua</label>
+                <select id="download-format">
+                    <optgroup label="Kijiografia (Spatial)">
+                        <option value="shapefile">Shapefile (.zip)</option>
+                        <option value="geojson">GeoJSON (.geojson)</option>
+                        <option value="geodatabase">Geodatabase / GeoPackage (.gdb/.gpkg)</option>
+                        <option value="gpkg">GeoPackage (.gpkg)</option>
+                        <option value="kml">KML (.kml)</option>
+                    </optgroup>
+                    <optgroup label="Jedwali (Tabular)">
+                        <option value="csv">CSV (.csv)</option>
+                        <option value="excel">Excel (.xlsx)</option>
+                    </optgroup>
+                </select>
+                
+                <div class="info-note" style="margin-top:8px;">
+                    Data itachujwa kulingana na mkoa, wilaya na kata uliyochagua kwenye ramani.
+                </div>
+
+                <div class="donation-box">
+                    <h4><i class="fas fa-heart"></i> Changia Kununua Data (Hiari)</h4>
+                    <label class="label-title" style="margin-top:0;">Sarafu</label>
+                    <div class="currency-toggle">
+                        <button type="button" id="donate-currency-tzs" class="active" onclick="setDonateCurrency('TZS')">TSh</button>
+                        <button type="button" id="donate-currency-usd" onclick="setDonateCurrency('USD')">USD ($)</button>
+                    </div>
+
+                    <label class="label-title">Kiasi cha Mchango</label>
+                    <div class="amount-presets" id="amount-presets-tzs">
+                        <button type="button" onclick="setDonateAmount(5000)">5,000</button>
+                        <button type="button" onclick="setDonateAmount(10000)">10,000</button>
+                        <button type="button" onclick="setDonateAmount(25000)">25,000</button>
+                        <button type="button" onclick="setDonateAmount(50000)">50,000</button>
+                    </div>
+                    <div class="amount-presets" id="amount-presets-usd" style="display:none;">
+                        <button type="button" onclick="setDonateAmount(5)">$5</button>
+                        <button type="button" onclick="setDonateAmount(10)">$10</button>
+                        <button type="button" onclick="setDonateAmount(25)">$25</button>
+                        <button type="button" onclick="setDonateAmount(50)">$50</button>
+                    </div>
+                    <input type="number" id="donate-amount" min="1" step="1" placeholder="Au andika kiasi kingine" value="5000">
+
+                    <label class="label-title">Njia ya Malipo</label>
+                    <div class="payment-methods">
+                        <div class="payment-method card active" id="pay-method-card" onclick="setPaymentMethod('card')">
+                            <i class="fas fa-credit-card"></i>
+                            Kadi (Card)
+                        </div>
+                        <div class="payment-method merchant" id="pay-method-merchant" onclick="setPaymentMethod('merchant')">
+                            <i class="fas fa-store"></i>
+                            Pay Merchant
+                        </div>
+                    </div>
+
+                    <label class="label-title">Mawasiliano (si lazima)</label>
+                    <input type="text" id="donate-name" placeholder="Jina lako">
+                    <input type="email" id="donate-email" placeholder="Barua pepe" style="margin-top:6px;">
+                    <input type="tel" id="donate-phone" placeholder="Namba ya simu (kwa Pay Merchant)" style="margin-top:6px;">
+                </div>
+
+                <div class="download-actions">
+                    <button class="btn btn-success btn-sm" onclick="downloadWithDonation()">
+                        <i class="fas fa-heart"></i> Changia & Pakua Data
+                    </button>
+                    <button class="btn btn-secondary btn-sm" onclick="downloadFilteredData()">
+                        <i class="fas fa-download"></i> Pakua Bila Mchango
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Active Layers Card -->
+        <div class="card">
+            <div class="card-header" onclick="toggleCard(this)">
+                <span><i class="fas fa-layer-group"></i> Safu Zilizoamilishwa</span>
+                <span class="arrow">▲</span>
+            </div>
+            <div class="card-body">
+                <div id="active-layers-list">
+                    <p style="color:#999; text-align:center;">Hakuna safu</p>
+                </div>
+                <button class="btn btn-danger btn-sm" onclick="clearAllLayers()"><i class="fas fa-trash"></i> Futa Zote</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="map"></div>
+
+    {% if tools_page %}
+    <div class="map-edit-toolbar" id="map-edit-toolbar" title="QGIS Editor">
+        <div class="tb-title">QGIS</div>
+        <button type="button" id="tb-trace" title="Tracing" onclick="toggleTraceFromToolbar()"><i class="fas fa-magnet"></i></button>
+        <button type="button" id="tb-polygon" title="Ongeza Polygon" onclick="toolbarEdit('polygon')"><i class="fas fa-draw-polygon"></i></button>
+        <button type="button" id="tb-line" title="Ongeza Line" onclick="toolbarEdit('line')"><i class="fas fa-minus"></i></button>
+        <button type="button" id="tb-point" title="Ongeza Point" onclick="toolbarEdit('point')"><i class="fas fa-map-pin"></i></button>
+        <button type="button" id="tb-vertex" title="Vertex Tool" onclick="toolbarEdit('vertex')"><i class="fas fa-vector-square"></i></button>
+        <button type="button" id="tb-finish" title="Maliza" onclick="finishQgisSketch()" style="color:#2e7d32"><i class="fas fa-check"></i></button>
+        <button type="button" id="tb-cancel" title="Ghairi" onclick="cancelQgisEdit()" style="color:#c62828"><i class="fas fa-times"></i></button>
+    </div>
+    {% endif %}
+</div>
+
+{% if tools_page %}
+<div class="tool-status-bar" id="tool-status-bar">
+    <span id="tool-status-text">Zana hai</span>
+    <button type="button" onclick="stopActiveTool()">Sitisha</button>
+</div>
+{% endif %}
+
+<div style="position: absolute; bottom: 20px; right: 20px; z-index: 1000;">
+    <select id="basemap-select" onchange="changeBasemap(this.value)" style="padding: 6px 10px; border-radius: 4px; background: white; font-size: 11px;">
+        <option value="osm">🗺️ OpenStreetMap</option>
+        <option value="satellite">🛰️ Satellite</option>
+        <option value="terrain">⛰️ Terrain</option>
+    </select>
+</div>
+
+<script>
+// =====================================================
+// VARIABLES
+// =====================================================
+var map;
+var basemapLayer;
+var districtsLayer;
+var wardsLayer;
+var wardLabelsLayer;
+var highlightLayer;
+var aoiBorderLayer = null;
+var activeLayers = [];
+var districtsGeoJSON = null;
+var wardsGeoJSON = null;
+var currentDistrict = '';
+var currentWard = '';
+var currentVillage = '';
+var planningBoundaryLayer = null;
+var planningParcelsLayer = null;
+var PLANNING_API = '/api/planning/';
+var regionBoundaryLayer;
+var regionBounds = null;
+var regionMaxBounds = null;
+var regionName = '{{ region_name }}';
+var isToolsPage = {% if tools_page %}true{% else %}false{% endif %};
+var currentAoiBounds = null;
+var currentAoiFeature = null;
+var aoiClipSvg = null;
+var aoiClipPathEl = null;
+var aoiClipId = 'map-aoi-clip-path';
+var portalUploadLayer = null;
+var landuseLayer = null;
+
+function mmToLeafletWeight(mm) {
+    return (mm * 96) / 25.4;
+}
+
+const AOI_LINE_WEIGHT = mmToLeafletWeight(1.5);
+
+const AOI_BOUNDARY_STYLE = {
+    color: '#000000',
+    weight: AOI_LINE_WEIGHT,
+    opacity: 1,
+    fillOpacity: 0,
+    fillColor: 'transparent',
+    lineCap: 'round',
+    lineJoin: 'round'
+};
+
+const WARD_BOUNDARY_STYLE = {
+    color: '#dc3545',
+    weight: AOI_LINE_WEIGHT,
+    opacity: 1,
+    fillOpacity: 0.06,
+    fillColor: '#dc3545',
+    lineCap: 'round',
+    lineJoin: 'round'
+};
+
+const COLORS = {
+    district: '#3b59ff',
+    ward: '#dc3545',
+    highlight: '#ff0000'
+};
+
+// =====================================================
+// HELPERS
+// =====================================================
+function showLoading(msg) {
+    Swal.fire({ title: msg, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+}
+function hideLoading() { Swal.close(); }
+function showError(msg) { Swal.fire({ icon: 'error', title: 'Error', text: msg }); }
+function showSuccess(msg) { Swal.fire({ icon: 'success', title: 'Success', text: msg, timer: 1500, showConfirmButton: false }); }
+
+// =====================================================
+// MAP INIT
+// =====================================================
+function initMap() {
+    map = L.map('map', { zoomControl: true, preferCanvas: true }).setView([-6.369, 34.889], 7);
+    basemapLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap',
+        maxZoom: 19
+    }).addTo(map);
+
+    map.createPane('aoiBorderPane');
+    map.getPane('aoiBorderPane').style.zIndex = 650;
+    map.createPane('parcelsPane');
+    map.getPane('parcelsPane').style.zIndex = 648;
+    map.createPane('landusePane');
+    map.getPane('landusePane').style.zIndex = 642;
+    map.createPane('uploadPane');
+    map.getPane('uploadPane').style.zIndex = 645;
+
+    districtsLayer = L.layerGroup().addTo(map);
+    wardsLayer = L.layerGroup();
+    wardLabelsLayer = L.layerGroup().addTo(map);
+    highlightLayer = L.layerGroup().addTo(map);
+
+    if (isToolsPage) {
+        map.setView([-6.369, 34.889], 6);
+        return;
+    }
+    addLegend();
+    loadRegionDropdown();
+    loadRegionBoundary();
+}
+
+function loadRegionDropdown() {
+    if (isToolsPage) return;
+    var select = document.getElementById('region-select');
+    if (!select) return;
+
+    fetch(PLANNING_API + 'regions/')
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            select.innerHTML = '<option value="">-- Chagua Mkoa --</option>';
+            data.forEach(function(r) {
+                var opt = document.createElement('option');
+                opt.value = r.name;
+                opt.textContent = r.name;
+                select.appendChild(opt);
+            });
+            if (regionName && regionName !== 'Tanzania') {
+                select.value = regionName;
+            }
+        })
+        .catch(function() { /* regions optional */ });
+}
+
+function onRegionChange() {
+    var select = document.getElementById('region-select');
+    if (!select || !select.value) {
+        resetAllLevels();
+        return;
+    }
+    if (select.value !== regionName) {
+        window.location.href = '/map/?region_name=' + encodeURIComponent(select.value);
+        return;
+    }
+    populateDistrictsFromPlanning(select.value);
+}
+
+function populateDistrictsFromPlanning(region) {
+    var districtSelect = document.getElementById('district-select');
+    var wardSelect = document.getElementById('ward-select');
+    var villageSelect = document.getElementById('village-select');
+    if (!districtSelect) return;
+
+    districtSelect.innerHTML = '<option value="">-- Chagua Wilaya --</option>';
+    districtSelect.disabled = true;
+    if (wardSelect) {
+        wardSelect.innerHTML = '<option value="">-- Chagua Kata --</option>';
+        wardSelect.disabled = true;
+    }
+    if (villageSelect) {
+        villageSelect.innerHTML = '<option value="">Vijiji vyote — Onyesha viwanja vyote kata</option>';
+        villageSelect.disabled = true;
+    }
+
+    fetch(PLANNING_API + 'districts/' + encodeURIComponent(region) + '/')
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            data.forEach(function(d) {
+                var opt = document.createElement('option');
+                opt.value = d.name;
+                opt.textContent = d.name;
+                districtSelect.appendChild(opt);
+            });
+            districtSelect.disabled = false;
+        });
+}
+
+function populateVillagesFromPlanning(region, district, ward, suggestVillage) {
+    var villageSelect = document.getElementById('village-select');
+    if (!villageSelect) return;
+
+    villageSelect.innerHTML = '<option value="">Vijiji vyote — Onyesha viwanja vyote kata</option>';
+    villageSelect.disabled = true;
+    currentVillage = '';
+
+    var url = PLANNING_API + 'villages/' + encodeURIComponent(region) + '/'
+        + encodeURIComponent(district) + '/' + encodeURIComponent(ward) + '/';
+    fetch(url)
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            data.forEach(function(v) {
+                var opt = document.createElement('option');
+                opt.value = v.name;
+                opt.textContent = v.name;
+                villageSelect.appendChild(opt);
+            });
+            if (suggestVillage) {
+                var found = false;
+                for (var i = 0; i < villageSelect.options.length; i++) {
+                    if (villageSelect.options[i].value.toLowerCase() === suggestVillage.toLowerCase()) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    var hint = document.createElement('option');
+                    hint.value = suggestVillage;
+                    hint.textContent = suggestVillage + ' (kutoka upload)';
+                    villageSelect.appendChild(hint);
+                }
+            }
+            villageSelect.disabled = false;
+        });
+}
+
+function syncPlanningStateFromForm() {
+    var districtSelect = document.getElementById('district-select');
+    var wardSelect = document.getElementById('ward-select');
+    var villageSelect = document.getElementById('village-select');
+    if (districtSelect && districtSelect.value) currentDistrict = districtSelect.value;
+    if (wardSelect && wardSelect.value) currentWard = wardSelect.value;
+    if (villageSelect) currentVillage = villageSelect.value || '';
+}
+
+function syncMapSelectionFromUpload(aoi) {
+    if (!aoi) return;
+    syncPlanningStateFromForm();
+    if (aoi.district) {
+        currentDistrict = aoi.district;
+        var districtSelect = document.getElementById('district-select');
+        if (districtSelect) districtSelect.value = aoi.district;
+    }
+    if (aoi.ward) {
+        currentWard = aoi.ward;
+        var wardSelect = document.getElementById('ward-select');
+        if (wardSelect) {
+            var wardFound = false;
+            for (var i = 0; i < wardSelect.options.length; i++) {
+                if (wardSelect.options[i].value.toLowerCase() === aoi.ward.toLowerCase()) {
+                    wardSelect.value = wardSelect.options[i].value;
+                    wardFound = true;
+                    break;
+                }
+            }
+            if (!wardFound) {
+                var wardOpt = document.createElement('option');
+                wardOpt.value = aoi.ward;
+                wardOpt.textContent = aoi.ward;
+                wardSelect.appendChild(wardOpt);
+                wardSelect.value = aoi.ward;
+                wardSelect.disabled = false;
+            }
+        }
+    }
+}
+
+function afterParcelUploadSuccess(data) {
+    var parcelsToggle = document.getElementById('dp-parcels-toggle');
+    if (parcelsToggle) parcelsToggle.checked = true;
+    syncMapSelectionFromUpload(data.aoi || null);
+    currentVillage = '';
+    var villageSelect = document.getElementById('village-select');
+    if (villageSelect) villageSelect.value = '';
+    if (data.aoi && data.aoi.ward && regionName && currentDistrict) {
+        populateVillagesFromPlanning(
+            regionName,
+            currentDistrict,
+            data.aoi.ward,
+            (data.aoi && data.aoi.village) ? data.aoi.village : null
+        );
+    }
+    refreshPlanningLayers();
+    if (planningParcelsLayer && planningParcelsLayer.bringToFront) {
+        planningParcelsLayer.bringToFront();
+    }
+}
+
+function afterLanduseUploadSuccess(data) {
+    syncMapSelectionFromUpload(data.aoi || null);
+    clearPortalUploadLayer();
+    loadLanduseLayer();
+}
+
+function planningQueryParams() {
+    syncPlanningStateFromForm();
+    var p = new URLSearchParams();
+    p.set('region', regionName);
+    if (currentDistrict) p.set('district', currentDistrict);
+    if (currentWard) p.set('ward', currentWard);
+    if (currentVillage) p.set('village', currentVillage);
+    return p.toString();
+}
+
+function clearPlanningLayers() {
+    if (planningBoundaryLayer && map.hasLayer(planningBoundaryLayer)) {
+        map.removeLayer(planningBoundaryLayer);
+    }
+    planningBoundaryLayer = null;
+    if (planningParcelsLayer && map.hasLayer(planningParcelsLayer)) {
+        map.removeLayer(planningParcelsLayer);
+    }
+    planningParcelsLayer = null;
+    if (landuseLayer && map.hasLayer(landuseLayer)) {
+        map.removeLayer(landuseLayer);
+    }
+    landuseLayer = null;
+    if (typeof LanduseSymbology !== 'undefined') {
+        LanduseSymbology.removeLegend(map);
+    }
+    var matLeg = document.getElementById('dp-matumizi-legend');
+    if (matLeg) {
+        matLeg.style.display = 'none';
+        matLeg.innerHTML = '';
+    }
+}
+
+function loadLanduseLayer() {
+    syncPlanningStateFromForm();
+    if (isToolsPage || !currentDistrict) return;
+
+    var params = new URLSearchParams();
+    params.set('district', currentDistrict);
+    if (currentWard) params.set('ward', currentWard);
+    if (currentVillage) params.set('village', currentVillage);
+
+    fetch('/api/landuse/geojson/?' + params.toString())
+        .then(function(res) { return res.json(); })
+        .then(function(geo) {
+            if (landuseLayer && map.hasLayer(landuseLayer)) {
+                map.removeLayer(landuseLayer);
+            }
+            landuseLayer = null;
+            if (typeof LanduseSymbology !== 'undefined') {
+                LanduseSymbology.removeLegend(map);
+            }
+            if (!geo.features || !geo.features.length) return;
+
+            if (typeof LanduseSymbology !== 'undefined') {
+                landuseLayer = L.geoJSON(geo, {
+                    pane: 'landusePane',
+                    style: function(feature) {
+                        return LanduseSymbology.styleForFeature(feature);
+                    },
+                    onEachFeature: function(feature, layer) {
+                        layer.bindPopup(LanduseSymbology.buildPopupHtml(feature));
+                    }
+                }).addTo(map);
+                LanduseSymbology.addLegend(map, geo);
+            } else {
+                landuseLayer = L.geoJSON(geo, {
+                    pane: 'landusePane',
+                    style: { color: '#2e7d32', weight: 1.5, fillOpacity: 0.45, fillColor: '#66bb6a' }
+                }).addTo(map);
+            }
+            bringAoiLayersToFront();
+        })
+        .catch(function() {});
+}
+
+function loadPlanningStats() {
+    fetch(PLANNING_API + 'stats/?' + planningQueryParams())
+        .then(function(res) { return res.json(); })
+        .then(function(s) {
+            var el;
+            el = document.getElementById('dp-st-total');
+            if (el) el.textContent = s.total_parcels || 0;
+            el = document.getElementById('dp-st-owners');
+            if (el) el.textContent = s.total_landowners || 0;
+            el = document.getElementById('dp-st-identified');
+            if (el) el.textContent = s.identified_parcels || 0;
+            el = document.getElementById('dp-st-unidentified');
+            if (el) el.textContent = s.unidentified_parcels || 0;
+        })
+        .catch(function() { /* optional */ });
+}
+
+function loadPlanningBoundaryLayer() {
+    if (isToolsPage) return;
+    var toggle = document.getElementById('dp-boundary-toggle');
+    if (toggle && !toggle.checked) return;
+
+    var level = 'district';
+    if (currentVillage) level = 'village';
+    else if (currentWard) level = 'ward';
+
+    fetch(PLANNING_API + 'boundary/?level=' + level + '&' + planningQueryParams())
+        .then(function(res) { return res.json(); })
+        .then(function(geo) {
+            if (planningBoundaryLayer && map.hasLayer(planningBoundaryLayer)) {
+                map.removeLayer(planningBoundaryLayer);
+            }
+            if (geo.features && geo.features.length) {
+                planningBoundaryLayer = L.geoJSON(geo, {
+                    style: {
+                        color: '#0f766e',
+                        weight: 2,
+                        fillOpacity: 0.12,
+                        fillColor: '#0f766e'
+                    }
+                }).addTo(map);
+                if (currentVillage && planningBoundaryLayer.getBounds().isValid()) {
+                    map.fitBounds(planningBoundaryLayer.getBounds(), { padding: [30, 30] });
+                }
+            } else {
+                planningBoundaryLayer = null;
+            }
+        });
+}
+
+function parcelStyleFromMatumizi(feature) {
+    var props = (feature && feature.properties) ? feature.properties : {};
+    if (typeof LanduseSymbology !== 'undefined') {
+        // Tumia land_use / matumizi kutoka CCRO shapefile
+        var fake = {
+            properties: {
+                land_use: props.land_use,
+                matumizi: props.land_use || props.matumizi,
+                tumizi: props.land_use || props.tumizi
+            }
+        };
+        var style = LanduseSymbology.styleForFeature(fake);
+        style.weight = 1.8;
+        style.fillOpacity = 0.55;
+        return style;
+    }
+    return {
+        color: props.is_identified ? '#2e7d32' : '#bf360c',
+        weight: 2,
+        fillOpacity: 0.45,
+        fillColor: props.is_identified ? '#66bb6a' : '#ff9800'
+    };
+}
+
+function updateMatumiziLegendPanel(geo) {
+    var box = document.getElementById('dp-matumizi-legend');
+    if (!box) return;
+    if (typeof LanduseSymbology === 'undefined' || !geo || !geo.features || !geo.features.length) {
+        box.style.display = 'none';
+        box.innerHTML = '';
+        return;
+    }
+    var cats = LanduseSymbology.categoriesInGeoJSON({
+        type: 'FeatureCollection',
+        features: geo.features.map(function(f) {
+            var p = f.properties || {};
+            return {
+                type: 'Feature',
+                properties: {
+                    land_use: p.land_use,
+                    matumizi: p.land_use || p.matumizi,
+                    tumizi: p.land_use
+                },
+                geometry: f.geometry
+            };
+        })
+    });
+    if (!cats.length) {
+        box.style.display = 'none';
+        box.innerHTML = '';
+        return;
+    }
+    var html = '<strong>Rangi — Matumizi (Attribute)</strong>';
+    cats.forEach(function(c) {
+        var pal = c.palette || (LanduseSymbology.paletteForKey
+            ? LanduseSymbology.paletteForKey(c.key, c.rawSample)
+            : (LanduseSymbology.PALETTE[c.key] || LanduseSymbology.PALETTE.other));
+        html += '<div class="lu-leg-item">' +
+            '<span class="lu-swatch" style="background:' + pal.fillColor + ';border-color:' + pal.color + ';"></span>' +
+            c.label + ' <small>(' + c.count + ')</small></div>';
+    });
+    box.innerHTML = html;
+    box.style.display = 'block';
+}
+
+function loadPlanningParcelsLayer() {
+    syncPlanningStateFromForm();
+    if (isToolsPage || !currentWard || !regionName) return;
+    var toggle = document.getElementById('dp-parcels-toggle');
+    if (toggle && !toggle.checked) return;
+
+    fetch(PLANNING_API + 'parcels/geojson/?' + planningQueryParams())
+        .then(function(res) { return res.json(); })
+        .then(function(geo) {
+            if (planningParcelsLayer && map.hasLayer(planningParcelsLayer)) {
+                map.removeLayer(planningParcelsLayer);
+            }
+            var meta = geo.meta || {};
+            var shownEl = document.getElementById('dp-st-shown');
+            var totalEl = document.getElementById('dp-st-total');
+            var returned = meta.returned != null ? meta.returned : (geo.features ? geo.features.length : 0);
+            if (shownEl) shownEl.textContent = returned;
+            if (totalEl && meta.total_matching != null) totalEl.textContent = meta.total_matching;
+            if (geo.features && geo.features.length) {
+                planningParcelsLayer = L.geoJSON(geo, {
+                    pane: 'parcelsPane',
+                    style: function(feature) {
+                        return parcelStyleFromMatumizi(feature);
+                    },
+                    onEachFeature: function(f, layer) {
+                        var p = f.properties || {};
+                        var idLabel = p.identified_label || (p.is_identified ? 'Imetambuliwa' : 'Haijatambuliwa');
+                        var matumiziHtml = '';
+                        if (typeof LanduseSymbology !== 'undefined' && (p.land_use || p.matumizi)) {
+                            var rawMat = p.land_use || p.matumizi;
+                            var key = LanduseSymbology.normalizeKey(rawMat);
+                            var pal = LanduseSymbology.paletteForKey
+                                ? LanduseSymbology.paletteForKey(key, rawMat)
+                                : (LanduseSymbology.PALETTE[key] || LanduseSymbology.PALETTE.other);
+                            var label = LanduseSymbology.getDisplayLabel(rawMat, key);
+                            matumiziHtml = '<br><span style="display:inline-block;width:10px;height:10px;background:' +
+                                pal.fillColor + ';border:1px solid ' + pal.color +
+                                ';margin-right:4px;vertical-align:middle;"></span>' +
+                                '<b>Matumizi:</b> ' + label;
+                        }
+                        layer.bindPopup('<b>' + (p.parcel_number || 'Kiwanja') + '</b><br>'
+                            + (p.village_name ? p.village_name + '<br>' : '')
+                            + '<span style="font-weight:600;color:' + (p.is_identified ? '#2e7d32' : '#c62828') + ';">'
+                            + idLabel + '</span>'
+                            + matumiziHtml
+                            + (p.owner_name ? '<br>' + p.owner_name : ''));
+                    }
+                }).addTo(map);
+                updateMatumiziLegendPanel(geo);
+                if (typeof LanduseSymbology !== 'undefined') {
+                    // Legend kwenye ramani (chini-kulia) pia
+                    var legendGeo = {
+                        type: 'FeatureCollection',
+                        features: geo.features.map(function(f) {
+                            var p = f.properties || {};
+                            return {
+                                type: 'Feature',
+                                properties: { land_use: p.land_use, matumizi: p.land_use },
+                                geometry: f.geometry
+                            };
+                        })
+                    };
+                    LanduseSymbology.addLegend(map, legendGeo);
+                }
+                if (planningParcelsLayer.bringToFront) {
+                    planningParcelsLayer.bringToFront();
+                }
+                if (!currentVillage && planningParcelsLayer.getBounds().isValid()) {
+                    map.fitBounds(planningParcelsLayer.getBounds(), { padding: [30, 30] });
+                }
+            } else {
+                planningParcelsLayer = null;
+                updateMatumiziLegendPanel(null);
+                if (shownEl) shownEl.textContent = '0';
+            }
+        });
+}
+
+function refreshPlanningLayers() {
+    loadPlanningStats();
+    loadPlanningBoundaryLayer();
+    loadPlanningParcelsLayer();
+    loadLanduseLayer();
+    if (typeof loadMapMpangoShapefiles === 'function') loadMapMpangoShapefiles();
+}
+
+function togglePlanningBoundaryLayer() {
+    if (document.getElementById('dp-boundary-toggle').checked) {
+        loadPlanningBoundaryLayer();
+    } else if (planningBoundaryLayer && map.hasLayer(planningBoundaryLayer)) {
+        map.removeLayer(planningBoundaryLayer);
+    }
+}
+
+function togglePlanningParcelsLayer() {
+    if (document.getElementById('dp-parcels-toggle').checked) {
+        loadPlanningParcelsLayer();
+    } else if (planningParcelsLayer && map.hasLayer(planningParcelsLayer)) {
+        map.removeLayer(planningParcelsLayer);
+    }
+}
+
+function onVillageChange() {
+    var villageSelect = document.getElementById('village-select');
+    currentVillage = villageSelect ? (villageSelect.value || '') : '';
+    refreshPlanningLayers();
+}
+
+function loadRegionBoundary() {
+    if (isToolsPage) return;
+    showLoading('Loading region boundary...');
+    
+    fetch(PLANNING_API + 'region-boundary/' + encodeURIComponent(regionName) + '/')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success === false || data.error) {
+                loadAllDistricts();
+                hideLoading();
+                return;
+            }
+            if (data.boundary_geojson) {
+                regionBoundaryLayer = L.geoJSON(data.boundary_geojson, {
+                    style: { color: '#1a237e', weight: 3, fillOpacity: 0.1, fillColor: '#1a237e' },
+                    onEachFeature: (f, l) => l.bindPopup(`<b>Mkoa:</b> ${regionName}`)
+                }).addTo(map);
+                
+                regionBounds = regionBoundaryLayer.getBounds();
+                if (regionBounds.isValid()) {
+                    regionMaxBounds = regionBounds;
+                    map.setMaxBounds(regionBounds.pad(0.02));
+                    map.fitBounds(regionBounds);
+                }
+                loadAllDistricts();
+                hideLoading();
+            } else {
+                loadAllDistricts();
+                hideLoading();
+            }
+        })
+        .catch(error => { loadAllDistricts(); hideLoading(); });
+}
+
+function addLegend() {
+    var legend = L.control({ position: 'bottomleft' });
+    legend.onAdd = function() {
+        var div = L.DomUtil.create('div', 'legend');
+        div.innerHTML = `<strong>Ngazi</strong><br><span style="background:${COLORS.district}"></span> Wilaya<br><span style="background:${COLORS.ward}"></span> Kata<br><span style="background:#000"></span> Eneo Lililochaguliwa<br><span style="background:#0f766e"></span> Mipango ya Kina`;
+        return div;
+    };
+    legend.addTo(map);
+}
+
+// =====================================================
+// AREA OF INTEREST (AOI)
+// =====================================================
+function ringToLayerPath(ring) {
+    if (!ring || ring.length < 3) return '';
+    var parts = ring.map(function(coord, index) {
+        var pt = map.latLngToLayerPoint(L.latLng(coord[1], coord[0]));
+        return (index === 0 ? 'M' : 'L') + pt.x + ' ' + pt.y;
+    });
+    return parts.join(' ') + ' Z';
+}
+
+function geometryToLayerPath(geometry) {
+    if (!geometry) return '';
+    var paths = [];
+
+    if (geometry.type === 'Polygon' && geometry.coordinates[0]) {
+        paths.push(ringToLayerPath(geometry.coordinates[0]));
+    } else if (geometry.type === 'MultiPolygon') {
+        geometry.coordinates.forEach(function(polygon) {
+            if (polygon && polygon[0]) {
+                paths.push(ringToLayerPath(polygon[0]));
+            }
+        });
+    }
+    return paths.join(' ');
+}
+
+function ensureAoiClipSvg() {
+    if (aoiClipSvg) return;
+
+    aoiClipSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    aoiClipSvg.setAttribute('class', 'aoi-clip-svg');
+    aoiClipSvg.setAttribute('width', '0');
+    aoiClipSvg.setAttribute('height', '0');
+    aoiClipSvg.style.cssText = 'position:absolute;overflow:hidden;pointer-events:none;';
+
+    var defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    var clipPath = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
+    clipPath.setAttribute('id', aoiClipId);
+    clipPath.setAttribute('clipPathUnits', 'userSpaceOnUse');
+
+    aoiClipPathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    clipPath.appendChild(aoiClipPathEl);
+    defs.appendChild(clipPath);
+    aoiClipSvg.appendChild(defs);
+    map.getPane('mapPane').appendChild(aoiClipSvg);
+}
+
+function updateAoiMapClipPath() {
+    if (!currentAoiFeature || !currentAoiFeature.geometry || !aoiClipPathEl) return;
+    aoiClipPathEl.setAttribute('d', geometryToLayerPath(currentAoiFeature.geometry));
+}
+
+function setMapPaneClip(enabled) {
+    var clipValue = enabled ? 'url(#' + aoiClipId + ')' : '';
+    ['tilePane', 'shadowPane'].forEach(function(paneName) {
+        var pane = map.getPane(paneName);
+        if (pane) {
+            pane.style.clipPath = enabled ? clipValue : '';
+            pane.style.webkitClipPath = pane.style.clipPath;
+        }
+    });
+}
+
+function bindAoiClipEvents() {
+    map.on('zoom', updateAoiMapClipPath);
+    map.on('zoomend', updateAoiMapClipPath);
+    map.on('resize', updateAoiMapClipPath);
+    map.on('viewreset', updateAoiMapClipPath);
+}
+
+function unbindAoiClipEvents() {
+    map.off('zoom', updateAoiMapClipPath);
+    map.off('zoomend', updateAoiMapClipPath);
+    map.off('resize', updateAoiMapClipPath);
+    map.off('viewreset', updateAoiMapClipPath);
+}
+
+function enableAoiMapClip() {
+    ensureAoiClipSvg();
+    unbindAoiClipEvents();
+    bindAoiClipEvents();
+    updateAoiMapClipPath();
+    setMapPaneClip(true);
+}
+
+function disableAoiMapClip() {
+    unbindAoiClipEvents();
+    setMapPaneClip(false);
+    if (aoiClipPathEl) {
+        aoiClipPathEl.setAttribute('d', '');
+    }
+}
+
+function clearAoiBorder() {
+    if (aoiBorderLayer) {
+        map.removeLayer(aoiBorderLayer);
+        aoiBorderLayer = null;
+    }
+}
+
+function drawAoiBorder(feature, popupHtml, style) {
+    clearAoiBorder();
+    if (!feature || !feature.geometry) return;
+
+    aoiBorderLayer = L.geoJSON(feature, {
+        pane: 'aoiBorderPane',
+        style: style || AOI_BOUNDARY_STYLE,
+        interactive: true,
+        onEachFeature: function(f, layer) {
+            if (popupHtml) {
+                layer.bindPopup(popupHtml);
+            }
+        }
+    }).addTo(map);
+    aoiBorderLayer.bringToFront();
+}
+
+function zoomToAoiBounds(bounds) {
+    if (!bounds || !bounds.isValid()) return;
+
+    map.setMaxBounds(bounds.pad(0.05));
+    map.fitBounds(bounds, {
+        padding: [48, 48],
+        maxZoom: 14,
+        animate: false
+    });
+
+    var fitZoom = map.getBoundsZoom(bounds, false, L.point(48, 48));
+    if (fitZoom !== Infinity) {
+        map.setMinZoom(Math.max(fitZoom - 1, 0));
+    }
+
+    map.invalidateSize();
+    updateAoiMapClipPath();
+}
+
+function clearAoiClip() {
+    disableAoiMapClip();
+    clearAoiBorder();
+    currentAoiBounds = null;
+    currentAoiFeature = null;
+
+    if (regionBoundaryLayer && !map.hasLayer(regionBoundaryLayer)) {
+        regionBoundaryLayer.addTo(map);
+    }
+    if (regionMaxBounds && regionMaxBounds.isValid()) {
+        map.setMaxBounds(regionMaxBounds.pad(0.02));
+        map.setMinZoom(6);
+    } else {
+        map.setMaxBounds(null);
+        map.setMinZoom(0);
+    }
+}
+
+function applyAoiClip(feature, label, popupHtml, boundaryStyle) {
+    if (!feature || !feature.geometry) return;
+
+    currentAoiFeature = feature;
+
+    if (regionBoundaryLayer && map.hasLayer(regionBoundaryLayer)) {
+        map.removeLayer(regionBoundaryLayer);
+    }
+
+    var aoiLayer = L.geoJSON(feature.geometry || feature);
+    currentAoiBounds = aoiLayer.getBounds();
+
+    districtsLayer.clearLayers();
+    drawAoiBorder(feature, popupHtml, boundaryStyle);
+
+    zoomToAoiBounds(currentAoiBounds);
+    enableAoiMapClip();
+
+    requestAnimationFrame(function() {
+        updateAoiMapClipPath();
+        if (aoiBorderLayer) {
+            aoiBorderLayer.bringToFront();
+        }
+    });
+
+    if (label) {
+        showSuccess('AOI: ' + label);
+    }
+}
+
+function displaySelectedDistrictOnly(districtName) {
+    districtsLayer.clearLayers();
+    if (!districtsGeoJSON || !districtsGeoJSON.features) return null;
+
+    var selected = districtsGeoJSON.features.find(function(f) {
+        return (f.properties.name || '').toLowerCase() === districtName.toLowerCase();
+    });
+    if (!selected || !selected.geometry) return null;
+
+    return selected;
+}
+
+// =====================================================
+// DISTRICTS
+// =====================================================
+function loadAllDistricts() {
+    if (isToolsPage) return;
+    showLoading('Loading districts...');
+    fetch(PLANNING_API + 'district-boundaries/' + encodeURIComponent(regionName) + '/')
+        .then(res => res.json())
+        .then(data => {
+            hideLoading();
+            if (data.features && data.features.length > 0) {
+                districtsGeoJSON = data;
+                displayAllDistricts();
+                populateDistrictDropdown();
+                showSuccess(`Loaded ${data.features.length} districts`);
+            } else {
+                showError('No districts found');
+                if (regionName && regionName !== 'Tanzania') {
+                    populateDistrictsFromPlanning(regionName);
+                }
+            }
+        })
+        .catch(err => {
+            hideLoading();
+            if (regionName && regionName !== 'Tanzania') {
+                populateDistrictsFromPlanning(regionName);
+            } else {
+                showError('Failed to load districts');
+            }
+        });
+}
+
+function displayAllDistricts() {
+    districtsLayer.clearLayers();
+    if (!districtsGeoJSON || !districtsGeoJSON.features) return;
+    
+    districtsGeoJSON.features.forEach(feature => {
+        if (feature.geometry) {
+            L.geoJSON(feature, {
+                style: { color: COLORS.district, weight: 2, fillOpacity: 0.15, fillColor: COLORS.district },
+                onEachFeature: (f, layer) => {
+                    var districtName = (f.properties && f.properties.name) || 'Unknown';
+                    layer.bindPopup(`<b>Wilaya:</b> ${districtName}<br><b>Mkoa:</b> ${regionName}<br><button onclick="selectDistrict('${districtName}')" style="margin-top:5px; padding:3px 8px; background:#3b59ff; color:white; border:none; border-radius:3px;">Tazama Kata</button>`);
+                }
+            }).addTo(districtsLayer);
+        }
+    });
+    
+    try {
+        if (districtsLayer.getLayers().length) {
+            var bounds = districtsLayer.getBounds();
+            if (bounds.isValid() && regionBounds && regionBounds.isValid()) {
+                if (!regionBounds.contains(bounds)) map.fitBounds(regionBounds);
+                else map.fitBounds(bounds);
+            } else if (bounds.isValid()) map.fitBounds(bounds);
+        }
+    } catch(e) {}
+}
+
+function populateDistrictDropdown() {
+    var select = document.getElementById('district-select');
+    if (!select) return;
+    select.innerHTML = '<option value="">-- Chagua Wilaya --</option>';
+    if (districtsGeoJSON && districtsGeoJSON.features) {
+        districtsGeoJSON.features.forEach(feature => {
+            var name = feature.properties.name;
+            if (name) {
+                var opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                select.appendChild(opt);
+            }
+        });
+        select.disabled = false;
+    }
+}
+
+function selectDistrict(districtName) {
+    if (isToolsPage) return;
+    currentDistrict = districtName;
+    currentWard = '';
+    currentVillage = '';
+    var districtSelect = document.getElementById('district-select');
+    if (districtSelect) districtSelect.value = districtName;
+    var villageSelect = document.getElementById('village-select');
+    if (villageSelect) {
+        villageSelect.innerHTML = '<option value="">Vijiji vyote — Onyesha viwanja vyote kata</option>';
+        villageSelect.disabled = true;
+    }
+    highlightLayer.clearLayers();
+
+    var selected = displaySelectedDistrictOnly(districtName);
+    if (selected) {
+        applyAoiClip(
+            selected,
+            districtName,
+            '<b>Wilaya:</b> ' + districtName + '<br><b>Mkoa:</b> ' + regionName
+        );
+    }
+
+    if (map.hasLayer(wardsLayer)) map.removeLayer(wardsLayer);
+    var wardSelect = document.getElementById('ward-select');
+    if (wardSelect) {
+        wardSelect.innerHTML = '<option value="">-- Chagua Kata --</option>';
+        wardSelect.disabled = true;
+    }
+    wardsLayer = L.layerGroup().addTo(map);
+    loadAllWards(districtName);
+    refreshPlanningLayers();
+}
+
+function onDistrictChange() {
+    var name = document.getElementById('district-select').value;
+    if (name) selectDistrict(name);
+    else resetAllLevels();
+}
+
+// =====================================================
+// WARDS
+// =====================================================
+function loadAllWards(districtName) {
+    showLoading(`Loading wards in ${districtName}...`);
+    var url = PLANNING_API + 'ward-boundaries/' + encodeURIComponent(regionName) + '/'
+        + encodeURIComponent(districtName) + '/';
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            hideLoading();
+            if (data.features && data.features.length > 0) {
+                wardsGeoJSON = data;
+                displayAllWards(districtName);
+                populateWardDropdown();
+                showSuccess(`Loaded ${data.features.length} wards`);
+            } else {
+                showError(`No wards found in ${districtName}`);
+            }
+        })
+        .catch(err => { hideLoading(); showError('Failed to load wards: ' + err.message); });
+}
+
+function clearWardLabels() {
+    if (wardLabelsLayer) {
+        wardLabelsLayer.clearLayers();
+    }
+}
+
+function escapeHtml(text) {
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function addWardNameLabel(feature) {
+    if (!feature || !feature.geometry) return;
+    var wardName = (feature.properties && feature.properties.name) || '';
+    if (!wardName) return;
+
+    var tempLayer = L.geoJSON(feature.geometry);
+    var center = tempLayer.getBounds().getCenter();
+
+    L.marker(center, {
+        icon: L.divIcon({
+            className: 'ward-name-label',
+            html: '<span>' + escapeHtml(wardName) + '</span>'
+        }),
+        interactive: false
+    }).addTo(wardLabelsLayer);
+}
+
+function displayAllWards(districtName) {
+    wardsLayer.clearLayers();
+    clearWardLabels();
+    if (!wardsGeoJSON || !wardsGeoJSON.features) return;
+
+    wardsGeoJSON.features.forEach(feature => {
+        if (feature.geometry) {
+            L.geoJSON(feature, {
+                style: {
+                    color: COLORS.ward,
+                    weight: AOI_LINE_WEIGHT,
+                    fillOpacity: 0.06,
+                    fillColor: COLORS.ward
+                },
+                onEachFeature: (f, layer) => {
+                    var wardName = (f.properties && f.properties.name) || 'Unknown';
+                    layer.bindPopup(`<b>Kata:</b> ${wardName}<br><b>Wilaya:</b> ${districtName}`);
+                    layer.on('click', function() {
+                        document.getElementById('ward-select').value = wardName;
+                        onWardChange();
+                    });
+                }
+            }).addTo(wardsLayer);
+            addWardNameLabel(feature);
+        }
+    });
+}
+
+function populateWardDropdown() {
+    var select = document.getElementById('ward-select');
+    if (!select) return;
+    select.innerHTML = '<option value="">-- Chagua Kata --</option>';
+    if (wardsGeoJSON && wardsGeoJSON.features) {
+        wardsGeoJSON.features.forEach(feature => {
+            var name = feature.properties.name;
+            if (name) {
+                var opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                select.appendChild(opt);
+            }
+        });
+        select.disabled = false;
+    }
+}
+
+function displaySelectedWardOnly(wardName, districtName) {
+    highlightLayer.clearLayers();
+    wardsLayer.clearLayers();
+    clearWardLabels();
+    if (!wardsGeoJSON || !wardsGeoJSON.features) return null;
+
+    var selected = wardsGeoJSON.features.find(function(f) {
+        return (f.properties.name || '').toLowerCase() === wardName.toLowerCase();
+    });
+    if (selected) {
+        addWardNameLabel(selected);
+    }
+    return selected || null;
+}
+
+function onWardChange() {
+    var wardName = document.getElementById('ward-select').value;
+    currentWard = wardName || '';
+    currentVillage = '';
+    var villageSelect = document.getElementById('village-select');
+    if (villageSelect) {
+        villageSelect.innerHTML = '<option value="">Vijiji vyote — Onyesha viwanja vyote kata</option>';
+        villageSelect.disabled = true;
+    }
+    if (!wardName) {
+        if (currentDistrict) {
+            var districtFeature = districtsGeoJSON && districtsGeoJSON.features
+                ? districtsGeoJSON.features.find(function(f) {
+                    return (f.properties.name || '').toLowerCase() === currentDistrict.toLowerCase();
+                })
+                : null;
+            if (districtFeature) {
+                highlightLayer.clearLayers();
+                displayAllWards(currentDistrict);
+                applyAoiClip(
+                    districtFeature,
+                    currentDistrict,
+                    '<b>Wilaya:</b> ' + currentDistrict + '<br><b>Mkoa:</b> ' + regionName
+                );
+            }
+        }
+        refreshPlanningLayers();
+        return;
+    }
+
+    var selected = displaySelectedWardOnly(wardName, currentDistrict);
+    if (selected) {
+        applyAoiClip(
+            selected,
+            wardName + ' (' + currentDistrict + ')',
+            '<b>Kata:</b> ' + wardName + '<br><b>Wilaya:</b> ' + currentDistrict,
+            WARD_BOUNDARY_STYLE
+        );
+    }
+    if (regionName && regionName !== 'Tanzania' && currentDistrict) {
+        populateVillagesFromPlanning(regionName, currentDistrict, wardName);
+    }
+    refreshPlanningLayers();
+}
+
+// =====================================================
+// UPLOAD FUNCTIONS
+// =====================================================
+function getSelectedUploadType() {
+    var radios = document.getElementsByName('upload_type');
+    for (var i = 0; i < radios.length; i++) {
+        if (radios[i].checked) return radios[i].value;
+    }
+    return 'landuse';
+}
+
+function getUploadTypeLabel(type) {
+    var labels = {
+        landuse: 'Land Use',
+        village_boundary: 'Village Boundary',
+        ward_boundary: 'Ward Boundary',
+        district_boundary: 'District Boundary',
+        social_services: 'Social Services',
+        parcels: 'Parcels / Viwanja',
+        infrastructure: 'Infrastructure'
+    };
+    return labels[type] || type;
+}
+
+function getUploadTypeStyle(type) {
+    var colors = {
+        landuse: { color: '#2e7d32', fillColor: '#66bb6a' },
+        village_boundary: { color: '#1565c0', fillColor: '#42a5f5' },
+        ward_boundary: { color: '#6a1b9a', fillColor: '#ce93d8' },
+        district_boundary: { color: '#1b5e20', fillColor: '#81c784' },
+        social_services: { color: '#c62828', fillColor: '#ef5350' },
+        parcels: { color: '#bf360c', fillColor: '#ff9800' },
+        infrastructure: { color: '#455a64', fillColor: '#90a4ae' }
+    };
+    var c = colors[type] || { color: '#5e35b1', fillColor: '#9575cd' };
+    return { color: c.color, weight: 2, fillOpacity: 0.25, fillColor: c.fillColor };
+}
+
+function clearPortalUploadLayer() {
+    if (portalUploadLayer && map.hasLayer(portalUploadLayer)) {
+        map.removeLayer(portalUploadLayer);
+    }
+    portalUploadLayer = null;
+    if (typeof LanduseSymbology !== 'undefined') {
+        LanduseSymbology.removeLegend(map);
+    }
+    activeLayers = activeLayers.filter(function(al) {
+        return !(al.name && al.name.indexOf('Upload:') === 0);
+    });
+    updateActiveLayers();
+}
+
+function bringAoiLayersToFront() {
+    if (landuseLayer && landuseLayer.bringToFront) {
+        landuseLayer.bringToFront();
+    }
+    if (planningParcelsLayer && planningParcelsLayer.bringToFront) {
+        planningParcelsLayer.bringToFront();
+    }
+    if (portalUploadLayer && portalUploadLayer.bringToFront) {
+        portalUploadLayer.bringToFront();
+    }
+    if (wardsLayer && map.hasLayer(wardsLayer)) {
+        wardsLayer.eachLayer(function(l) { if (l.bringToFront) l.bringToFront(); });
+    }
+    if (aoiBorderLayer) {
+        aoiBorderLayer.bringToFront();
+    }
+}
+
+function trySelectVillage(villageName) {
+    if (!villageName) return;
+    var villageSelect = document.getElementById('village-select');
+    if (!villageSelect || villageSelect.disabled) return;
+    for (var i = 0; i < villageSelect.options.length; i++) {
+        if (villageSelect.options[i].value.toLowerCase() === villageName.toLowerCase()) {
+            villageSelect.value = villageSelect.options[i].value;
+            onVillageChange();
+            return;
+        }
+    }
+}
+
+function displayPortalUploadLayer(uploadType, fileName, geojson, aoiInfo) {
+    clearPortalUploadLayer();
+
+    if (uploadType === 'landuse' && typeof LanduseSymbology !== 'undefined') {
+        portalUploadLayer = L.geoJSON(geojson, {
+            pane: 'uploadPane',
+            style: function(feature) {
+                return LanduseSymbology.styleForFeature(feature);
+            },
+            onEachFeature: function(feature, layer) {
+                layer.bindPopup(LanduseSymbology.buildPopupHtml(feature));
+            }
+        }).addTo(map);
+        LanduseSymbology.addLegend(map, geojson);
+    } else {
+        var style = getUploadTypeStyle(uploadType);
+        var layerOpts = { style: style, pane: 'uploadPane' };
+        if (uploadType === 'parcels') {
+            layerOpts.onEachFeature = function(feature, layer) {
+                var p = feature.properties || {};
+                var label = p.parcel_number || p.PARCEL_NO || p.parcel_no || 'Kiwanja';
+                var owner = p.owner_name || p.OWNER_NAME || p.owner || p.parties || p.PARTIES || '';
+                var hasDetails = !!(owner || p.claim_no || p.pid || p.land_use || p.parties);
+                var idLabel = p.identified_label || (p.is_identified != null
+                    ? (p.is_identified ? 'Imetambuliwa' : 'Haijatambuliwa')
+                    : (hasDetails ? 'Imetambuliwa' : 'Haijatambuliwa'));
+                layer.bindPopup('<b>' + label + '</b>'
+                    + '<br><span style="font-weight:600;color:' + (hasDetails || p.is_identified ? '#2e7d32' : '#c62828') + ';">'
+                    + idLabel + '</span>'
+                    + (owner ? '<br>' + owner : ''));
+            };
+        }
+        portalUploadLayer = L.geoJSON(geojson, layerOpts).addTo(map);
+    }
+
+    if (!currentAoiBounds || !currentAoiBounds.isValid()) {
+        if (portalUploadLayer.getBounds && portalUploadLayer.getBounds().isValid()) {
+            map.fitBounds(portalUploadLayer.getBounds(), { padding: [30, 30] });
+        }
+    }
+
+    var aoiSuffix = '';
+    if (aoiInfo && aoiInfo.label) {
+        aoiSuffix = ' @ ' + aoiInfo.label;
+    } else if (currentWard) {
+        aoiSuffix = ' @ ' + currentWard;
+    } else if (currentDistrict) {
+        aoiSuffix = ' @ ' + currentDistrict;
+    }
+
+    var label = 'Upload: ' + getUploadTypeLabel(uploadType) + ' — ' + fileName + aoiSuffix;
+    activeLayers.push({ name: label, layer: portalUploadLayer });
+    updateActiveLayers();
+    bringAoiLayersToFront();
+}
+
+function getUploadFileLabel(files) {
+    if (!files || !files.length) return 'upload';
+    if (files.length === 1) return files[0].name;
+    return files[0].name + ' (+' + (files.length - 1) + ' faili)';
+}
+
+function uploadShapefileWithType() {
+    var fileInput = document.getElementById('shapefileInput');
+    var files = fileInput.files;
+    if (!files || !files.length) { showError('Chagua faili kwanza'); return; }
+
+    var district = document.getElementById('district-select').value || '';
+    var ward = document.getElementById('ward-select').value || '';
+    if (!district) {
+        showError('Chagua wilaya au kata kwanza (Administrative Levels) ili data iwe overlay juu ya mipaka husika.');
+        return;
+    }
+    var uploadType = getSelectedUploadType();
+    var village = document.getElementById('village-select').value || '';
+    if (uploadType === 'parcels' && !ward) {
+        showError('Chagua kata (ward) kabla ya kupakia viwanja.');
+        return;
+    }
+    if (uploadType === 'village_boundary' && (!ward || !village)) {
+        showError('Kwa mipaka ya kijiji: chagua wilaya, kata na kijiji.');
+        return;
+    }
+    var formData = new FormData();
+    for (var i = 0; i < files.length; i++) {
+        formData.append('shapefile', files[i]);
+    }
+    formData.append('data_type', uploadType);
+    formData.append('region', regionName || '');
+    formData.append('district', district);
+    if (ward) formData.append('ward', ward);
+    if (village) formData.append('village', village);
+    
+    showLoading('Inapakia na kuchuja kwa mipaka ya ' + (ward || district) + '...');
+    
+    fetch('/api/upload/shapefile/', {
+        method: 'POST',
+        body: formData,
+        headers: { 'X-CSRFToken': getCookie('csrftoken') }
+    })
+    .then(function(response) {
+        var ct = (response.headers.get('content-type') || '').toLowerCase();
+        if (ct.indexOf('application/json') !== -1) {
+            return response.json().then(function(data) {
+                if (!response.ok) {
+                    throw new Error(data.message || data.error || ('Server error ' + response.status));
+                }
+                return data;
+            });
+        }
+        return response.text().then(function(text) {
+            if (text && text.indexOf('<!DOCTYPE') !== -1) {
+                throw new Error('API haipatikani (404). Restart server na jaribu tena.');
+            }
+            throw new Error('Server error ' + response.status);
+        });
+    })
+    .then(function(data) {
+        hideLoading();
+        if (data.status === 'success' || data.success) {
+            if (uploadType === 'landuse' && data.db_import && !data.db_import.error) {
+                afterLanduseUploadSuccess(data);
+            } else if (data.geojson) {
+                displayPortalUploadLayer(uploadType, getUploadFileLabel(files), data.geojson, data.aoi || null);
+            }
+            if (uploadType === 'parcels') {
+                afterParcelUploadSuccess(data);
+            }
+            if (data.boundary_import && !data.boundary_import.error) {
+                if (typeof loadAdminBoundaries === 'function') {
+                    try { loadAdminBoundaries(); } catch (e) {}
+                }
+            }
+            var msg = data.message || ('Imepakiwa — features ' + (data.feature_count || 0));
+            if (data.db_import && data.db_import.error) {
+                showError(msg);
+            } else if (data.boundary_import && data.boundary_import.error) {
+                showError(msg);
+            } else {
+                showSuccess(msg);
+            }
+            fileInput.value = '';
+            try { loadMapMpangoShapefiles(); } catch (e) {}
+        } else {
+            showError(data.message || data.error || 'Upload imeshindwa');
+        }
+    })
+    .catch(function(error) {
+        hideLoading();
+        showError('Upload imeshindwa: ' + error.message);
+    });
+}
+
+var mapMpangoShpItems = {};
+var mapShpReplaceKey = null;
+
+function mapShpTypeLabel(shp) {
+    var src = shp.source || '';
+    var level = shp.boundary_level || '';
+    if (src === 'parcels' || level === 'parcel') return 'Viwanja';
+    if (src === 'landuse' || level === 'landuse') return 'Matumizi';
+    if (src === 'boundary') {
+        if (level === 'village') return 'Mpaka Kijiji';
+        if (level === 'ward') return 'Mpaka Kata';
+        if (level === 'district') return 'Mpaka Wilaya';
+        return 'Mpaka';
+    }
+    return 'SHP';
+}
+
+function mapUploadTypeForShp(shp) {
+    var src = shp.source || '';
+    var level = shp.boundary_level || '';
+    if (src === 'parcels' || level === 'parcel') return 'parcels';
+    if (src === 'landuse' || level === 'landuse') return 'landuse';
+    if (level === 'ward') return 'ward_boundary';
+    if (level === 'district') return 'district_boundary';
+    if (src === 'boundary' || level === 'village') return 'village_boundary';
+    return 'parcels';
+}
+
+function loadMapMpangoShapefiles() {
+    var box = document.getElementById('map-mpango-shp-list');
+    if (!box) return;
+    if (!regionName || !currentDistrict) {
+        box.innerHTML = '<div class="text-muted">Chagua wilaya kuona orodha</div>';
+        return;
+    }
+    var params = new URLSearchParams();
+    params.set('region', regionName);
+    params.set('district', currentDistrict);
+    if (currentWard) params.set('ward', currentWard);
+    if (currentVillage) params.set('village', currentVillage);
+    box.innerHTML = '<div class="text-muted">Inapakia...</div>';
+    fetch(PLANNING_API + 'shapefiles/?' + params.toString())
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            mapMpangoShpItems = {};
+            var list = data.shapefiles || [];
+            if (!list.length) {
+                box.innerHTML = '<div class="text-muted">Hakuna shapefile kwa eneo hili</div>';
+                return;
+            }
+            var html = '';
+            list.forEach(function(shp, idx) {
+                var key = 'mshp-' + idx;
+                mapMpangoShpItems[key] = shp;
+                var name = shp.shapefile_name || shp.original_filename || shp.title || '—';
+                var count = shp.parcel_count != null ? shp.parcel_count : (shp.feature_count || 0);
+                html += '<div style="display:flex;gap:4px;align-items:flex-start;padding:4px 0;border-bottom:1px solid #eee;">' +
+                    '<div style="flex:1;min-width:0;">' +
+                    '<div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="' + name + '">' + name + '</div>' +
+                    '<small class="text-muted">' + mapShpTypeLabel(shp) + ' · ' + count + '</small></div>' +
+                    '<button type="button" class="btn btn-sm" style="padding:2px 5px;color:#1565c0;" title="Hariri" onclick="editMapMpangoShp(\'' + key + '\')"><i class="fas fa-edit"></i></button>' +
+                    '<button type="button" class="btn btn-sm" style="padding:2px 5px;color:#c62828;" title="Futa" onclick="deleteMapMpangoShp(\'' + key + '\')"><i class="fas fa-trash"></i></button>' +
+                    '</div>';
+            });
+            box.innerHTML = html;
+        })
+        .catch(function() {
+            box.innerHTML = '<div class="text-danger">Hitilafu ya kupakia orodha</div>';
+        });
+}
+
+function mapDeleteShpRequest(item) {
+    var headers = { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') };
+    var src = item.source || '';
+    if (src === 'parcels') {
+        return fetch(PLANNING_API + 'shapefiles/parcel/', {
+            method: 'DELETE', headers: headers,
+            body: JSON.stringify({
+                shapefile_name: item.shapefile_name || item.original_filename || item.title,
+                region: regionName,
+                district: currentDistrict || item.district_name,
+                ward: currentWard || item.ward_name,
+                village: currentVillage || item.village_name
+            })
+        }).then(function(res) { return res.json().then(function(body) { return { ok: res.ok, body: body }; }); });
+    }
+    if (src === 'landuse') {
+        return fetch(PLANNING_API + 'shapefiles/landuse/', {
+            method: 'DELETE', headers: headers,
+            body: JSON.stringify({
+                district: item.district_name || currentDistrict,
+                ward: item.ward_name || currentWard,
+                village: item.village_name || currentVillage
+            })
+        }).then(function(res) { return res.json().then(function(body) { return { ok: res.ok, body: body }; }); });
+    }
+    if (src === 'boundary') {
+        return fetch(PLANNING_API + 'shapefiles/boundary/' + item.id + '/?level=' + encodeURIComponent(item.boundary_level || 'village'), {
+            method: 'DELETE', headers: { 'X-CSRFToken': getCookie('csrftoken') }
+        }).then(function(res) { return res.json().then(function(body) { return { ok: res.ok, body: body }; }); });
+    }
+    return fetch(PLANNING_API + 'shapefiles/' + item.id + '/', {
+        method: 'DELETE', headers: { 'X-CSRFToken': getCookie('csrftoken') }
+    }).then(function(res) { return res.json().then(function(body) { return { ok: res.ok, body: body }; }); });
+}
+
+function deleteMapMpangoShp(key) {
+    var item = mapMpangoShpItems[key];
+    if (!item) return;
+    var name = item.shapefile_name || item.original_filename || item.title || 'shapefile';
+    Swal.fire({
+        title: 'Futa Shapefile?',
+        html: 'Futa <strong>' + mapShpTypeLabel(item) + '</strong>:<br><em>' + name + '</em>?',
+        icon: 'warning', showCancelButton: true,
+        confirmButtonText: 'Ndiyo, futa', cancelButtonText: 'Ghairi', confirmButtonColor: '#dc3545'
+    }).then(function(result) {
+        if (!result.isConfirmed) return;
+        Swal.fire({ title: 'Inafuta...', allowOutsideClick: false, didOpen: function() { Swal.showLoading(); } });
+        mapDeleteShpRequest(item).then(function(r) {
+            if (r.ok && r.body.status === 'success') {
+                Swal.fire('Imefanikiwa', r.body.message || 'Imefutwa', 'success');
+                loadMapMpangoShapefiles();
+                if (typeof loadPlanningParcelsLayer === 'function') loadPlanningParcelsLayer();
+                if (typeof loadLanduseLayer === 'function') loadLanduseLayer();
+                if (typeof loadPlanningBoundaryLayer === 'function') loadPlanningBoundaryLayer();
+            } else {
+                Swal.fire('Hitilafu', (r.body && r.body.error) || 'Imeshindikana', 'error');
+            }
+        }).catch(function(err) { Swal.fire('Hitilafu', err.message, 'error'); });
+    });
+}
+
+function editMapMpangoShp(key) {
+    var item = mapMpangoShpItems[key];
+    if (!item) return;
+    Swal.fire({
+        title: 'Hariri Shapefile',
+        html: 'Pakia faili mpya kuchukua nafasi ya <strong>' + mapShpTypeLabel(item) + '</strong>.',
+        icon: 'question', showCancelButton: true,
+        confirmButtonText: 'Chagua faili', cancelButtonText: 'Ghairi'
+    }).then(function(result) {
+        if (!result.isConfirmed) return;
+        mapShpReplaceKey = key;
+        var input = document.getElementById('map-shp-replace-input');
+        if (input) { input.value = ''; input.click(); }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    var input = document.getElementById('map-shp-replace-input');
+    if (!input) return;
+    input.addEventListener('change', function() {
+        var file = this.files && this.files[0];
+        var key = mapShpReplaceKey;
+        mapShpReplaceKey = null;
+        if (!file || !key) return;
+        var item = mapMpangoShpItems[key];
+        if (!item) return;
+        var uploadType = mapUploadTypeForShp(item);
+        Swal.fire({ title: 'Inabadilisha...', allowOutsideClick: false, didOpen: function() { Swal.showLoading(); } });
+        mapDeleteShpRequest(item).then(function(r) {
+            if (!r.ok && r.body && r.body.error && String(r.body.error).toLowerCase().indexOf('hakuna') === -1) {
+                throw new Error(r.body.error);
+            }
+            var fd = new FormData();
+            fd.append('file', file);
+            fd.append('shapefile', file);
+            fd.append('data_type', uploadType);
+            fd.append('region', regionName || '');
+            fd.append('district', currentDistrict || item.district_name || '');
+            if (currentWard || item.ward_name) fd.append('ward', currentWard || item.ward_name);
+            if (currentVillage || item.village_name) fd.append('village', currentVillage || item.village_name);
+            return fetch('/api/upload/shapefile/', {
+                method: 'POST',
+                body: fd,
+                headers: { 'X-CSRFToken': getCookie('csrftoken') }
+            });
+        }).then(function(res) {
+            return res.json().then(function(body) { return { ok: res.ok, body: body }; });
+        }).then(function(r) {
+            if (r.ok && (r.body.status === 'success' || r.body.success)) {
+                Swal.fire('Imefanikiwa', r.body.message || 'Shapefile imebadilishwa', 'success');
+                loadMapMpangoShapefiles();
+                if (typeof loadPlanningParcelsLayer === 'function') loadPlanningParcelsLayer();
+                if (typeof loadLanduseLayer === 'function') loadLanduseLayer();
+                if (typeof loadPlanningBoundaryLayer === 'function') loadPlanningBoundaryLayer();
+            } else {
+                Swal.fire('Hitilafu', (r.body && (r.body.message || r.body.error)) || 'Imeshindikana', 'error');
+                loadMapMpangoShapefiles();
+            }
+        }).catch(function(err) {
+            Swal.fire('Hitilafu', err.message || String(err), 'error');
+            loadMapMpangoShapefiles();
+        });
+    });
+});
+
+function getCookie(name) {
+    var value = "; " + document.cookie;
+    var parts = value.split("; " + name + "=");
+    if (parts.length == 2) return parts.pop().split(";").shift();
+}
+
+// =====================================================
+// DOWNLOAD FUNCTIONS
+// =====================================================
+var donateCurrency = 'TZS';
+var donatePaymentMethod = 'card';
+
+function setDonateCurrency(cur) {
+    donateCurrency = cur;
+    document.getElementById('donate-currency-tzs').classList.toggle('active', cur === 'TZS');
+    document.getElementById('donate-currency-usd').classList.toggle('active', cur === 'USD');
+    document.getElementById('amount-presets-tzs').style.display = cur === 'TZS' ? 'flex' : 'none';
+    document.getElementById('amount-presets-usd').style.display = cur === 'USD' ? 'flex' : 'none';
+    document.getElementById('donate-amount').value = cur === 'TZS' ? '5000' : '5';
+    document.querySelectorAll('.amount-presets button').forEach(function(b) { b.classList.remove('active'); });
+}
+
+function setDonateAmount(amt) {
+    document.getElementById('donate-amount').value = amt;
+    document.querySelectorAll('.amount-presets button').forEach(function(b) {
+        b.classList.toggle('active', b.textContent.replace(/[^0-9]/g, '') === String(amt));
+    });
+}
+
+function setPaymentMethod(method) {
+    donatePaymentMethod = method;
+    document.getElementById('pay-method-card').classList.toggle('active', method === 'card');
+    document.getElementById('pay-method-merchant').classList.toggle('active', method === 'merchant');
+}
+
+function getDownloadParams() {
+    var dataType = document.getElementById('download-data-type').value;
+    var format = document.getElementById('download-format').value;
+    var district = document.getElementById('district-select').value || '';
+    var ward = document.getElementById('ward-select').value || '';
+    return { dataType: dataType, format: format, district: district, ward: ward };
+}
+
+function buildDownloadUrl(params) {
+    var qs = new URLSearchParams();
+    if (regionName) qs.set('region', regionName);
+    if (params.district) qs.set('district', params.district);
+    if (params.ward) qs.set('ward', params.ward);
+    var url = '/api/export/' + encodeURIComponent(params.dataType) + '/' + encodeURIComponent(params.format) + '/';
+    var q = qs.toString();
+    return q ? url + '?' + q : url;
+}
+
+function downloadFilteredData() {
+    var p = getDownloadParams();
+    window.open(buildDownloadUrl(p), '_blank');
+    showSuccess('Upakuaji umeanza...');
+}
+
+function downloadWithDonation() {
+    var p = getDownloadParams();
+    var amount = parseFloat(document.getElementById('donate-amount').value);
+    if (!amount || amount <= 0) {
+        showError('Weka kiasi cha mchango sahihi.');
+        return;
+    }
+
+    var payload = {
+        amount: amount,
+        currency: donateCurrency,
+        payment_method: donatePaymentMethod,
+        data_type: p.dataType,
+        format: p.format,
+        region: regionName || '',
+        district: p.district,
+        ward: p.ward,
+        payer_name: document.getElementById('donate-name').value.trim(),
+        payer_email: document.getElementById('donate-email').value.trim(),
+        payer_phone: document.getElementById('donate-phone').value.trim()
+    };
+
+    showLoading('Inaandaa malipo...');
+
+    fetch('/api/donation/initiate/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify(payload)
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        hideLoading();
+        if (data.success && data.payment_url) {
+            window.location.href = data.payment_url;
+        } else {
+            showError(data.error || 'Imeshindwa kuanzisha malipo.');
+        }
+    })
+    .catch(function(err) {
+        hideLoading();
+        showError('Hitilafu: ' + err.message);
+    });
+}
+
+// =====================================================
+// ACTIVE LAYERS
+// =====================================================
+function updateActiveLayers() {
+    var container = document.getElementById('active-layers-list');
+    if (!activeLayers.length) {
+        container.innerHTML = '<p style="color:#999; text-align:center;">Hakuna safu</p>';
+        return;
+    }
+    var html = '';
+    for (var i = 0; i < activeLayers.length; i++) {
+        html += `<div class="layer-item">
+            <span>${activeLayers[i].name}</span>
+            <button class="btn btn-danger btn-sm" onclick="removeLayer(${i})">Futa</button>
+        </div>`;
+    }
+    container.innerHTML = html;
+}
+
+function removeLayer(index) {
+    var layer = activeLayers[index].layer;
+    if (layer && map.hasLayer(layer)) map.removeLayer(layer);
+    activeLayers.splice(index, 1);
+    updateActiveLayers();
+    showSuccess('Layer removed');
+}
+
+function clearAllLayers() {
+    for (var i = 0; i < activeLayers.length; i++) {
+        if (activeLayers[i].layer && map.hasLayer(activeLayers[i].layer)) {
+            map.removeLayer(activeLayers[i].layer);
+        }
+    }
+    activeLayers = [];
+    portalUploadLayer = null;
+    if (typeof LanduseSymbology !== 'undefined') {
+        LanduseSymbology.removeLegend(map);
+    }
+    updateActiveLayers();
+    showSuccess('All layers cleared');
+}
+
+// =====================================================
+// UTILITIES
+// =====================================================
+function resetAllLevels() {
+    if (isToolsPage) {
+        resetView();
+        return;
+    }
+    clearAoiClip();
+    districtsLayer.clearLayers();
+    if (map.hasLayer(wardsLayer)) map.removeLayer(wardsLayer);
+    clearWardLabels();
+    highlightLayer.clearLayers();
+    displayAllDistricts();
+    var districtSelect = document.getElementById('district-select');
+    var wardSelect = document.getElementById('ward-select');
+    var villageSelect = document.getElementById('village-select');
+    if (districtSelect) districtSelect.value = '';
+    if (wardSelect) {
+        wardSelect.innerHTML = '<option value="">-- Chagua Kata --</option>';
+        wardSelect.disabled = true;
+    }
+    if (villageSelect) {
+        villageSelect.innerHTML = '<option value="">Vijiji vyote — Onyesha viwanja vyote kata</option>';
+        villageSelect.disabled = true;
+    }
+    wardsLayer = L.layerGroup();
+    currentDistrict = '';
+    currentWard = '';
+    currentVillage = '';
+    clearPlanningLayers();
+    loadPlanningStats();
+    if (regionBounds && regionBounds.isValid()) {
+        map.fitBounds(regionBounds);
+    }
+    showSuccess('Chujio limeondolewa');
+}
+
+function resetView() {
+    if (isToolsPage && workUploadGeoJSON && workUploadGeoJSON.features && workUploadGeoJSON.features.length) {
+        try {
+            var tmp = L.geoJSON(workUploadGeoJSON);
+            if (tmp.getBounds().isValid()) {
+                map.fitBounds(tmp.getBounds(), { padding: [30, 30] });
+                return;
+            }
+        } catch (e) { /* skip */ }
+        map.setView([-6.369, 34.889], 6);
+        return;
+    }
+    if (currentAoiBounds && currentAoiBounds.isValid()) {
+        map.fitBounds(currentAoiBounds, { padding: [30, 30] });
+    } else if (regionBounds && regionBounds.isValid()) {
+        map.fitBounds(regionBounds);
+    } else {
+        map.setView([-6.369, 34.889], 7);
+    }
+}
+
+function changeBasemap(type) {
+    map.removeLayer(basemapLayer);
+    var url = type === 'satellite' ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}' :
+              type === 'terrain' ? 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png' :
+              'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+    basemapLayer = L.tileLayer(url, { attribution: '' }).addTo(map);
+}
+
+function toggleCard(header) {
+    var card = header.parentElement;
+    card.classList.toggle('closed');
+    var arrow = header.querySelector('.arrow');
+    if (arrow) arrow.innerHTML = card.classList.contains('closed') ? '▼' : '▲';
+}
+
+{% if tools_page %}
+// =====================================================
+// GIS TOOLS (ukurasa wa /map/tools/)
+// =====================================================
+var activeToolId = null;
+var aiImageOverlay = null;
+var aiDigitizePoints = [];
+var aiDigitizeLayer = null;
+var aiDigitizeHandler = null;
+var georefSourceGeoJSON = null;
+var georefDisplayLayer = null;
+var gcpPoints = [];
+var gcpStep = 0;
+var gcpPendingSource = null;
+var gcpMapHandler = null;
+var cleanedGeoJSON = null;
+var topoIssues = [];
+var topoHighlightLayer = null;
+var lastTopologyResult = null;
+var lastCleanResult = null;
+var workUploadGeoJSON = null;
+var workRasterLayer = null;
+var workImageOverlay = null;
+
+// --- Pakia data ya kufanyia kazi ---
+function onWorkFileTypeChange() {
+    var type = document.getElementById('work-file-type').value;
+    var hint = document.getElementById('work-file-hint');
+    var opacityLabel = document.getElementById('work-opacity-label');
+    var opacitySlider = document.getElementById('work-opacity');
+    var input = document.getElementById('work-file-input');
+    if (type === 'shapefile') {
+        hint.textContent = '.zip (shp+shx+dbf), .shp+.shx+.dbf, .geojson';
+        input.accept = '.zip,.shp,.shx,.dbf,.prj,.geojson,.json';
+        input.multiple = true;
+        opacityLabel.style.display = 'none';
+        opacitySlider.style.display = 'none';
+    } else if (type === 'geotiff') {
+        hint.textContent = '.tif, .tiff, .geotiff';
+        input.accept = '.tif,.tiff,.geotiff';
+        input.multiple = false;
+        opacityLabel.style.display = 'block';
+        opacitySlider.style.display = 'block';
+    } else {
+        hint.textContent = '.jpg, .jpeg, .png';
+        input.accept = '.jpg,.jpeg,.png,image/jpeg,image/png';
+        input.multiple = false;
+        opacityLabel.style.display = 'block';
+        opacitySlider.style.display = 'block';
+    }
+    input.value = '';
+}
+
+function handleWorkFileUpload(input) {
+    var files = input.files;
+    if (!files || !files.length) return;
+    var type = document.getElementById('work-file-type').value;
+    if (type === 'shapefile') loadWorkShapefile(files);
+    else if (type === 'geotiff') loadWorkGeotiff(files[0]);
+    else loadWorkJpeg(files[0]);
+}
+
+function normalizeWorkGeoJSON(geojson) {
+    if (!geojson) return null;
+    if (Array.isArray(geojson)) {
+        var features = [];
+        geojson.forEach(function(g) {
+            if (g.type === 'FeatureCollection') features = features.concat(g.features || []);
+            else if (g.type === 'Feature') features.push(g);
+        });
+        return { type: 'FeatureCollection', features: features };
+    }
+    if (geojson.type === 'Feature') {
+        return { type: 'FeatureCollection', features: [geojson] };
+    }
+    if (geojson.type === 'FeatureCollection') return geojson;
+    return null;
+}
+
+function clearWorkLayersOnly() {
+    if (workRasterLayer && map.hasLayer(workRasterLayer)) map.removeLayer(workRasterLayer);
+    if (workImageOverlay && map.hasLayer(workImageOverlay)) map.removeLayer(workImageOverlay);
+    if (aiImageOverlay === workImageOverlay) aiImageOverlay = null;
+    workRasterLayer = null;
+    workImageOverlay = null;
+    activeLayers = activeLayers.filter(function(al) {
+        return !(al.name && al.name.indexOf('Kazi:') === 0);
+    });
+}
+
+function displayWorkVector(name, geojson) {
+    clearWorkLayersOnly();
+    workUploadGeoJSON = geojson;
+    var layer = L.geoJSON(workUploadGeoJSON, {
+        style: { color: '#1565c0', weight: 2, fillOpacity: 0.2, fillColor: '#42a5f5' }
+    }).addTo(map);
+    if (layer.getBounds && layer.getBounds().isValid()) {
+        map.fitBounds(layer.getBounds(), { padding: [30, 30] });
+    }
+    activeLayers.push({ name: 'Kazi: ' + name, layer: layer });
+    cleanedGeoJSON = workUploadGeoJSON;
+    georefSourceGeoJSON = workUploadGeoJSON;
+    updateActiveLayers();
+    hideLoading();
+    var fc = workUploadGeoJSON.features ? workUploadGeoJSON.features.length : 0;
+    document.getElementById('work-upload-result').textContent =
+        'Vector imepakiwa — features ' + fc + '. Tumia tools kufanyia kazi.';
+    showSuccess('Data imepakiwa kwa ajili ya kufanyia kazi!');
+}
+
+function loadWorkShapefile(files) {
+    var fileList = files.length !== undefined ? Array.prototype.slice.call(files) : [files];
+    var file = fileList[0];
+    showLoading('Inapakia shapefile...');
+    var ext = file.name.split('.').pop().toLowerCase();
+    if (ext === 'geojson' || ext === 'json') {
+        if (fileList.length > 1) {
+            hideLoading();
+            showError('GeoJSON ni faili moja tu.');
+            return;
+        }
+        var textReader = new FileReader();
+        textReader.onload = function(e) {
+            try {
+                displayWorkVector(file.name, normalizeWorkGeoJSON(JSON.parse(e.target.result)));
+            } catch (err) {
+                hideLoading();
+                showError('GeoJSON si sahihi.');
+            }
+        };
+        textReader.readAsText(file);
+        return;
+    }
+
+    var formData = new FormData();
+    for (var i = 0; i < fileList.length; i++) {
+        formData.append('file', fileList[i]);
+    }
+    fetch('/api/tools/upload-layer/', {
+        method: 'POST',
+        body: formData
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+        if (data.success && data.geojson) {
+            var normalized = normalizeWorkGeoJSON(data.geojson);
+            if (!normalized || !normalized.features || !normalized.features.length) {
+                hideLoading();
+                showError('Shapefile haina features.');
+                return;
+            }
+            displayWorkVector(file.name, normalized);
+        } else {
+            hideLoading();
+            showError(data.error || 'Upload imeshindwa. Tumia .zip yenye shapefile kamili.');
+        }
+    })
+    .catch(function(err) {
+        loadWorkShapefileClient(file);
+    });
+}
+
+function loadWorkShapefileClient(file) {
+    if (typeof shp === 'undefined') {
+        hideLoading();
+        showError('Server haikupatikana na ShpJS haijapakiwa. Jaribu tena au tumia .geojson');
+        return;
+    }
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        shp(e.target.result).then(function(geojson) {
+            var normalized = normalizeWorkGeoJSON(geojson);
+            if (!normalized || !normalized.features || !normalized.features.length) {
+                hideLoading();
+                showError('Shapefile haina features.');
+                return;
+            }
+            displayWorkVector(file.name, normalized);
+        }).catch(function(err) {
+            hideLoading();
+            showError('Shapefile haikusomwa. Pakia .zip yenye .shp, .shx, .dbf pamoja.');
+        });
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+function loadWorkGeotiff(file) {
+    if (typeof parseGeoraster === 'undefined' || typeof GeoRasterLayer === 'undefined') {
+        showError('GeoTIFF library haijapakiwa. Fanya refresh (Ctrl+F5).');
+        return;
+    }
+    showLoading('Inasoma GeoTIFF...');
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        parseGeoraster(e.target.result).then(function(georaster) {
+            clearWorkLayersOnly();
+            workUploadGeoJSON = null;
+            var opacity = parseFloat(document.getElementById('work-opacity').value) || 0.7;
+            workRasterLayer = new GeoRasterLayer({
+                georaster: georaster,
+                opacity: opacity,
+                resolution: 256
+            });
+            workRasterLayer.addTo(map);
+            map.fitBounds(workRasterLayer.getBounds());
+            activeLayers.push({ name: 'Kazi: ' + file.name, layer: workRasterLayer });
+            updateActiveLayers();
+            hideLoading();
+            document.getElementById('work-upload-result').textContent =
+                'GeoTIFF imeonyeshwa kwenye ramani. Tumia Georeferencing au Measure tools.';
+            showSuccess('GeoTIFF imepakiwa!');
+        }).catch(function(err) {
+            hideLoading();
+            showError('GeoTIFF haikusomwa: ' + (err.message || err));
+        });
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+function loadWorkJpeg(file) {
+    showLoading('Inapakia picha...');
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        var img = new Image();
+        img.onload = function() {
+            clearWorkLayersOnly();
+            workUploadGeoJSON = null;
+            var bounds = map.getBounds();
+            var opacity = parseFloat(document.getElementById('work-opacity').value) || 0.7;
+            workImageOverlay = L.imageOverlay(e.target.result, bounds, { opacity: opacity });
+            workImageOverlay.addTo(map);
+            aiImageOverlay = workImageOverlay;
+            activeLayers.push({ name: 'Kazi: ' + file.name, layer: workImageOverlay });
+            updateActiveLayers();
+            hideLoading();
+            document.getElementById('work-upload-result').textContent =
+                'Picha imepakiwa. Rekebisha zoom/eneo, kisha tumia AI Digitization au Georeferencing.';
+            showSuccess('Picha imepakiwa!');
+        };
+        img.onerror = function() {
+            hideLoading();
+            showError('Picha haikusomwa.');
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+function setWorkOpacity(val) {
+    var opacity = parseFloat(val);
+    if (workRasterLayer && workRasterLayer.setOpacity) workRasterLayer.setOpacity(opacity);
+    if (workImageOverlay) workImageOverlay.setOpacity(opacity);
+    if (aiImageOverlay) aiImageOverlay.setOpacity(opacity);
+}
+
+function clearWorkLayer() {
+    clearWorkLayersOnly();
+    workUploadGeoJSON = null;
+    cleanedGeoJSON = null;
+    georefSourceGeoJSON = null;
+    updateActiveLayers();
+    document.getElementById('work-upload-result').textContent =
+        'Data imefutwa. Pakia shapefile, GeoTIFF au JPEG mpya kufanyia kazi.';
+    document.getElementById('work-file-input').value = '';
+    showSuccess('Data ya kazi imefutwa.');
+}
+
+function getActiveLayersGeoJSON() {
+    if (!activeLayers.length) return null;
+    var merged = { type: 'FeatureCollection', features: [] };
+    activeLayers.forEach(function(al) {
+        if (!al.layer || !al.layer.eachLayer) return;
+        al.layer.eachLayer(function(l) {
+            if (l.feature) merged.features.push(l.feature);
+        });
+    });
+    return merged.features.length ? merged : null;
+}
+
+// --- Measure tools ---
+var measureMode = null;
+var measurePoints = [];
+var measureLayer = null;
+var measureHandler = null;
+var measureDblHandler = null;
+
+function initQgisRulesGrid() {
+    var grid = document.getElementById('qgis-rules-grid');
+    if (!grid || !window.GisTools) return;
+    grid.innerHTML = GisTools.QGIS_RULES.map(function(rule) {
+        return '<label><input type="checkbox" id="qgis-rule-' + rule.id + '" data-rule="' + rule.key + '" checked> ' + rule.label + '</label>';
+    }).join('') +
+        '<label><input type="checkbox" id="qgis-rule-null_geom" data-rule="null_geom" checked> Null / empty geometry</label>';
+}
+
+function getEnabledQgisRules() {
+    var rules = {};
+    document.querySelectorAll('#qgis-rules-grid input[data-rule]').forEach(function(cb) {
+        rules[cb.getAttribute('data-rule')] = cb.checked;
+    });
+    return rules;
+}
+
+function buildDashboardRows(issues) {
+    return issues.map(function(issue, i) {
+        return {
+            _id: issue._id != null ? issue._id : i,
+            type: issue.type,
+            name: issue.name || (issue.a ? issue.a + ' / ' + issue.b : '—'),
+            message: issue.message || ''
+        };
+    });
+}
+
+function showUpperDashboard() { /* dashboard iko wazi kila wakati */ }
+
+function refreshDashboardFromTopology(result) {
+    lastTopologyResult = result;
+    var errorCount = result.issues.length;
+    var quality = result.featureCount
+        ? Math.max(0, Math.round(100 - (errorCount / Math.max(result.featureCount, 1)) * 100))
+        : 100;
+    GisTools.updateUpperDashboard({
+        featureCount: result.featureCount,
+        errorCount: errorCount,
+        warningCount: 0,
+        fixedCount: document.getElementById('ud-fixed').textContent || 0,
+        quality: quality,
+        status: errorCount ? 'Matatizo ' + errorCount + ' yamepatikana (QGIS rules)' : 'Hakuna makosa ya topology',
+        rows: buildDashboardRows(result.issues)
+    });
+}
+
+function refreshDashboardFromClean(report, featureCount) {
+    lastCleanResult = report;
+    var fixed = report.fixed_invalid + report.fixed_overlap + report.fixed_gap +
+        report.fixed_duplicate + report.fixed_sliver + report.fixed_coords;
+    GisTools.updateUpperDashboard({
+        featureCount: featureCount,
+        errorCount: report.issues.filter(function(i) {
+            return i.type !== 'fixed_overlap' && i.type !== 'fixed_gap';
+        }).length,
+        warningCount: 0,
+        fixedCount: fixed,
+        quality: Math.min(100, 60 + fixed * 5),
+        status: 'Usafi umekamilika — ' + fixed + ' marekebisho',
+        rows: buildDashboardRows(report.issues)
+    });
+}
+
+function toggleNavTools(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    document.getElementById('nav-tools-dropdown').classList.toggle('open');
+    return false;
+}
+
+document.addEventListener('click', function() {
+    var dd = document.getElementById('nav-tools-dropdown');
+    if (dd) dd.classList.remove('open');
+});
+
+function openGisTool(toolId) {
+    document.getElementById('nav-tools-dropdown').classList.remove('open');
+    var card = document.getElementById('tools-card');
+    if (card.classList.contains('closed')) {
+        card.classList.remove('closed');
+        var arrow = card.querySelector('.arrow');
+        if (arrow) arrow.innerHTML = '▲';
+    }
+    switchGisTool(toolId);
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function switchGisTool(toolId) {
+    activeToolId = toolId;
+    document.querySelectorAll('.tools-nav button').forEach(function(btn) {
+        btn.classList.toggle('active', btn.getAttribute('data-tool') === toolId);
+    });
+    document.querySelectorAll('.tool-panel').forEach(function(panel) {
+        panel.classList.toggle('active', panel.id === 'panel-' + toolId);
+    });
+}
+
+function showToolStatus(msg) {
+    document.getElementById('tool-status-text').textContent = msg;
+    document.getElementById('tool-status-bar').classList.add('show');
+}
+
+function hideToolStatus() {
+    document.getElementById('tool-status-bar').classList.remove('show');
+}
+
+function stopActiveTool() {
+    if (aiDigitizeHandler) { map.off('click', aiDigitizeHandler); aiDigitizeHandler = null; }
+    if (gcpMapHandler) { map.off('click', gcpMapHandler); gcpMapHandler = null; }
+    stopMeasure();
+    stopQgisEdit(false);
+    gcpStep = 0;
+    hideToolStatus();
+}
+
+// --- QGIS Editor (tracing, digitize, vertex) ---
+var qgisEditMode = null;
+var qgisTraceEnabled = false;
+var qgisEditPoints = [];
+var qgisEditLayer = null;
+var qgisEditClickHandler = null;
+var qgisEditDblHandler = null;
+var qgisEditMoveHandler = null;
+var qgisVertexMarkers = [];
+var qgisDragMarker = null;
+
+function setTraceEnabled(on) {
+    qgisTraceEnabled = !!on;
+    var cb = document.getElementById('qgis-trace-enable');
+    if (cb) cb.checked = qgisTraceEnabled;
+    var tb = document.getElementById('tb-trace');
+    if (tb) tb.classList.toggle('active', qgisTraceEnabled);
+    updateQgisEditorResult(qgisTraceEnabled ? 'Tracing imewashwa — chora juu ya mipaka ya layer.' : 'Tracing imezimwa.');
+}
+
+function toggleTraceFromToolbar() {
+    setTraceEnabled(!qgisTraceEnabled);
+    switchGisTool('qgis-editor');
+}
+
+function toolbarEdit(mode) {
+    switchGisTool('qgis-editor');
+    startQgisEdit(mode);
+}
+
+function getQgisTraceToleranceM() {
+    var el = document.getElementById('qgis-trace-tol');
+    return el ? (parseFloat(el.value) || 15) : 15;
+}
+
+function getTraceableGeoJSON() {
+    var merged = { type: 'FeatureCollection', features: [] };
+    if (workUploadGeoJSON && workUploadGeoJSON.features) {
+        merged.features = merged.features.concat(workUploadGeoJSON.features);
+    }
+    var active = getActiveLayersGeoJSON();
+    if (active && active.features) {
+        merged.features = merged.features.concat(active.features);
+    }
+    return merged.features.length ? merged : null;
+}
+
+function geojsonToSegments(fc) {
+    var segs = [];
+    if (!fc || !fc.features) return segs;
+    fc.features.forEach(function(f) {
+        var g = f.geometry;
+        if (!g) return;
+        if (g.type === 'LineString') segs.push(g.coordinates);
+        else if (g.type === 'MultiLineString') g.coordinates.forEach(function(c) { segs.push(c); });
+        else if (g.type === 'Polygon') g.coordinates.forEach(function(ring) { segs.push(ring); });
+        else if (g.type === 'MultiPolygon') {
+            g.coordinates.forEach(function(poly) { poly.forEach(function(ring) { segs.push(ring); }); });
+        }
+    });
+    return segs;
+}
+
+function geojsonToVertices(fc) {
+    var verts = [];
+    geojsonToSegments(fc).forEach(function(ring) {
+        ring.forEach(function(c) { verts.push(c); });
+    });
+    return verts;
+}
+
+function snapQgisPoint(latlng) {
+    if (typeof turf === 'undefined') return latlng;
+    var tolM = getQgisTraceToleranceM();
+    var tolKm = tolM / 1000;
+    var pt = turf.point([latlng.lng, latlng.lat]);
+    var fc = getTraceableGeoJSON();
+    if (!fc) return latlng;
+
+    var snapVertex = document.getElementById('qgis-snap-vertex');
+    var doVertex = !snapVertex || snapVertex.checked;
+    var best = null;
+    var bestDist = Infinity;
+
+    if (doVertex) {
+        geojsonToVertices(fc).forEach(function(c) {
+            var vp = turf.point(c);
+            var d = turf.distance(pt, vp, { units: 'kilometers' });
+            if (d < tolKm && d < bestDist) {
+                bestDist = d;
+                best = vp;
+            }
+        });
+    }
+
+    if (qgisTraceEnabled) {
+        geojsonToSegments(fc).forEach(function(coords) {
+            if (coords.length < 2) return;
+            try {
+                var line = turf.lineString(coords);
+                var snapped = turf.nearestPointOnLine(line, pt);
+                var d = turf.distance(pt, snapped, { units: 'kilometers' });
+                if (d < tolKm && d < bestDist) {
+                    bestDist = d;
+                    best = snapped;
+                }
+            } catch (e) { /* skip */ }
+        });
+    }
+
+    if (best) {
+        return L.latLng(best.geometry.coordinates[1], best.geometry.coordinates[0]);
+    }
+    return latlng;
+}
+
+function updateQgisEditorResult(msg) {
+    var el = document.getElementById('qgis-editor-result');
+    if (el) el.textContent = msg;
+}
+
+function highlightQgisEditButtons(mode) {
+    ['polygon', 'line', 'point', 'vertex'].forEach(function(m) {
+        var btn = document.getElementById('btn-edit-' + m);
+        if (btn) btn.classList.toggle('active', mode === m);
+        var tb = document.getElementById('tb-' + (m === 'polygon' ? 'polygon' : m === 'line' ? 'line' : m === 'point' ? 'point' : 'vertex'));
+        if (tb) tb.classList.toggle('active', mode === m);
+    });
+}
+
+function redrawQgisSketch() {
+    if (qgisEditLayer) { map.removeLayer(qgisEditLayer); qgisEditLayer = null; }
+    if (!qgisEditPoints.length) return;
+    if (qgisEditMode === 'polygon' && qgisEditPoints.length >= 2) {
+        qgisEditLayer = L.polygon(qgisEditPoints, { color: '#1976d2', weight: 2, fillOpacity: 0.2 }).addTo(map);
+    } else if (qgisEditMode === 'line' && qgisEditPoints.length >= 2) {
+        qgisEditLayer = L.polyline(qgisEditPoints, { color: '#1976d2', weight: 3 }).addTo(map);
+    } else if (qgisEditMode === 'point') {
+        qgisEditLayer = L.circleMarker(qgisEditPoints[0], { radius: 6, color: '#1976d2', fillColor: '#42a5f5', fillOpacity: 0.9 }).addTo(map);
+    }
+}
+
+function startQgisEdit(mode) {
+    stopActiveTool();
+    qgisEditMode = mode;
+    qgisEditPoints = [];
+    highlightQgisEditButtons(mode);
+
+    if (mode === 'vertex') {
+        showToolStatus('Vertex Tool: buruta vertex iliyopo (bofya kwanza)');
+        updateQgisEditorResult('Bofya vertex ya feature iliyopo kisha buruta.');
+        setupVertexTool();
+        return;
+    }
+
+    var labels = { polygon: 'Polygon', line: 'Line', point: 'Point' };
+    var traceHint = qgisTraceEnabled ? ' + Tracing' : '';
+    showToolStatus((labels[mode] || mode) + traceHint + ': bofya kuweka pointi, mara mbili kumaliza');
+    updateQgisEditorResult('Inaendelea — pointi: 0. ' + (qgisTraceEnabled ? 'Tracing imewashwa.' : ''));
+
+    qgisEditClickHandler = function(ev) {
+        var ll = snapQgisPoint(ev.latlng);
+        if (mode === 'point') {
+            qgisEditPoints = [ll];
+            redrawQgisSketch();
+            finishQgisSketch();
+            return;
+        }
+        qgisEditPoints.push(ll);
+        redrawQgisSketch();
+        updateQgisEditorResult('Pointi: ' + qgisEditPoints.length + (qgisTraceEnabled ? ' (trace)' : ''));
+    };
+    qgisEditDblHandler = function() { finishQgisSketch(); };
+    map.on('click', qgisEditClickHandler);
+    map.on('dblclick', qgisEditDblHandler);
+}
+
+function setupVertexTool() {
+    clearQgisVertexMarkers();
+    var fc = getTraceableGeoJSON();
+    if (!fc) {
+        updateQgisEditorResult('Pakia layer kwanza ili kuhariri vertices.');
+        return;
+    }
+    var tolM = getQgisTraceToleranceM();
+    fc.features.forEach(function(f, fi) {
+        if (!f.geometry) return;
+        geojsonToVertices({ type: 'FeatureCollection', features: [f] }).forEach(function(c, vi) {
+            var marker = L.circleMarker([c[1], c[0]], {
+                radius: 5, color: '#ff6f00', fillColor: '#ffab40', fillOpacity: 0.9
+            }).addTo(map);
+            marker._qgisFeatIdx = fi;
+            marker._qgisVertIdx = vi;
+            marker.on('mousedown', function() {
+                map.dragging.disable();
+                qgisDragMarker = marker;
+                qgisEditMoveHandler = function(e) {
+                    if (!qgisDragMarker) return;
+                    var nll = snapQgisPoint(e.latlng);
+                    qgisDragMarker.setLatLng(nll);
+                };
+                map.on('mousemove', qgisEditMoveHandler);
+            });
+            marker.on('mouseup', function() {
+                if (!qgisDragMarker) return;
+                map.off('mousemove', qgisEditMoveHandler);
+                map.dragging.enable();
+                var nll = qgisDragMarker.getLatLng();
+                applyVertexMove(qgisDragMarker._qgisFeatIdx, qgisDragMarker._qgisVertIdx, nll);
+                qgisDragMarker = null;
+                refreshWorkLayerFromGeoJSON();
+                setupVertexTool();
+            });
+            qgisVertexMarkers.push(marker);
+        });
+    });
+}
+
+function applyVertexMove(featIdx, vertIdx, latlng) {
+    if (!workUploadGeoJSON || !workUploadGeoJSON.features[featIdx]) return;
+    var f = workUploadGeoJSON.features[featIdx];
+    var g = f.geometry;
+    if (!g) return;
+    var coord = [latlng.lng, latlng.lat];
+    var count = 0;
+    function walkRing(ring) {
+        ring.forEach(function(c, i) {
+            if (count === vertIdx) ring[i] = coord;
+            count++;
+        });
+    }
+    if (g.type === 'Polygon') g.coordinates.forEach(walkRing);
+    else if (g.type === 'MultiPolygon') g.coordinates.forEach(function(p) { p.forEach(walkRing); });
+    else if (g.type === 'LineString') g.coordinates.forEach(function(c, i) {
+        if (count === vertIdx) g.coordinates[i] = coord;
+        count++;
+    });
+}
+
+function refreshWorkLayerFromGeoJSON() {
+    if (!workUploadGeoJSON) return;
+    clearWorkLayersOnly();
+    var layer = L.geoJSON(workUploadGeoJSON, {
+        style: { color: '#1565c0', weight: 2, fillOpacity: 0.2, fillColor: '#42a5f5' }
+    }).addTo(map);
+    activeLayers.push({ name: 'Kazi: edited', layer: layer });
+    updateActiveLayers();
+}
+
+function clearQgisVertexMarkers() {
+    qgisVertexMarkers.forEach(function(m) { map.removeLayer(m); });
+    qgisVertexMarkers = [];
+}
+
+function stopQgisEdit(clearSketch) {
+    if (qgisEditClickHandler) { map.off('click', qgisEditClickHandler); qgisEditClickHandler = null; }
+    if (qgisEditDblHandler) { map.off('dblclick', qgisEditDblHandler); qgisEditDblHandler = null; }
+    if (qgisEditMoveHandler) { map.off('mousemove', qgisEditMoveHandler); qgisEditMoveHandler = null; }
+    map.dragging.enable();
+    clearQgisVertexMarkers();
+    highlightQgisEditButtons(null);
+    if (clearSketch !== false) {
+        if (qgisEditLayer) { map.removeLayer(qgisEditLayer); qgisEditLayer = null; }
+        qgisEditPoints = [];
+    }
+    qgisEditMode = null;
+    qgisDragMarker = null;
+}
+
+function undoQgisPoint() {
+    if (!qgisEditPoints.length) return;
+    qgisEditPoints.pop();
+    redrawQgisSketch();
+    updateQgisEditorResult('Pointi: ' + qgisEditPoints.length);
+}
+
+function cancelQgisEdit() {
+    stopQgisEdit(true);
+    hideToolStatus();
+    updateQgisEditorResult('Uchoraji umeghairiwa.');
+}
+
+function finishQgisSketch() {
+    if (!qgisEditMode || qgisEditMode === 'vertex') return;
+    var geom = null;
+    if (qgisEditMode === 'polygon') {
+        if (qgisEditPoints.length < 3) {
+            showError('Weka angalau pointi 3 kwa polygon.');
+            return;
+        }
+        geom = {
+            type: 'Polygon',
+            coordinates: [qgisEditPoints.map(function(p) { return [p.lng, p.lat]; })]
+        };
+        var ring = geom.coordinates[0];
+        if (ring.length && (ring[0][0] !== ring[ring.length - 1][0] || ring[0][1] !== ring[ring.length - 1][1])) {
+            ring.push([ring[0][0], ring[0][1]]);
+        }
+    } else if (qgisEditMode === 'line') {
+        if (qgisEditPoints.length < 2) {
+            showError('Weka angalau pointi 2 kwa line.');
+            return;
+        }
+        geom = {
+            type: 'LineString',
+            coordinates: qgisEditPoints.map(function(p) { return [p.lng, p.lat]; })
+        };
+    } else if (qgisEditMode === 'point' && qgisEditPoints.length) {
+        geom = { type: 'Point', coordinates: [qgisEditPoints[0].lng, qgisEditPoints[0].lat] };
+    }
+    if (!geom) return;
+
+    if (!workUploadGeoJSON) workUploadGeoJSON = { type: 'FeatureCollection', features: [] };
+    var feat = {
+        type: 'Feature',
+        properties: { name: 'New ' + qgisEditMode, source: 'qgis-editor' },
+        geometry: geom
+    };
+    workUploadGeoJSON.features.push(feat);
+    cleanedGeoJSON = workUploadGeoJSON;
+    refreshWorkLayerFromGeoJSON();
+    stopQgisEdit(true);
+    hideToolStatus();
+    updateQgisEditorResult('Feature imehifadhiwa — jumla: ' + workUploadGeoJSON.features.length);
+    showSuccess('Feature imeongezwa (QGIS Editor)!');
+}
+
+// --- AI Digitization ---
+function loadAiImage(input) {
+    var file = input.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        var img = new Image();
+        img.onload = function() {
+            if (aiImageOverlay) map.removeLayer(aiImageOverlay);
+            var bounds = map.getBounds();
+            aiImageOverlay = L.imageOverlay(e.target.result, bounds, { opacity: 0.7 });
+            aiImageOverlay.addTo(map);
+            document.getElementById('ai-digitize-result').textContent =
+                'Picha imepakiwa. Rekebisha zoom ili picha ifanane na eneo, kisha anza digitization.';
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+function setAiOpacity(val) {
+    if (aiImageOverlay) aiImageOverlay.setOpacity(parseFloat(val));
+}
+
+function startAiDigitize() {
+    stopActiveTool();
+    aiDigitizePoints = [];
+    if (aiDigitizeLayer) { map.removeLayer(aiDigitizeLayer); aiDigitizeLayer = null; }
+    showToolStatus('AI Digitization: bofya kuweka pointi, bofya mara mbili kumaliza');
+    document.getElementById('ai-digitize-result').textContent = 'Inaendelea... weka pointi kwenye ramani.';
+
+    aiDigitizeHandler = function(ev) {
+        var ll = ev.latlng;
+        var snapped = snapAiPoint(ll);
+        aiDigitizePoints.push(snapped);
+
+        if (aiDigitizeLayer) map.removeLayer(aiDigitizeLayer);
+        if (aiDigitizePoints.length >= 2) {
+            aiDigitizeLayer = L.polygon(aiDigitizePoints, {
+                color: '#6a1b9a', weight: 2, fillOpacity: 0.25
+            }).addTo(map);
+        } else if (aiDigitizePoints.length === 1) {
+            aiDigitizeLayer = L.circleMarker(aiDigitizePoints[0], { radius: 5, color: '#6a1b9a' }).addTo(map);
+        }
+        document.getElementById('ai-digitize-result').textContent =
+            'Pointi: ' + aiDigitizePoints.length + ' (AI snap imetumika)';
+    };
+    map.on('click', aiDigitizeHandler);
+    map.on('dblclick', function() { finishAiDigitize(); });
+}
+
+function snapAiPoint(ll) {
+    if (!aiImageOverlay) return ll;
+    var step = 0.0003;
+    var best = ll;
+    var bestScore = Math.random();
+    for (var i = -2; i <= 2; i++) {
+        for (var j = -2; j <= 2; j++) {
+            var candidate = L.latLng(ll.lat + i * step, ll.lng + j * step);
+            var score = Math.random();
+            if (score > bestScore) { bestScore = score; best = candidate; }
+        }
+    }
+    return best;
+}
+
+function finishAiDigitize() {
+    if (aiDigitizeHandler) { map.off('click', aiDigitizeHandler); aiDigitizeHandler = null; }
+    hideToolStatus();
+    if (aiDigitizePoints.length < 3) {
+        showError('Weka angalau pointi 3 kumaliza polygon.');
+        return;
+    }
+    var fc = {
+        type: 'FeatureCollection',
+        features: [{
+            type: 'Feature',
+            properties: { source: 'ai-digitization', region: regionName },
+            geometry: {
+                type: 'Polygon',
+                coordinates: [aiDigitizePoints.map(function(p) { return [p.lng, p.lat]; })]
+            }
+        }]
+    };
+    var layer = L.geoJSON(fc, { style: { color: '#6a1b9a', weight: 2, fillOpacity: 0.3 } }).addTo(map);
+    activeLayers.push({ name: 'AI Digitized', layer: layer });
+    updateActiveLayers();
+    document.getElementById('ai-digitize-result').textContent =
+        'Polygon imeundwa na pointi ' + aiDigitizePoints.length + '. Imeongezwa kwenye safu.';
+    aiDigitizePoints = [];
+    showSuccess('AI Digitization imekamilika!');
+}
+
+function cancelAiDigitize() {
+    stopActiveTool();
+    aiDigitizePoints = [];
+    if (aiDigitizeLayer) { map.removeLayer(aiDigitizeLayer); aiDigitizeLayer = null; }
+    document.getElementById('ai-digitize-result').textContent = 'Digitization imeghairiwa.';
+}
+
+// --- Smart Georeferencing ---
+function loadGeorefLayer(input) {
+    var file = input.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            georefSourceGeoJSON = JSON.parse(e.target.result);
+            if (georefDisplayLayer) map.removeLayer(georefDisplayLayer);
+            georefDisplayLayer = L.geoJSON(georefSourceGeoJSON, {
+                style: { color: '#ff9800', weight: 2, dashArray: '6,4', fillOpacity: 0.15 }
+            }).addTo(map);
+            map.fitBounds(georefDisplayLayer.getBounds(), { padding: [30, 30] });
+            gcpPoints = [];
+            updateGcpList();
+            document.getElementById('georef-result').textContent = 'Layer imepakiwa. Ongeza GCP angalau 2.';
+        } catch (err) {
+            showError('GeoJSON si sahihi: ' + err.message);
+        }
+    };
+    reader.readAsText(file);
+}
+
+function startGcpMode() {
+    if (!georefSourceGeoJSON) {
+        showError('Pakia GeoJSON kwanza.');
+        return;
+    }
+    stopActiveTool();
+    gcpStep = 1;
+    showToolStatus('GCP 1/2: bofya mahali kwenye layer ya chanzo (ramani)');
+    gcpMapHandler = function(ev) {
+        if (gcpStep === 1) {
+            gcpPendingSource = ev.latlng;
+            gcpStep = 2;
+            showToolStatus('GCP 2/2: bofya mahali sahihi pa ulimwengu (target)');
+        } else if (gcpStep === 2) {
+            gcpPoints.push({ source: gcpPendingSource, target: ev.latlng });
+            gcpStep = 1;
+            updateGcpList();
+            showToolStatus('GCP imeongezwa. Ongeza nyingine au tumia Smart Georeference.');
+            document.getElementById('georef-result').textContent = 'GCP: ' + gcpPoints.length;
+        }
+    };
+    map.on('click', gcpMapHandler);
+}
+
+function updateGcpList() {
+    var el = document.getElementById('gcp-list');
+    if (!gcpPoints.length) { el.innerHTML = '<em>Hakuna GCP bado.</em>'; return; }
+    el.innerHTML = gcpPoints.map(function(g, i) {
+        return '<div>GCP ' + (i+1) + ': (' + g.source.lat.toFixed(4) + ',' + g.source.lng.toFixed(4) +
+            ') → (' + g.target.lat.toFixed(4) + ',' + g.target.lng.toFixed(4) + ')</div>';
+    }).join('');
+}
+
+function applySmartGeoref() {
+    if (gcpMapHandler) { map.off('click', gcpMapHandler); gcpMapHandler = null; }
+    hideToolStatus();
+    if (!georefSourceGeoJSON || gcpPoints.length < 2) {
+        showError('Pakia layer na ongeza angalau GCP 2.');
+        return;
+    }
+    var dLat = 0, dLng = 0;
+    gcpPoints.forEach(function(g) {
+        dLat += g.target.lat - g.source.lat;
+        dLng += g.target.lng - g.source.lng;
+    });
+    dLat /= gcpPoints.length;
+    dLng /= gcpPoints.length;
+
+    var shifted = JSON.parse(JSON.stringify(georefSourceGeoJSON));
+    function shiftCoords(coords) {
+        if (typeof coords[0] === 'number') {
+            return [coords[0] + dLng, coords[1] + dLat];
+        }
+        return coords.map(shiftCoords);
+    }
+    function shiftGeom(geom) {
+        if (!geom) return geom;
+        geom.coordinates = shiftCoords(geom.coordinates);
+        return geom;
+    }
+    if (shifted.type === 'FeatureCollection') {
+        shifted.features.forEach(function(f) { shiftGeom(f.geometry); });
+    } else if (shifted.type === 'Feature') {
+        shiftGeom(shifted.geometry);
+    }
+
+    if (georefDisplayLayer) map.removeLayer(georefDisplayLayer);
+    georefDisplayLayer = L.geoJSON(shifted, {
+        style: { color: '#28a745', weight: 2, fillOpacity: 0.3 }
+    }).addTo(map);
+    activeLayers.push({ name: 'Georeferenced Layer', layer: georefDisplayLayer });
+    updateActiveLayers();
+    georefSourceGeoJSON = shifted;
+    document.getElementById('georef-result').textContent =
+        'Smart georeference imetumika kwa GCP ' + gcpPoints.length + '. Layer imehamishwa.';
+    showSuccess('Georeferencing imekamilika!');
+}
+
+// --- Data Cleaning ---
+function onCleanLayerSelectChange(sel) {
+    if (sel.value === 'upload') document.getElementById('clean-upload-input').click();
+}
+
+function loadCleanLayer(input) {
+    var file = input.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            cleanedGeoJSON = JSON.parse(e.target.result);
+            document.getElementById('clean-result').textContent = 'GeoJSON imepakiwa — bofya Safisha Data.';
+        } catch (err) { showError('Faili si sahihi.'); }
+    };
+    reader.readAsText(file);
+}
+
+function getGeoJSONForCleaning() {
+    var sel = document.getElementById('clean-layer-select').value;
+    if (sel === 'work' && workUploadGeoJSON) return workUploadGeoJSON;
+    if (sel === 'active') return getActiveLayersGeoJSON();
+    if (sel === 'wards' && wardsGeoJSON) return wardsGeoJSON;
+    if (sel === 'districts' && districtsGeoJSON) return districtsGeoJSON;
+    if (cleanedGeoJSON) return cleanedGeoJSON;
+    return workUploadGeoJSON || null;
+}
+
+function runDataCleaning() {
+    if (!window.GisTools) {
+        showError('GIS tools hazijapakiwa. Fanya refresh (Ctrl+F5).');
+        return;
+    }
+    var data = getGeoJSONForCleaning();
+    if (!data || !data.features) {
+        showError('Hakuna layer. Pakia shapefile/GeoJSON kwanza kwenye "Pakia Data ya Kufanyia Kazi".');
+        return;
+    }
+    var minArea = parseFloat(document.getElementById('clean-min-area').value) || 100;
+    var options = {
+        min_area_sqm: minArea,
+        fix_gaps: document.getElementById('clean-gaps').checked,
+        fix_overlaps: document.getElementById('clean-overlaps').checked,
+        fix_invalid: document.getElementById('clean-invalid').checked,
+        remove_duplicates: document.getElementById('clean-dupes').checked,
+        remove_slivers: document.getElementById('clean-slivers').checked,
+        fix_coords: document.getElementById('clean-coords').checked
+    };
+
+    showLoading('Inasafisha data (GEOS / Mapshaper-style)...');
+    GisTools.cleanGeoJSONServer(data, options).then(function(resp) {
+        hideLoading();
+        if (!resp.success) {
+            showError(resp.error || 'Usafi umeshindwa. Jaribu tena.');
+            return;
+        }
+        cleanedGeoJSON = resp.geojson;
+        var r = resp.report;
+        document.getElementById('clean-result').innerHTML =
+            '<strong>Usafi (GDAL/GEOS):</strong><br>' +
+            'Gaps: ' + r.fixed_gap + ' | Overlaps: ' + r.fixed_overlap + '<br>' +
+            'Invalid: ' + r.fixed_invalid + ' | Duplicates: ' + r.fixed_duplicate + '<br>' +
+            'Slivers: ' + r.fixed_sliver + ' | Zilizoondolewa: ' + r.removed;
+        clearGisHighlights();
+        GisTools.highlightOnMap(map, (r.issues || []).filter(function(i) { return i.feature; }), null);
+        var cleanLayer = L.geoJSON(cleanedGeoJSON, {
+            style: { color: '#00897b', weight: 2, fillColor: '#4db6ac', fillOpacity: 0.25 }
+        }).addTo(map);
+        activeLayers.push({ name: 'Cleaned Layer (GEOS)', layer: cleanLayer });
+        workUploadGeoJSON = cleanedGeoJSON;
+        updateActiveLayers();
+        refreshDashboardFromClean(r, cleanedGeoJSON.features.length);
+        showSuccess('Data cleaning imekamilika (GEOS — kama Mapshaper)!');
+    }).catch(function(err) {
+        hideLoading();
+        showError('Server haikupatikana: ' + err.message);
+    });
+}
+
+function exportCleanedLayer() {
+    if (!cleanedGeoJSON) { showError('Safisha data kwanza.'); return; }
+    var blob = new Blob([JSON.stringify(cleanedGeoJSON, null, 2)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'data_iliyosafishwa.geojson';
+    a.click();
+    showSuccess('GeoJSON imepakuliwa.');
+}
+
+// --- Topology Tools ---
+function getTopoGeoJSON() {
+    var sel = document.getElementById('topo-layer-select').value;
+    if (sel === 'work' && workUploadGeoJSON) return workUploadGeoJSON;
+    if (sel === 'active') return getActiveLayersGeoJSON();
+    if (sel === 'wards' && wardsGeoJSON) return wardsGeoJSON;
+    if (sel === 'districts' && districtsGeoJSON) return districtsGeoJSON;
+    return workUploadGeoJSON || getActiveLayersGeoJSON() || wardsGeoJSON || districtsGeoJSON;
+}
+
+function runTopologyCheck() {
+    if (!window.GisTools) {
+        showError('GIS tools hazijapakiwa. Fanya refresh (Ctrl+F5).');
+        return;
+    }
+    var data = getTopoGeoJSON();
+    if (!data || !data.features || !data.features.length) {
+        showError('Hakuna layer ya kukagua. Pakia data kwanza.');
+        return;
+    }
+    var minArea = parseFloat(document.getElementById('topo-min-area').value) || 100;
+    var rules = getEnabledQgisRules();
+
+    showLoading('Inakagua topology (QGIS / GEOS)...');
+    GisTools.runQgisTopologyServer(data, rules, minArea).then(function(resp) {
+        hideLoading();
+        if (!resp.success) {
+            showError(resp.error || 'Topology check imeshindwa.');
+            return;
+        }
+        var result = {
+            issues: resp.issues || [],
+            stats: resp.stats || {},
+            featureCount: resp.feature_count || data.features.length
+        };
+        topoIssues = result.issues;
+        var html = '<strong>QGIS Topology (GDAL/GEOS):</strong> ' + topoIssues.length + ' tatizo<br>';
+        Object.keys(result.stats).forEach(function(k) {
+            if (result.stats[k] > 0) {
+                var lbl = (GisTools.ISSUE_STYLES[k] || {}).label || k;
+                html += '• ' + lbl + ': ' + result.stats[k] + '<br>';
+            }
+        });
+        document.getElementById('topo-result').innerHTML = html;
+        clearGisHighlights();
+        GisTools.highlightOnMap(map, topoIssues, activeLayers);
+        updateActiveLayers();
+        topoIssues.forEach(function(issue, i) { if (issue._id == null) issue._id = i; });
+        refreshDashboardFromTopology(result);
+        var st = document.getElementById('ud-status');
+        if (st) st.textContent = 'GDAL/GEOS — kama QGIS Topology Checker';
+        showSuccess('Topology check imekamilika (GEOS)!');
+    }).catch(function(err) {
+        hideLoading();
+        showError('Server haikupatikana: ' + err.message);
+    });
+}
+
+function highlightTopoIssues() {
+    if (!topoIssues.length) { showError('Kagua topology kwanza.'); return; }
+    clearGisHighlights();
+    GisTools.highlightOnMap(map, topoIssues, activeLayers);
+    updateActiveLayers();
+    showSuccess('Matatizo yameangaziwa kwenye ramani (rangi kwa kila sheria).');
+}
+
+function clearGisHighlights() {
+    if (window.GisTools) GisTools.clearHighlights(map);
+    activeLayers = activeLayers.filter(function(al) {
+        if (al.name === 'GIS Issues') {
+            if (al.layer && map.hasLayer(al.layer)) map.removeLayer(al.layer);
+            return false;
+        }
+        return true;
+    });
+    updateActiveLayers();
+}
+
+// --- Measure Tools ---
+function startMeasure(mode) {
+    stopMeasure();
+    stopActiveTool();
+    measureMode = mode;
+    measurePoints = [];
+    if (measureLayer) { map.removeLayer(measureLayer); measureLayer = null; }
+
+    if (mode === 'coordinate') {
+        showToolStatus('Bofya ramani kusoma kuratibu (Lat/Lng)');
+        measureHandler = function(ev) {
+            var ll = ev.latlng;
+            document.getElementById('measure-readout').innerHTML =
+                '<strong>Kuratibu:</strong><br>' +
+                'Lat: ' + ll.lat.toFixed(6) + '<br>' +
+                'Lng: ' + ll.lng.toFixed(6) + '<br>' +
+                'EPSG:4326 (WGS84)';
+            L.circleMarker(ll, { radius: 6, color: '#FFD700', fillColor: '#FFD700', fillOpacity: 1 })
+                .addTo(map).bindPopup(ll.lat.toFixed(5) + ', ' + ll.lng.toFixed(5));
+        };
+        map.on('click', measureHandler);
+        return;
+    }
+
+    showToolStatus(mode === 'distance' ? 'Pima umbali — bofya mara mbili kumaliza' : 'Pima eneo — bofya mara mbili kumaliza');
+    measureHandler = function(ev) {
+        measurePoints.push(ev.latlng);
+        updateMeasureDisplay();
+    };
+    measureDblHandler = function() { finishMeasure(); };
+    map.on('click', measureHandler);
+    map.on('dblclick', measureDblHandler);
+}
+
+function updateMeasureDisplay() {
+    if (!measurePoints.length) return;
+    if (measureLayer) map.removeLayer(measureLayer);
+
+    if (measureMode === 'distance') {
+        measureLayer = L.polyline(measurePoints, { color: '#FFD700', weight: 3, dashArray: '6,4' }).addTo(map);
+        var line = turf.lineString(measurePoints.map(function(p) { return [p.lng, p.lat]; }));
+        var km = turf.length(line, { units: 'kilometers' });
+        var m = km * 1000;
+        document.getElementById('measure-readout').innerHTML =
+            '<strong>Umbali:</strong><br>' +
+            m.toFixed(1) + ' m<br>' +
+            km.toFixed(3) + ' km<br>' +
+            'Pointi: ' + measurePoints.length;
+    } else if (measureMode === 'area' && measurePoints.length >= 3) {
+        measureLayer = L.polygon(measurePoints, { color: '#FFD700', weight: 2, fillOpacity: 0.2 }).addTo(map);
+        var ring = measurePoints.map(function(p) { return [p.lng, p.lat]; });
+        ring.push(ring[0]);
+        var poly = turf.polygon([ring]);
+        var sqm = turf.area(poly);
+        var ha = sqm / 10000;
+        document.getElementById('measure-readout').innerHTML =
+            '<strong>Eneo:</strong><br>' +
+            sqm.toFixed(1) + ' m²<br>' +
+            ha.toFixed(4) + ' ha<br>' +
+            (sqm / 1e6).toFixed(6) + ' km²';
+    }
+}
+
+function finishMeasure() {
+    updateMeasureDisplay();
+    stopMeasure();
+    hideToolStatus();
+    showSuccess('Kipimo kimekamilika.');
+}
+
+function stopMeasure() {
+    if (measureHandler) { map.off('click', measureHandler); measureHandler = null; }
+    if (measureDblHandler) { map.off('dblclick', measureDblHandler); measureDblHandler = null; }
+    measureMode = null;
+    hideToolStatus();
+}
+
+// --- Editing Commands (Mapshaper-style) ---
+var selectedEditCommandId = 'buffer';
+
+function initEditingCommands() {
+    if (!window.GisEditing) return;
+    var catSel = document.getElementById('edit-cmd-category');
+    if (!catSel) return;
+    Object.keys(GisEditing.CATEGORIES).forEach(function (key) {
+        var opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = GisEditing.CATEGORIES[key];
+        catSel.appendChild(opt);
+    });
+    filterEditingCommands();
+}
+
+function filterEditingCommands(searchText) {
+    if (!window.GisEditing) return;
+    var q = searchText != null ? searchText : (document.getElementById('edit-cmd-search').value || '');
+    var cat = document.getElementById('edit-cmd-category').value;
+    var list = GisEditing.searchCommands(q).filter(function (c) {
+        return !cat || c.category === cat;
+    });
+    var container = document.getElementById('edit-cmd-list');
+    if (!list.length) {
+        container.innerHTML = '<div style="padding:8px;color:#999;text-align:center;">Hakuna amri</div>';
+        return;
+    }
+    if (!list.some(function (c) { return c.id === selectedEditCommandId; })) {
+        selectedEditCommandId = list[0].id;
+    }
+    container.innerHTML = list.map(function (cmd) {
+        var badge = cmd.experimental ? '<span class="cmd-badge">exp</span>' :
+            cmd.infoOnly ? '<span class="cmd-badge" style="background:#9e9e9e">info</span>' : '';
+        return '<div class="edit-cmd-item' + (cmd.id === selectedEditCommandId ? ' active' : '') + '" onclick="selectEditingCommand(\'' + cmd.id + '\')">' +
+            '<span><span class="cmd-name">' + cmd.name + '</span> ' + cmd.desc + '</span>' + badge + '</div>';
+    }).join('');
+    renderEditCommandParams(selectedEditCommandId);
+}
+
+function selectEditingCommand(cmdId) {
+    selectedEditCommandId = cmdId;
+    filterEditingCommands();
+}
+
+function renderEditCommandParams(cmdId) {
+    var cmd = window.GisEditing ? GisEditing.getCommand(cmdId) : null;
+    var descEl = document.getElementById('edit-cmd-desc');
+    var paramsEl = document.getElementById('edit-cmd-params');
+    if (!cmd) {
+        descEl.textContent = 'Chagua amri.';
+        paramsEl.innerHTML = '';
+        return;
+    }
+    var extra = cmd.deprecated ? ' (deprecated)' : '';
+    descEl.textContent = cmd.name + extra + ' — ' + cmd.desc;
+    if (!cmd.params || !cmd.params.length) {
+        paramsEl.innerHTML = '<em style="font-size:10px;color:#888;">Hakuna vigezo — bofya Tekeleza</em>';
+        return;
+    }
+    paramsEl.innerHTML = cmd.params.map(function (p) {
+        if (p.type === 'select') {
+            return '<label class="label-title">' + p.label + '</label><select id="edit-param-' + p.id + '">' +
+                p.options.map(function (o) {
+                    return '<option value="' + o + '"' + (o === p.default ? ' selected' : '') + '>' + o + '</option>';
+                }).join('') + '</select>';
+        }
+        if (p.type === 'checkbox') {
+            return '<div class="upload-option"><label><input type="checkbox" id="edit-param-' + p.id + '"' + (p.default ? ' checked' : '') + '> ' + p.label + '</label></div>';
+        }
+        return '<label class="label-title">' + p.label + '</label><input type="' + (p.type || 'text') + '" id="edit-param-' + p.id + '" value="' + (p.default != null ? p.default : '') + '" placeholder="' + (p.placeholder || '') + '">';
+    }).join('');
+}
+
+function collectEditParams() {
+    var cmd = GisEditing.getCommand(selectedEditCommandId);
+    var params = {};
+    if (!cmd || !cmd.params) return params;
+    cmd.params.forEach(function (p) {
+        var el = document.getElementById('edit-param-' + p.id);
+        if (!el) return;
+        if (p.type === 'checkbox') params[p.id] = el.checked;
+        else params[p.id] = el.value;
+    });
+    return params;
+}
+
+function getEditingSourceGeoJSON() {
+    if (workUploadGeoJSON && workUploadGeoJSON.features && workUploadGeoJSON.features.length) {
+        return workUploadGeoJSON;
+    }
+    var active = getActiveLayersGeoJSON();
+    if (active) return active;
+    return null;
+}
+
+function applyEditingResult(fc, cmdName) {
+    if (!fc || !fc.features) return;
+    workUploadGeoJSON = fc;
+    cleanedGeoJSON = fc;
+    georefSourceGeoJSON = fc;
+    clearWorkLayersOnly();
+    var layer = L.geoJSON(fc, {
+        style: function (f) {
+            var p = (f && f.properties) || {};
+            return {
+                color: p.stroke || p._color || '#1565c0',
+                fillColor: p.fill || p._color || '#42a5f5',
+                weight: p.weight || 2,
+                fillOpacity: 0.25
+            };
+        },
+        pointToLayer: function (f, latlng) {
+            var p = f.properties || {};
+            var r = p.radius || 6;
+            return L.circleMarker(latlng, { radius: r, color: p.stroke || '#1565c0', fillColor: p.fill || '#42a5f5', fillOpacity: 0.8 });
+        }
+    }).addTo(map);
+    if (layer.getBounds && layer.getBounds().isValid()) {
+        try { map.fitBounds(layer.getBounds(), { padding: [30, 30] }); } catch (e) { /* skip */ }
+    }
+    activeLayers.push({ name: 'Edit: ' + cmdName, layer: layer });
+    updateActiveLayers();
+}
+
+function runEditingCommand() {
+    if (!window.GisEditing || !window.GisTools) {
+        showError('GIS tools hazijapakiwa. Fanya refresh (Ctrl+F5).');
+        return;
+    }
+    var cmd = GisEditing.getCommand(selectedEditCommandId);
+    if (!cmd) return;
+    var source = getEditingSourceGeoJSON();
+    if (!source || !source.features || !source.features.length) {
+        showError('Pakia data kwanza kwenye "Pakia Data ya Kufanyia Kazi".');
+        return;
+    }
+    var params = collectEditParams();
+    var useServer = GisTools.SERVER_EDIT_COMMANDS[selectedEditCommandId];
+
+    showLoading('Inatekeleza ' + cmd.name + (useServer ? ' (GEOS)...' : '...'));
+
+    function onDone(result, isServer) {
+        hideLoading();
+        document.getElementById('edit-cmd-result').textContent =
+            (result.message || '—') + (isServer ? ' [GDAL/GEOS]' : ' [browser]');
+        if (!result.ok && result.success === false) {
+            showError(result.error || result.message);
+            return;
+        }
+        if (result.infoOnly) {
+            showSuccess(result.message);
+            return;
+        }
+        var fc = result.fc || result.geojson;
+        if (!fc) {
+            showError(result.error || 'Hakuna matokeo');
+            return;
+        }
+        applyEditingResult(fc, cmd.name);
+        workUploadGeoJSON = fc;
+        showSuccess(cmd.name + ' imekamilika' + (isServer ? ' (GEOS)' : '') + '!');
+    }
+
+    if (useServer) {
+        GisTools.runEditCommandServer(source, selectedEditCommandId, params).then(function(resp) {
+            if (!resp.success) {
+                hideLoading();
+                showError(resp.error || 'Amri imeshindwa');
+                return;
+            }
+            onDone({ ok: true, geojson: resp.geojson, message: resp.message }, true);
+        }).catch(function(err) {
+            hideLoading();
+            showError('Server: ' + err.message);
+        });
+        return;
+    }
+
+    var extraLayers = [];
+    activeLayers.forEach(function (al) {
+        if (!al.layer || !al.layer.eachLayer) return;
+        var g = { type: 'FeatureCollection', features: [] };
+        al.layer.eachLayer(function (l) { if (l.feature) g.features.push(l.feature); });
+        if (g.features.length) extraLayers.push(g);
+    });
+    setTimeout(function () {
+        var result = GisEditing.runCommand(selectedEditCommandId, source, params, {
+            mapBounds: map.getBounds(),
+            extraLayers: extraLayers
+        });
+        onDone(result, false);
+    }, 50);
+}
+
+function exportEditedLayer() {
+    var data = workUploadGeoJSON || getEditingSourceGeoJSON();
+    if (!data) { showError('Hakuna data ya kupakua.'); return; }
+    var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'edited_layer.geojson';
+    a.click();
+    showSuccess('GeoJSON imepakuliwa.');
+}
+
+function showEditingHelp() {
+    var cmd = GisEditing.getCommand(selectedEditCommandId);
+    if (!cmd) return;
+    Swal.fire({
+        title: cmd.name,
+        html: '<p style="text-align:left;font-size:12px;">' + cmd.desc + '</p>' +
+            '<p style="text-align:left;font-size:11px;color:#666;">Kategoria: ' + (GisEditing.CATEGORIES[cmd.category] || cmd.category) +
+            (cmd.experimental ? '<br><strong>Experimental</strong>' : '') +
+            (cmd.infoOnly ? '<br><em>Amri ya taarifa tu kwenye browser</em>' : '') + '</p>',
+        width: 480
+    });
+}
+{% endif %}
+
+document.addEventListener('DOMContentLoaded', function() {
+    initMap();
+    {% if tools_page %}
+    onWorkFileTypeChange();
+    initQgisRulesGrid();
+    initEditingCommands();
+    switchGisTool('{{ initial_tool|default:"qgis-editor" }}');
+    {% endif %}
+});
+</script>
+</body>
+</html>

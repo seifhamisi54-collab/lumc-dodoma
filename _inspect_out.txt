@@ -1,0 +1,389 @@
+﻿PDF: Katavi Mamlaka za Wilaya na Mamlaka za Miji GP DOM.pdf
+exists: True
+pages: 43
+
+======================================================================
+PAGE 3 | chars=581 | width=595.2 height=841.92
+======================================================================
+Amri ya Mgawanyo wa Maeneo ya Utawala katika Mamlaka za Serikali za Mitaa
+Amri ya Mgawanyo wa Maeneo ya Utawala katika Mamlaka za Serikali za Mitaa
+(Mamlaka za Wilaya) Mwaka 2024.
+Mkoa wa Katavi
+Na Halmashauri Na. Kata Na. Kijiji Na. Kitongoji
+1 Tanganyika 1 Karema 1 Karema 1 Kusini A
+2 Kusini B
+3 Kaskazini B
+4 Kaskazini A
+5 Kijiweni
+6 Kamazile
+2 Itetemya 7 Ifume
+8 Sumbwa
+9 Igalukilo A.
+10 Igalukilo B
+2 Kapalamsenga 3 Songambele 11 Songambele
+12 Mtakuja
+13 Majengo A
+14 Milundumo
+4 Kapalamsenga 15 Mji mwema
+16 Msasani
+17 Kamalamansa
+18 Majengo B
+5 Itunya 19 Nkuswe
+20 Nsango
+3
+
+--- TABLES on page 3: count=3 ---
+  table[0] rows=3 cols=1
+    ['Amri ya Mgawanyo wa Maeneo ya Utawala katika Mamlaka za Serikali za Mitaa']
+    ['(Mamlaka za Wilaya) Mwaka 2024.']
+    ['Mkoa wa Katavi']
+  table[1] rows=20 cols=3
+    ['1', 'Karema', '1']
+    ['', '', '']
+    ['', '', '']
+    ['', '', '']
+    ['', '', '']
+    ['', '', '']
+    ['', '', '2']
+    ['', '', '']
+    ... (12 more rows)
+  table[2] rows=20 cols=2
+    ['1', 'Kusini A']
+    ['2', 'Kusini B']
+    ['3', 'Kaskazini B']
+    ['4', 'Kaskazini A']
+    ['5', 'Kijiweni']
+    ['6', 'Kamazile']
+    ['7', 'Ifume']
+    ['8', 'Sumbwa']
+    ... (12 more rows)
+
+======================================================================
+PAGE 4 | chars=449 | width=595.2 height=841.92
+======================================================================
+Amri ya Mgawanyo wa Maeneo ya Utawala katika Mamlaka za Serikali za Mitaa
+21 Kamitobo
+22 Migungani
+23 Mnyundwe
+3 Ikola 6 Ikola 24 Isigo
+25 Bujombe
+26 Utinta A.
+27 Utinta B
+28 Ikola Stoo
+29 Mpalamawe A
+30 Mpalamawe B
+31 Kalumbi
+7 Mchangani 32 Kalilangwena
+33 Mzambarauni
+34 Mchangani
+35 Mzabwela
+36 Sokoni
+37 Sumbwa
+38 Forodhani.
+39 Kajinga
+8 Kafisha 40 Ngala
+41 kafisha Kati
+42 Katambo
+43 Isigo
+4 Isengule 9 Isengule 44 Isengule Magharibi
+45 Laela
+4
+
+--- TABLES on page 4: count=2 ---
+  table[0] rows=25 cols=3
+    ['', '', '']
+    ['', '', '']
+    ['', '', '']
+    ['3', 'Ikola', '6']
+    ['', '', '']
+    ['', '', '']
+    ['', '', '']
+    ['', '', '']
+    ... (17 more rows)
+  table[1] rows=25 cols=2
+    ['21', 'Kamitobo']
+    ['22', 'Migungani']
+    ['23', 'Mnyundwe']
+    ['24', 'Isigo']
+    ['25', 'Bujombe']
+    ['26', 'Utinta A.']
+    ['27', 'Utinta B']
+    ['28', 'Ikola Stoo']
+    ... (17 more rows)
+
+======================================================================
+PAGE 5 | chars=506 | width=595.2 height=841.92
+======================================================================
+Amri ya Mgawanyo wa Maeneo ya Utawala katika Mamlaka za Serikali za Mitaa
+46 Isengule Mashariki
+47 Mchangani
+10 Shukula 48 Shukula
+49 Kenfungwa
+50 Igoma
+51 Kamuhama
+52 Ipakomatana
+11 Kasangantongwe 53 Isimwa
+54 Kasulamnyaga
+55 Tupondogolo
+56 Kasangantongwe
+5 Katuma 12 Katuma 57 Majengo
+58 Mashineni
+59 Shuleni
+60 Mwikang'ombe
+13 Kamilala 61 Kayenze A
+62 Kayenze B
+63 Mzoga wa Fisi
+14 Kapanga 64 Msikitini
+65 Mlimani
+66 Nsimbo
+15 Mpembe 67 Mpembe
+68 Ibulamansi Mashariki
+69 Ibulamansi Magharibi
+70 Mlinda
+5
+
+--- TABLES on page 5: count=2 ---
+  table[0] rows=25 cols=3
+    ['', '', '']
+    ['', '', '']
+    ['', '', '10']
+    ['', '', '']
+    ['', '', '']
+    ['', '', '']
+    ['', '', '']
+    ['', '', '11']
+    ... (17 more rows)
+  table[1] rows=25 cols=2
+    ['46', 'Isengule Mashariki']
+    ['47', 'Mchangani']
+    ['48', 'Shukula']
+    ['49', 'Kenfungwa']
+    ['50', 'Igoma']
+    ['51', 'Kamuhama']
+    ['52', 'Ipakomatana']
+    ['53', 'Isimwa']
+    ... (17 more rows)
+
+======================================================================
+PAGE 6 | chars=520 | width=595.2 height=841.92
+======================================================================
+Amri ya Mgawanyo wa Maeneo ya Utawala katika Mamlaka za Serikali za Mitaa
+71 Kahelele
+72 Kabatini
+6 Mwese 16 Lwega 73 Lwega Namba 8A
+74 Lwega Namba 8B
+75 Lwega Namba 7A
+76 Lwega Namba 7B
+77 Lwega Namba 1
+78 Igalula
+17 Bujombe 79 Mabwensofu
+80 Matimba
+81 Kasangasi
+82 Katente
+83 Kasunga
+18 Lugonesi 84 Kitongoji Na 4a
+85 Kitongoji Na.4b
+86 Kitongoji Na.4c
+87 Kitongoji Na.4d
+88 Kitongoji Na. 4e
+89 Kitongoji Na. 5a
+19 Mwese 90 Namba 2
+91 Namba 3A
+92 Namba 3B
+93 Namba 3C
+94 Namba 3D
+7 Kasekese 20 Kasekese 95 Kasekese A
+6
+
+--- TABLES on page 6: count=2 ---
+  table[0] rows=25 cols=3
+    ['', '', '']
+    ['', '', '']
+    ['6', 'Mwese', '16']
+    ['', '', '']
+    ['', '', '']
+    ['', '', '']
+    ['', '', '']
+    ['', '', '']
+    ... (17 more rows)
+  table[1] rows=25 cols=2
+    ['71', 'Kahelele']
+    ['72', 'Kabatini']
+    ['73', 'Lwega Namba 8A']
+    ['74', 'Lwega Namba 8B']
+    ['75', 'Lwega Namba 7A']
+    ['76', 'Lwega Namba 7B']
+    ['77', 'Lwega Namba 1']
+    ['78', 'Igalula']
+    ... (17 more rows)
+
+======================================================================
+PAGE 7 | chars=527 | width=595.2 height=841.92
+======================================================================
+Amri ya Mgawanyo wa Maeneo ya Utawala katika Mamlaka za Serikali za Mitaa
+96 Kasekese B
+97 Mlango mmoja
+98 Itwanga
+99 Misisi.
+21 Kagunga 100 Kagunga æAÆ
+101 Kamkola
+102 Mantena
+22 Kaseganyama 103 Kaseganyama A
+104 Kaseganyama C
+8 Sibwesa 23 Nkungwi 105 Nkungwi
+106 Iloba A
+107 Iloba B
+108 Rutuba
+24 Sibwesa 109 Mtapenda
+110 Sibwesa Mashariki
+111 Magogo
+112 Kamlenga
+113 Sibwesa Magharibi
+25 Kabage 114 Kabage A
+115 Kabage B
+116 Mwamapuli A
+117 Mwamapuli B
+118 Kabage Mashariki
+9 Kabungu 26 Kabungu 119 Imalausinga
+120 Kagwila
+7
+
+--- TABLES on page 7: count=2 ---
+  table[0] rows=25 cols=3
+    ['', '', '']
+    ['', '', '']
+    ['', '', '']
+    ['', '', '']
+    ['', '', '21']
+    ['', '', '']
+    ['', '', '']
+    ['', '', '22']
+    ... (17 more rows)
+  table[1] rows=25 cols=2
+    ['96', 'Kasekese B']
+    ['97', 'Mlango mmoja']
+    ['98', 'Itwanga']
+    ['99', 'Misisi.']
+    ['100', 'Kagunga æAÆ']
+    ['101', 'Kamkola']
+    ['102', 'Mantena']
+    ['103', 'Kaseganyama A']
+    ... (17 more rows)
+
+======================================================================
+PAGE 8 | chars=446 | width=595.2 height=841.92
+======================================================================
+Amri ya Mgawanyo wa Maeneo ya Utawala katika Mamlaka za Serikali za Mitaa
+121 Ikulu
+122 Shongotupendane
+123 Sijonga
+124 Mbogwe
+125 Wazo jema
+126 Ibambye
+127 Kamuluguju
+27 Kasinde 128 Kasinde
+129 Ikaka
+130 Shakoma
+131 Kafulu
+132 Tupendane
+133 Ikombasogo
+134 Kagala
+135 Butiki
+136 Mapambano
+137 Katonyaga
+10 Mnyagala 28 Mnyagala 138 Ntumba
+139 Ming'ongoni
+140 Iloba
+141 Mnyagala A
+142 Mnyagala B
+29 Kamsanga 143 Ilebula B
+144 Mlimani
+145 Kamsanga
+8
+
+--- TABLES on page 8: count=2 ---
+  table[0] rows=25 cols=3
+    ['', '', '']
+    ['', '', '']
+    ['', '', '']
+    ['', '', '']
+    ['', '', '']
+    ['', '', '']
+    ['', '', '']
+    ['', '', '27']
+    ... (17 more rows)
+  table[1] rows=25 cols=2
+    ['121', 'Ikulu']
+    ['122', 'Shongotupendane']
+    ['123', 'Sijonga']
+    ['124', 'Mbogwe']
+    ['125', 'Wazo jema']
+    ['126', 'Ibambye']
+    ['127', 'Kamuluguju']
+    ['128', 'Kasinde']
+    ... (17 more rows)
+
+======================================================================
+ALT TABLE SETTINGS (page 4)
+======================================================================
+  strategy=lines: tables=2
+    first table rows=25 sample rows:
+    ['', '', '']
+    ['', '', '']
+    ['', '', '']
+    ['3', 'Ikola', '6']
+    ['', '', '']
+  strategy=text: tables=1
+    first table rows=51 sample rows:
+    ['ya U', 'tawala katika Mam', 'lak', 'a za Serikali']
+    ['', '', '', '']
+    ['', '', '21', 'Kamitobo']
+    ['', '', '', '']
+    ['', '', '22', 'Migungani']
+  strategy=lines_strict: tables=0
+
+======================================================================
+HIERARCHY PATTERN SCAN (pages 3-8)
+======================================================================
+
+Page 3:
+  MKOA: 1 hits; sample=['Mkoa wa Katavi']
+  WILAYA_LINE: 4 hits; sample=['Mamlaka', 'Wilaya', 'Halmashauri']
+  KATA: 1 hits; sample=['Na Halmashauri Na. Kata Na. Kijiji Na. Kitongoji']
+  KIJIJI_HDR: 1 hits; sample=['Kijiji']
+  numbered: 0 hits; sample=[]
+
+Page 4:
+  MKOA: 0 hits; sample=[]
+  WILAYA_LINE: 1 hits; sample=['Mamlaka']
+  KATA: 0 hits; sample=[]
+  KIJIJI_HDR: 0 hits; sample=[]
+  numbered: 0 hits; sample=[]
+
+Page 5:
+  MKOA: 0 hits; sample=[]
+  WILAYA_LINE: 1 hits; sample=['Mamlaka']
+  KATA: 0 hits; sample=[]
+  KIJIJI_HDR: 0 hits; sample=[]
+  numbered: 0 hits; sample=[]
+
+Page 6:
+  MKOA: 0 hits; sample=[]
+  WILAYA_LINE: 1 hits; sample=['Mamlaka']
+  KATA: 0 hits; sample=[]
+  KIJIJI_HDR: 0 hits; sample=[]
+  numbered: 0 hits; sample=[]
+
+Page 7:
+  MKOA: 0 hits; sample=[]
+  WILAYA_LINE: 1 hits; sample=['Mamlaka']
+  KATA: 0 hits; sample=[]
+  KIJIJI_HDR: 0 hits; sample=[]
+  numbered: 0 hits; sample=[]
+
+Page 8:
+  MKOA: 0 hits; sample=[]
+  WILAYA_LINE: 1 hits; sample=['Mamlaka']
+  KATA: 0 hits; sample=[]
+  KIJIJI_HDR: 0 hits; sample=[]
+  numbered: 0 hits; sample=[]

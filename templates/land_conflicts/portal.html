@@ -1,0 +1,874 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Migogoro ya Ardhi — LUMC{% endblock %}
+
+{% block extra_css %}
+<style>
+    .mg-wrap { max-width: 1240px; margin: 0 auto; padding: 24px 24px 56px; }
+    .mg-hero {
+        background: linear-gradient(135deg, #9a3412 0%, #c2410c 45%, #ea580c 100%);
+        color: #fff; border-radius: 16px; padding: 26px 30px; margin-bottom: 20px;
+        box-shadow: 0 10px 28px rgba(194, 65, 12, 0.25);
+        display: flex; flex-wrap: wrap; justify-content: space-between; gap: 14px; align-items: flex-start;
+    }
+    .mg-hero h1 {
+        margin: 0 0 8px; font-family: 'Outfit', sans-serif; font-size: 1.65rem; font-weight: 700;
+    }
+    .mg-hero p { margin: 0; opacity: 0.92; font-size: 14px; max-width: 640px; line-height: 1.5; }
+    .mg-fy-badge {
+        background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.35);
+        border-radius: 12px; padding: 12px 16px; min-width: 200px;
+    }
+    .mg-fy-badge label { display: block; font-size: 11px; opacity: 0.85; margin-bottom: 6px; font-weight: 600; }
+    .mg-fy-badge select {
+        width: 100%; border: none; border-radius: 8px; padding: 8px 10px;
+        font-weight: 700; font-size: 14px; color: #9a3412; background: #fff;
+    }
+    .mg-kpis {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 12px; margin-bottom: 18px;
+    }
+    .mg-kpi {
+        background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 14px 16px;
+        box-shadow: 0 2px 10px rgba(15,23,42,0.04);
+    }
+    .mg-kpi .label { font-size: 12px; color: #64748b; font-weight: 600; }
+    .mg-kpi .value { font-family: 'Outfit', sans-serif; font-size: 1.55rem; font-weight: 700; margin-top: 4px; }
+    .mg-kpi.open .value { color: #c2410c; }
+    .mg-kpi.ok .value { color: #15803d; }
+    .mg-card {
+        background: #fff; border: 1px solid #e2e8f0; border-radius: 14px;
+        padding: 18px 20px; box-shadow: 0 2px 12px rgba(15,23,42,0.04); margin-bottom: 16px;
+    }
+    .mg-card h2 {
+        margin: 0 0 12px; font-family: 'Outfit', sans-serif; font-size: 1.05rem; font-weight: 700;
+    }
+    .mg-filters {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 10px; align-items: end;
+    }
+    .mg-filters label, .mg-form-grid label {
+        display: block; font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 4px;
+    }
+    .mg-filters select, .mg-filters input,
+    .mg-form-grid input, .mg-form-grid select, .mg-form-grid textarea {
+        width: 100%; border: 1px solid #e2e8f0; border-radius: 10px;
+        padding: 8px 11px; font-size: 13px; font-family: inherit; background: #fff;
+    }
+    .mg-btn {
+        display: inline-flex; align-items: center; gap: 7px; border: none; border-radius: 10px;
+        padding: 9px 14px; font-weight: 600; font-size: 13px; cursor: pointer;
+        font-family: inherit; background: #c2410c; color: #fff;
+    }
+    .mg-btn:hover { background: #9a3412; }
+    .mg-btn.secondary { background: #eef2ff; color: #1a237e; }
+    .mg-btn.danger { background: #fee2e2; color: #b91c1c; }
+    .mg-btn.edit { background: #e0e7ff; color: #3730a3; }
+    .mg-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 12px 0; }
+    .mg-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    .mg-table th, .mg-table td {
+        padding: 9px 10px; border-bottom: 1px solid #f1f5f9; text-align: left; vertical-align: top;
+    }
+    .mg-table th {
+        color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap;
+    }
+    .mg-status {
+        display: inline-block; padding: 3px 8px; border-radius: 999px;
+        font-size: 11px; font-weight: 700; background: #ffedd5; color: #9a3412;
+    }
+    .mg-status.yes { background: #dcfce7; color: #166534; }
+    .mg-fy-chip {
+        display: inline-block; padding: 2px 8px; border-radius: 999px;
+        font-size: 11px; font-weight: 700; background: #ffedd5; color: #9a3412;
+    }
+    .mg-empty { text-align: center; color: #64748b; padding: 26px 12px; }
+    .mg-form-grid {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;
+    }
+    .mg-form-grid .full { grid-column: 1 / -1; }
+    #mg-form-panel { display: none; }
+    #mg-form-panel.open { display: block; }
+    .table-scroll { overflow-x: auto; }
+    .mg-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .mg-tab {
+        border: 1px solid #e2e8f0; background: #fff; border-radius: 999px;
+        padding: 7px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer; color: #475569;
+    }
+    .mg-tab.active { background: #c2410c; color: #fff; border-color: #c2410c; }
+    .resolved-only { display: none; }
+    .unresolved-only { display: none; }
+    .type-other-only { display: none; }
+    body.mg-resolved .resolved-only { display: block; }
+    body.mg-unresolved .unresolved-only { display: block; }
+    body.mg-type-other .type-other-only { display: block; }
+    .mg-villages-preview {
+        background: #fff7ed; border: 1px solid #fdba74; border-radius: 10px;
+        padding: 10px 14px; color: #9a3412; font-weight: 700; font-size: 15px;
+    }
+    .mg-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mg-wrap">
+    <div class="mg-hero">
+        <div>
+            <h1><i class="fas fa-balance-scale"></i> Migogoro ya Ardhi Database</h1>
+            <p>
+                Orodha ya migogoro kwa <strong>mwaka wa fedha</strong> — unaweza kusajili, kuhariri na kufuta.
+                Chagua mkoa → wilaya → kata → kijiji.
+            </p>
+        </div>
+        <div class="mg-fy-badge">
+            <label>Mwaka wa Fedha (Financial Year)</label>
+            <select id="mg-fy">
+                {% for fy in financial_years %}
+                <option value="{{ fy }}" {% if fy == current_financial_year %}selected{% endif %}>{{ fy }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <div class="mg-kpis">
+        <div class="mg-kpi" style="border-color:#fdba74;background:linear-gradient(180deg,#fff7ed,#fff);">
+            <div class="label">Jumla ya Migogoro (<span id="kpi-fy-label">{{ current_financial_year }}</span>)</div>
+            <div class="value" id="kpi-total" style="color:#c2410c;">{{ stats.total|default:0 }}</div>
+        </div>
+        <div class="mg-kpi">
+            <div class="label">1. Mipaka wa Vijiji</div>
+            <div class="value" id="kpi-type-boundary">{{ stats.type_boundary|default:0 }}</div>
+        </div>
+        <div class="mg-kpi">
+            <div class="label">2. Wakulima na Wafugaji</div>
+            <div class="value" id="kpi-type-farmers">{{ stats.type_farmers|default:0 }}</div>
+        </div>
+        <div class="mg-kpi">
+            <div class="label">3. Rasilimali</div>
+            <div class="value" id="kpi-type-resources">{{ stats.type_resources|default:0 }}</div>
+        </div>
+        <div class="mg-kpi">
+            <div class="label">4. Mingineyo</div>
+            <div class="value" id="kpi-type-other">{{ stats.type_other|default:0 }}</div>
+        </div>
+        <div class="mg-kpi open"><div class="label">Haijatatuliwa</div><div class="value" id="kpi-open">{{ stats.open|default:0 }}</div></div>
+        <div class="mg-kpi ok"><div class="label">Zimetatuliwa</div><div class="value" id="kpi-ok">{{ stats.resolved|default:0 }}</div></div>
+    </div>
+
+    <div class="mg-card">
+        <h2><i class="fas fa-filter"></i> Chuja kwa Eneo</h2>
+        <div class="mg-filters">
+            <div>
+                <label>Mkoa</label>
+                <select id="mg-region"><option value="">-- Chagua Mkoa --</option></select>
+            </div>
+            <div>
+                <label>Wilaya</label>
+                <select id="mg-district" disabled><option value="">-- Chagua Wilaya --</option></select>
+            </div>
+            <div>
+                <label>Kata</label>
+                <select id="mg-ward" disabled><option value="">-- Chagua Kata --</option></select>
+            </div>
+            <div>
+                <label>Kijiji</label>
+                <select id="mg-village" disabled><option value="">-- Chagua Kijiji --</option></select>
+            </div>
+            <div>
+                <label>Hali</label>
+                <select id="mg-filter-resolved">
+                    <option value="">Zote</option>
+                    <option value="0">Haijatatuliwa</option>
+                    <option value="1">Zimetatuliwa</option>
+                </select>
+            </div>
+            <div>
+                <label>Aina ya mgogoro</label>
+                <select id="mg-filter-type">
+                    <option value="">Aina zote</option>
+                    {% for value, label in conflict_types %}
+                    <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label>Tafuta</label>
+                <input id="mg-q" placeholder="Kijiji / namba / jina...">
+            </div>
+            <div>
+                <label>&nbsp;</label>
+                <button type="button" class="mg-btn secondary" id="btn-reload" style="width:100%;justify-content:center;">
+                    <i class="fas fa-sync"></i> Pakia Data
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="mg-card">
+        <div class="mg-toolbar" style="margin-top:0;">
+            <h2 style="margin:0;flex:1;">Vijiji / Maeneo yenye Migogoro</h2>
+            <div class="mg-tabs">
+                <button type="button" class="mg-tab active" data-group="village">Vijiji</button>
+                <button type="button" class="mg-tab" data-group="ward">Kata</button>
+                <button type="button" class="mg-tab" data-group="district">Wilaya</button>
+                <button type="button" class="mg-tab" data-group="region">Mikoa</button>
+            </div>
+        </div>
+        <div class="table-scroll">
+            <table class="mg-table">
+                <thead id="mg-summary-head"></thead>
+                <tbody id="mg-summary-body">
+                    <tr><td class="mg-empty">Chagua eneo au bofya Pakia Data</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="mg-card" id="mg-form-panel">
+        <h2 id="mg-form-title">Sajili Mgogoro wa Kijiji</h2>
+        <input type="hidden" id="f-edit-id" value="">
+        <div class="mg-form-grid">
+            <div>
+                <label>Mwaka wa Fedha *</label>
+                <select id="f-fy">
+                    {% for fy in financial_years %}
+                    <option value="{{ fy }}" {% if fy == current_financial_year %}selected{% endif %}>{{ fy }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label>Mkoa *</label>
+                <select id="f-region"><option value="">-- Chagua Mkoa --</option></select>
+            </div>
+            <div>
+                <label>Wilaya *</label>
+                <select id="f-district" disabled><option value="">-- Chagua Wilaya --</option></select>
+            </div>
+            <div>
+                <label>Kata</label>
+                <select id="f-ward" disabled><option value="">-- Chagua Kata --</option></select>
+            </div>
+            <div>
+                <label>Kijiji *</label>
+                <select id="f-village" disabled><option value="">-- Chagua Kijiji --</option></select>
+            </div>
+            <div>
+                <label>Aina ya Mgogoro *</label>
+                <select id="f-type">
+                    {% for value, label in conflict_types %}
+                    <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="full type-other-only">
+                <label>Eleza aina nyingine *</label>
+                <input id="f-type-other" type="text" placeholder="Andika aina nyingine ya mgogoro...">
+            </div>
+            <div>
+                <label>Chanzo cha Mgogoro *</label>
+                <select id="f-source">
+                    {% for value, label in conflict_sources %}
+                    <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label>Tarehe ulipoanzia *</label>
+                <input type="date" id="f-started">
+            </div>
+            <div>
+                <label>Umetatuliwa? *</label>
+                <select id="f-resolved">
+                    <option value="0">Hapana — bado</option>
+                    <option value="1">Ndiyo — umetatuliwa</option>
+                </select>
+            </div>
+            <div class="resolved-only">
+                <label>Tarehe ulipotatuliwa</label>
+                <input type="date" id="f-resolved-date">
+            </div>
+            <div class="resolved-only">
+                <label>Mbinu za utatuzi *</label>
+                <select id="f-method">
+                    {% for value, label in resolution_methods %}
+                    {% if value != 'none' %}
+                    <option value="{{ value }}">{{ label }}</option>
+                    {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="full resolved-only">
+                <label>Maelezo ya mbinu za utatuzi</label>
+                <textarea id="f-method-details" rows="2" placeholder="Eleza jinsi mgogoro ulivyotatuliwa..."></textarea>
+            </div>
+            <div class="full unresolved-only">
+                <label>Kwanini bado haujatatuliwa? *</label>
+                <textarea id="f-unresolved" rows="2" placeholder="Eleza sababu za kutotatuliwa..."></textarea>
+            </div>
+            <div>
+                <label>Mlalamikaji * <span style="color:#94a3b8;font-weight:400">(mf. Ifunde)</span></label>
+                <input id="f-complainant" placeholder="mf. Ifunde">
+            </div>
+            <div>
+                <label>Mlalamikiwa * <span style="color:#94a3b8;font-weight:400">(mf. Njaro)</span></label>
+                <input id="f-respondent" placeholder="mf. Njaro">
+            </div>
+            <div class="full">
+                <label>Vijiji vyenye Migogoro</label>
+                <div class="mg-villages-preview" id="f-parties-preview">Ifunde - Njaro</div>
+            </div>
+            <div class="full">
+                <label>Maelezo ya ziada</label>
+                <textarea id="f-desc" rows="2" placeholder="Maelezo mafupi..."></textarea>
+            </div>
+        </div>
+        <div class="mg-toolbar">
+            <button type="button" class="mg-btn" id="btn-save-case"><i class="fas fa-save"></i> <span id="btn-save-label">Hifadhi Mgogoro</span></button>
+            <button type="button" class="mg-btn secondary" id="btn-cancel-form"><i class="fas fa-times"></i> Ghairi</button>
+        </div>
+    </div>
+
+    <div class="mg-card">
+        <div class="mg-toolbar" style="margin-top:0;">
+            <h2 style="margin:0;flex:1;">Orodha ya Migogoro — <span id="list-fy-label">{{ current_financial_year }}</span></h2>
+            <button type="button" class="mg-btn" id="btn-new"><i class="fas fa-plus"></i> Sajili Mgogoro</button>
+        </div>
+        <div class="table-scroll">
+            <table class="mg-table">
+                <thead>
+                    <tr>
+                        <th>Namba</th>
+                        <th>FY</th>
+                        <th>Vijiji vyenye Migogoro</th>
+                        <th>Kata / Wilaya / Mkoa</th>
+                        <th>Aina</th>
+                        <th>Chanzo</th>
+                        <th>Ulipoanzia</th>
+                        <th>Umetatuliwa</th>
+                        <th>Utatuzi / Sababu</th>
+                        <th>Vitendo</th>
+                    </tr>
+                </thead>
+                <tbody id="mg-tbody">
+                    <tr><td colspan="10" class="mg-empty">Inapakia...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const PLANNING_API = '/api/planning/';
+    const DEFAULT_FY = '{{ default_financial_year|default:"2026/2027" }}';
+    let summaryGroup = 'village';
+    let editingId = null;
+
+    function csrf() {
+        const m = document.cookie.match(/csrftoken=([^;]+)/);
+        return m ? m[1] : '';
+    }
+
+    function currentFy() {
+        return document.getElementById('mg-fy').value || DEFAULT_FY;
+    }
+
+    function resetSelect(sel, placeholder, disabled) {
+        sel.innerHTML = `<option value="">${placeholder}</option>`;
+        sel.disabled = !!disabled;
+    }
+
+    function fillOptions(sel, items, placeholder, disabled) {
+        resetSelect(sel, placeholder, disabled);
+        (items || []).forEach(item => {
+            const name = item.name || item;
+            const o = document.createElement('option');
+            o.value = name;
+            o.textContent = name;
+            sel.appendChild(o);
+        });
+    }
+
+    function ensureOption(sel, value) {
+        if (!value) return;
+        const exists = Array.from(sel.options).some(o => o.value.toLowerCase() === value.toLowerCase());
+        if (!exists) {
+            const o = document.createElement('option');
+            o.value = value;
+            o.textContent = value;
+            sel.appendChild(o);
+        }
+        sel.value = value;
+        for (let i = 0; i < sel.options.length; i++) {
+            if (sel.options[i].value.toLowerCase() === value.toLowerCase()) {
+                sel.selectedIndex = i;
+                break;
+            }
+        }
+        sel.disabled = false;
+    }
+
+    function updatePartiesPreview() {
+        const el = document.getElementById('f-parties-preview');
+        if (!el) return;
+        const a = (document.getElementById('f-complainant').value || '').trim();
+        const b = (document.getElementById('f-respondent').value || '').trim();
+        if (a && b) el.textContent = a + ' - ' + b;
+        else if (a) el.textContent = a + ' - …';
+        else el.textContent = 'Ifunde - Njaro';
+    }
+
+    function setupCascade(ids) {
+        const region = document.getElementById(ids.region);
+        const district = document.getElementById(ids.district);
+        const ward = document.getElementById(ids.ward);
+        const village = document.getElementById(ids.village);
+        if (!region) return;
+
+        fetch(PLANNING_API + 'regions/')
+            .then(r => r.json())
+            .then(data => fillOptions(region, Array.isArray(data) ? data : [], '-- Chagua Mkoa --', false))
+            .catch(() => {});
+
+        region.addEventListener('change', () => {
+            resetSelect(district, '-- Chagua Wilaya --', true);
+            resetSelect(ward, '-- Chagua Kata --', true);
+            resetSelect(village, '-- Chagua Kijiji --', true);
+            if (!region.value) { if (ids.onChange) ids.onChange(); return; }
+            fetch(PLANNING_API + 'districts/' + encodeURIComponent(region.value) + '/')
+                .then(r => r.json())
+                .then(data => {
+                    fillOptions(district, data, '-- Chagua Wilaya --', false);
+                    if (ids.onChange) ids.onChange();
+                });
+        });
+
+        district.addEventListener('change', () => {
+            resetSelect(ward, '-- Chagua Kata --', true);
+            resetSelect(village, '-- Chagua Kijiji --', true);
+            if (!district.value) { if (ids.onChange) ids.onChange(); return; }
+            fetch(PLANNING_API + 'wards/' + encodeURIComponent(region.value) + '/' + encodeURIComponent(district.value) + '/')
+                .then(r => r.json())
+                .then(data => {
+                    fillOptions(ward, data, '-- Chagua Kata --', false);
+                    if (ids.onChange) ids.onChange();
+                });
+        });
+
+        ward.addEventListener('change', () => {
+            resetSelect(village, '-- Chagua Kijiji --', true);
+            if (!ward.value) { if (ids.onChange) ids.onChange(); return; }
+            fetch(
+                PLANNING_API + 'villages/' + encodeURIComponent(region.value) + '/' +
+                encodeURIComponent(district.value) + '/' + encodeURIComponent(ward.value) + '/'
+            )
+                .then(r => r.json())
+                .then(data => {
+                    fillOptions(village, data, '-- Chagua Kijiji --', false);
+                    if (ids.onChange) ids.onChange();
+                });
+        });
+
+        village.addEventListener('change', () => { if (ids.onChange) ids.onChange(); });
+    }
+
+    function setCascadeValues(prefix, loc) {
+        const region = document.getElementById(prefix + '-region');
+        const district = document.getElementById(prefix + '-district');
+        const ward = document.getElementById(prefix + '-ward');
+        const village = document.getElementById(prefix + '-village');
+        if (!region || !loc.region_name) return Promise.resolve();
+
+        return fetch(PLANNING_API + 'regions/')
+            .then(r => r.json())
+            .then(data => {
+                fillOptions(region, Array.isArray(data) ? data : [], '-- Chagua Mkoa --', false);
+                ensureOption(region, loc.region_name);
+                return fetch(PLANNING_API + 'districts/' + encodeURIComponent(loc.region_name) + '/');
+            })
+            .then(r => r.json())
+            .then(data => {
+                fillOptions(district, data, '-- Chagua Wilaya --', false);
+                ensureOption(district, loc.district_name);
+                if (!loc.district_name) return [];
+                return fetch(PLANNING_API + 'wards/' + encodeURIComponent(loc.region_name) + '/' + encodeURIComponent(loc.district_name) + '/').then(r => r.json());
+            })
+            .then(data => {
+                fillOptions(ward, data || [], '-- Chagua Kata --', !(data && data.length));
+                ensureOption(ward, loc.ward_name);
+                if (!loc.ward_name || !loc.district_name) return [];
+                return fetch(
+                    PLANNING_API + 'villages/' + encodeURIComponent(loc.region_name) + '/' +
+                    encodeURIComponent(loc.district_name) + '/' + encodeURIComponent(loc.ward_name) + '/'
+                ).then(r => r.json());
+            })
+            .then(data => {
+                fillOptions(village, data || [], '-- Chagua Kijiji --', !(data && data.length));
+                ensureOption(village, loc.village_name);
+            })
+            .catch(() => {
+                ensureOption(region, loc.region_name);
+                ensureOption(district, loc.district_name);
+                ensureOption(ward, loc.ward_name);
+                ensureOption(village, loc.village_name);
+            });
+    }
+
+    function filterParams() {
+        const p = new URLSearchParams();
+        p.set('financial_year', currentFy());
+        const region = document.getElementById('mg-region').value;
+        const district = document.getElementById('mg-district').value;
+        const ward = document.getElementById('mg-ward').value;
+        const village = document.getElementById('mg-village').value;
+        const resolved = document.getElementById('mg-filter-resolved').value;
+        const type = document.getElementById('mg-filter-type').value;
+        const q = document.getElementById('mg-q').value.trim();
+        if (region) p.set('region', region);
+        if (district) p.set('district', district);
+        if (ward) p.set('ward', ward);
+        if (village) p.set('village', village);
+        if (resolved !== '') p.set('resolved', resolved);
+        if (type) p.set('conflict_type', type);
+        if (q) p.set('q', q);
+        return p;
+    }
+
+    function syncResolvedUI() {
+        const resolved = document.getElementById('f-resolved').value === '1';
+        document.body.classList.toggle('mg-resolved', resolved);
+        document.body.classList.toggle('mg-unresolved', !resolved);
+    }
+
+    function syncTypeOtherUI() {
+        const isOther = document.getElementById('f-type').value === 'other';
+        document.body.classList.toggle('mg-type-other', isOther);
+        if (!isOther) document.getElementById('f-type-other').value = '';
+    }
+
+    function resetForm() {
+        editingId = null;
+        document.getElementById('f-edit-id').value = '';
+        document.getElementById('mg-form-title').textContent = 'Sajili Mgogoro wa Kijiji';
+        document.getElementById('btn-save-label').textContent = 'Hifadhi Mgogoro';
+        document.getElementById('f-fy').value = currentFy();
+        document.getElementById('f-type').selectedIndex = 0;
+        document.getElementById('f-type-other').value = '';
+        document.getElementById('f-source').selectedIndex = 0;
+        document.getElementById('f-started').value = '';
+        document.getElementById('f-resolved').value = '0';
+        document.getElementById('f-resolved-date').value = '';
+        document.getElementById('f-method').selectedIndex = 0;
+        document.getElementById('f-method-details').value = '';
+        document.getElementById('f-unresolved').value = '';
+        document.getElementById('f-complainant').value = '';
+        document.getElementById('f-respondent').value = '';
+        document.getElementById('f-desc').value = '';
+        syncResolvedUI();
+        syncTypeOtherUI();
+        updatePartiesPreview();
+    }
+
+    function openForm() {
+        document.getElementById('mg-form-panel').classList.add('open');
+        document.getElementById('mg-form-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function loadSummary() {
+        const p = filterParams();
+        p.set('group', summaryGroup);
+        const head = document.getElementById('mg-summary-head');
+        const body = document.getElementById('mg-summary-body');
+        body.innerHTML = '<tr><td class="mg-empty">Inapakia...</td></tr>';
+        document.getElementById('kpi-fy-label').textContent = currentFy();
+        document.getElementById('list-fy-label').textContent = currentFy();
+
+        const heads = {
+            village: '<tr><th>Kijiji</th><th>Kata</th><th>Wilaya</th><th>Mkoa</th><th>Jumla</th><th>Bado</th><th>Zimetatuliwa</th></tr>',
+            ward: '<tr><th>Kata</th><th>Wilaya</th><th>Mkoa</th><th>Vijiji</th><th>Jumla</th><th>Bado</th><th>Zimetatuliwa</th></tr>',
+            district: '<tr><th>Wilaya</th><th>Mkoa</th><th>Vijiji</th><th>Jumla</th><th>Bado</th><th>Zimetatuliwa</th></tr>',
+            region: '<tr><th>Mkoa</th><th>Vijiji</th><th>Jumla</th><th>Bado</th><th>Zimetatuliwa</th></tr>',
+        };
+        head.innerHTML = heads[summaryGroup] || heads.village;
+
+        fetch('/migogoro/api/summary/?' + p.toString(), { credentials: 'same-origin' })
+            .then(r => r.json())
+            .then(data => {
+                const rows = data.results || [];
+                const t = data.totals || {};
+                if (t.total != null) document.getElementById('kpi-total').textContent = t.total;
+                if (t.type_boundary != null) document.getElementById('kpi-type-boundary').textContent = t.type_boundary;
+                if (t.type_farmers != null) document.getElementById('kpi-type-farmers').textContent = t.type_farmers;
+                if (t.type_resources != null) document.getElementById('kpi-type-resources').textContent = t.type_resources;
+                if (t.type_other != null) document.getElementById('kpi-type-other').textContent = t.type_other;
+                if (t.unresolved != null || t.open != null) {
+                    document.getElementById('kpi-open').textContent = t.unresolved != null ? t.unresolved : t.open;
+                }
+                if (t.resolved != null) document.getElementById('kpi-ok').textContent = t.resolved;
+
+                if (!rows.length) {
+                    body.innerHTML = '<tr><td colspan="7" class="mg-empty">Hakuna migogoro kwa FY ' + currentFy() + '.</td></tr>';
+                    return;
+                }
+                body.innerHTML = rows.map(r => {
+                    if (summaryGroup === 'region') {
+                        return `<tr><td><strong>${r.region_name}</strong></td><td>${r.villages}</td><td>${r.total}</td><td>${r.unresolved}</td><td>${r.resolved}</td></tr>`;
+                    }
+                    if (summaryGroup === 'district') {
+                        return `<tr><td><strong>${r.district_name}</strong></td><td>${r.region_name}</td><td>${r.villages}</td><td>${r.total}</td><td>${r.unresolved}</td><td>${r.resolved}</td></tr>`;
+                    }
+                    if (summaryGroup === 'ward') {
+                        return `<tr><td><strong>${r.ward_name}</strong></td><td>${r.district_name}</td><td>${r.region_name}</td><td>${r.villages}</td><td>${r.total}</td><td>${r.unresolved}</td><td>${r.resolved}</td></tr>`;
+                    }
+                    return `<tr>
+                        <td><strong>${r.village_name}</strong></td>
+                        <td>${r.ward_name}</td>
+                        <td>${r.district_name}</td>
+                        <td>${r.region_name}</td>
+                        <td>${r.total}</td>
+                        <td>${r.unresolved}</td>
+                        <td>${r.resolved}</td>
+                    </tr>`;
+                }).join('');
+            })
+            .catch(() => {
+                body.innerHTML = '<tr><td class="mg-empty">Hitilafu ya kupakia muhtasari</td></tr>';
+            });
+    }
+
+    function loadCases() {
+        const tbody = document.getElementById('mg-tbody');
+        tbody.innerHTML = '<tr><td colspan="10" class="mg-empty">Inapakia...</td></tr>';
+        fetch('/migogoro/api/cases/?' + filterParams().toString(), { credentials: 'same-origin' })
+            .then(r => r.json())
+            .then(data => {
+                const rows = data.results || [];
+                if (!rows.length) {
+                    tbody.innerHTML = '<tr><td colspan="10" class="mg-empty">Hakuna migogoro kwa FY <strong>' + currentFy() + '</strong>. Bofya <strong>Sajili Mgogoro</strong>.</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = rows.map(c => {
+                    const eneo = [c.ward_name, c.district_name, c.region_name].filter(Boolean).join(' / ') || '—';
+                    const outcome = c.is_resolved
+                        ? `<strong>${c.resolution_method_label || '—'}</strong><br><span style="color:#64748b">${c.resolution_details || ''}</span>`
+                        : `<span style="color:#9a3412">${c.unresolved_reason || 'Sababu haijawekwa'}</span>`;
+                    return `<tr>
+                        <td><strong>${c.case_number}</strong></td>
+                        <td><span class="mg-fy-chip">${c.financial_year || '—'}</span></td>
+                        <td><strong>${c.parties_label || c.title || ((c.complainant && c.respondent) ? (c.complainant + ' - ' + c.respondent) : (c.village_name || '—'))}</strong></td>
+                        <td>${eneo}</td>
+                        <td>${c.conflict_type_label || c.conflict_type}</td>
+                        <td>${c.conflict_source_label || c.conflict_source}</td>
+                        <td>${c.started_date || '—'}</td>
+                        <td><span class="mg-status ${c.is_resolved ? 'yes' : ''}">${c.is_resolved ? 'Ndiyo' : 'Hapana'}</span></td>
+                        <td>${outcome}</td>
+                        <td class="mg-actions">
+                            <button type="button" class="mg-btn edit" data-edit="${c.id}" title="Hariri"><i class="fas fa-edit"></i></button>
+                            <button type="button" class="mg-btn danger" data-del="${c.id}" title="Futa"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>`;
+                }).join('');
+            })
+            .catch(() => {
+                tbody.innerHTML = '<tr><td colspan="10" class="mg-empty">Hitilafu ya kupakia data</td></tr>';
+            });
+    }
+
+    function reloadAll() {
+        loadSummary();
+        loadCases();
+    }
+
+    function collectPayload() {
+        const resolved = document.getElementById('f-resolved').value === '1';
+        return {
+            financial_year: document.getElementById('f-fy').value || currentFy(),
+            region_name: document.getElementById('f-region').value,
+            district_name: document.getElementById('f-district').value,
+            ward_name: document.getElementById('f-ward').value,
+            village_name: document.getElementById('f-village').value,
+            conflict_type: document.getElementById('f-type').value,
+            conflict_type_other: document.getElementById('f-type-other').value.trim(),
+            conflict_source: document.getElementById('f-source').value,
+            started_date: document.getElementById('f-started').value,
+            is_resolved: resolved,
+            status: resolved ? 'resolved' : 'open',
+            resolved_date: document.getElementById('f-resolved-date').value || null,
+            resolution_method: resolved ? document.getElementById('f-method').value : 'none',
+            resolution_details: document.getElementById('f-method-details').value.trim(),
+            unresolved_reason: document.getElementById('f-unresolved').value.trim(),
+            complainant: document.getElementById('f-complainant').value.trim(),
+            respondent: document.getElementById('f-respondent').value.trim(),
+            description: document.getElementById('f-desc').value.trim(),
+        };
+    }
+
+    function validatePayload(payload) {
+        if (!payload.financial_year) return 'Chagua mwaka wa fedha';
+        if (!payload.region_name || !payload.district_name || !payload.village_name) return 'Chagua mkoa, wilaya na kijiji';
+        if (!payload.complainant || !payload.respondent) return 'Jaza Mlalamikaji na Mlalamikiwa (mf. Ifunde - Njaro)';
+        if (!payload.started_date) return 'Weka tarehe mgogoro ulipoanzia';
+        if (payload.conflict_type === 'other' && !payload.conflict_type_other) return 'Eleza aina nyingine ya mgogoro';
+        if (!payload.is_resolved && !payload.unresolved_reason) return 'Eleza kwanini bado haujatatuliwa';
+        if (payload.is_resolved && !payload.resolution_method) return 'Chagua mbinu za utatuzi';
+        return '';
+    }
+
+    function startEdit(id) {
+        fetch('/migogoro/api/cases/' + id + '/', { credentials: 'same-origin' })
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success || !data.case) {
+                    Swal.fire('Hitilafu', data.message || 'Kesi haijapatikana', 'error');
+                    return;
+                }
+                const c = data.case;
+                editingId = c.id;
+                document.getElementById('f-edit-id').value = c.id;
+                document.getElementById('mg-form-title').textContent = 'Hariri Mgogoro — ' + c.case_number;
+                document.getElementById('btn-save-label').textContent = 'Hifadhi Mabadiliko';
+                document.getElementById('f-fy').value = c.financial_year || currentFy();
+                document.getElementById('f-type').value = c.conflict_type || 'village_boundary';
+                document.getElementById('f-type-other').value = c.conflict_type_other || '';
+                document.getElementById('f-source').value = c.conflict_source || 'other';
+                syncTypeOtherUI();
+                document.getElementById('f-started').value = c.started_date || '';
+                document.getElementById('f-resolved').value = c.is_resolved ? '1' : '0';
+                document.getElementById('f-resolved-date').value = c.resolved_date || '';
+                if (c.resolution_method && c.resolution_method !== 'none') {
+                    document.getElementById('f-method').value = c.resolution_method;
+                }
+                document.getElementById('f-method-details').value = c.resolution_details || '';
+                document.getElementById('f-unresolved').value = c.unresolved_reason || '';
+                document.getElementById('f-complainant').value = c.complainant || '';
+                document.getElementById('f-respondent').value = c.respondent || '';
+                document.getElementById('f-desc').value = c.description || '';
+                updatePartiesPreview();
+                syncResolvedUI();
+                openForm();
+                return setCascadeValues('f', c);
+            })
+            .catch(err => Swal.fire('Hitilafu', err.message || 'Mtandao', 'error'));
+    }
+
+    setupCascade({
+        region: 'mg-region', district: 'mg-district', ward: 'mg-ward', village: 'mg-village',
+        onChange: reloadAll,
+    });
+    setupCascade({
+        region: 'f-region', district: 'f-district', ward: 'f-ward', village: 'f-village',
+    });
+    document.getElementById('f-complainant').addEventListener('input', updatePartiesPreview);
+    document.getElementById('f-respondent').addEventListener('input', updatePartiesPreview);
+    updatePartiesPreview();
+
+    document.querySelectorAll('.mg-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.mg-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            summaryGroup = tab.getAttribute('data-group');
+            loadSummary();
+        });
+    });
+
+    document.getElementById('mg-fy').addEventListener('change', () => {
+        document.getElementById('f-fy').value = currentFy();
+        reloadAll();
+    });
+    document.getElementById('mg-filter-resolved').addEventListener('change', reloadAll);
+    document.getElementById('mg-filter-type').addEventListener('change', reloadAll);
+    document.getElementById('btn-reload').addEventListener('click', reloadAll);
+    document.getElementById('mg-q').addEventListener('keydown', e => { if (e.key === 'Enter') reloadAll(); });
+
+    document.getElementById('f-resolved').addEventListener('change', syncResolvedUI);
+    document.getElementById('f-type').addEventListener('change', syncTypeOtherUI);
+    syncResolvedUI();
+    syncTypeOtherUI();
+
+    document.getElementById('btn-new').addEventListener('click', () => {
+        resetForm();
+        const mr = document.getElementById('mg-region').value;
+        if (mr) {
+            setCascadeValues('f', {
+                region_name: mr,
+                district_name: document.getElementById('mg-district').value,
+                ward_name: document.getElementById('mg-ward').value,
+                village_name: document.getElementById('mg-village').value,
+            });
+        }
+        openForm();
+    });
+
+    document.getElementById('btn-cancel-form').addEventListener('click', () => {
+        document.getElementById('mg-form-panel').classList.remove('open');
+        resetForm();
+    });
+
+    document.getElementById('btn-save-case').addEventListener('click', () => {
+        const payload = collectPayload();
+        const err = validatePayload(payload);
+        if (err) {
+            Swal.fire('Hitilafu', err, 'error');
+            return;
+        }
+
+        const isEdit = !!editingId;
+        const url = isEdit ? ('/migogoro/api/cases/' + editingId + '/') : '/migogoro/api/cases/';
+        const method = isEdit ? 'PUT' : 'POST';
+
+        fetch(url, {
+            method: method,
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() },
+            body: JSON.stringify(payload),
+        })
+        .then(r => r.json().then(d => ({ ok: r.ok, d })))
+        .then(({ ok, d }) => {
+            if (ok && d.success) {
+                Swal.fire('Imefanikiwa', isEdit ? ('Kesi ' + d.case.case_number + ' imesasishwa') : ('Mgogoro ' + d.case.case_number + ' umehifadhiwa'), 'success');
+                document.getElementById('mg-form-panel').classList.remove('open');
+                // Switch filter FY to saved case year
+                if (d.case && d.case.financial_year) {
+                    document.getElementById('mg-fy').value = d.case.financial_year;
+                }
+                resetForm();
+                reloadAll();
+            } else {
+                Swal.fire('Hitilafu', d.message || 'Imeshindwa kuhifadhi', 'error');
+            }
+        })
+        .catch(err => Swal.fire('Hitilafu', err.message || 'Mtandao', 'error'));
+    });
+
+    document.getElementById('mg-tbody').addEventListener('click', (e) => {
+        const editBtn = e.target.closest('[data-edit]');
+        if (editBtn) {
+            startEdit(editBtn.getAttribute('data-edit'));
+            return;
+        }
+        const btn = e.target.closest('[data-del]');
+        if (!btn) return;
+        Swal.fire({
+            title: 'Futa mgogoro?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Ndiyo, futa',
+            cancelButtonText: 'Ghairi',
+        }).then(res => {
+            if (!res.isConfirmed) return;
+            fetch('/migogoro/api/cases/' + btn.getAttribute('data-del') + '/', {
+                method: 'DELETE',
+                credentials: 'same-origin',
+                headers: { 'X-CSRFToken': csrf() },
+            }).then(r => r.json()).then(d => {
+                if (d.success) reloadAll();
+                else Swal.fire('Hitilafu', d.message || 'Imeshindwa', 'error');
+            });
+        });
+    });
+
+    reloadAll();
+})();
+</script>
+{% endblock %}
