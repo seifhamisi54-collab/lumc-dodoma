@@ -17,44 +17,79 @@ fi
 echo "GDAL_LIBRARY_PATH=${GDAL_LIBRARY_PATH:-unset}"
 echo "GEOS_LIBRARY_PATH=${GEOS_LIBRARY_PATH:-unset}"
 
-if [ -z "${DATABASE_URL:-}" ] && [ -z "${DB_HOST:-}" ]; then
-  echo "ERROR: DATABASE_URL is not set. Add Neon connection string in Render → Environment."
-  exit 1
-fi
-
 echo "Waiting for PostGIS..."
 python - <<'PY'
-import os, time
+import os, time, sys
 import psycopg2
 from urllib.parse import urlparse, unquote, parse_qs
 
-def connect_once():
+def parse_database_url(url: str):
+    url = url.strip().strip('"').strip("'")
+    if url.startswith("postgres://"):
+        url = "postgresql://" + url[len("postgres://"):]
+    p = urlparse(url)
+    qs = parse_qs(p.query)
+    sslmode = (qs.get("sslmode") or ["require"])[0]
+    dbname = unquote((p.path or "").lstrip("/").split("?")[0]) or "postgres"
+    return {
+        "dbname": dbname,
+        "user": unquote(p.username or ""),
+        "password": unquote(p.password or ""),
+        "host": p.hostname,
+        "port": p.port or 5432,
+        "sslmode": sslmode,
+    }
+
+def connect_params():
     url = os.environ.get("DATABASE_URL", "").strip()
     if url:
-        p = urlparse(url)
-        qs = parse_qs(p.query)
-        sslmode = (qs.get("sslmode") or ["require"])[0]
-        return psycopg2.connect(
-            dbname=unquote(p.path.lstrip("/").split("?")[0]) or "postgres",
-            user=unquote(p.username or ""),
-            password=unquote(p.password or ""),
-            host=p.hostname,
-            port=p.port or 5432,
-            sslmode=sslmode,
-            connect_timeout=10,
+        cfg = parse_database_url(url)
+        print(
+            f"DATABASE_URL parsed: host={cfg['host']!r} port={cfg['port']} "
+            f"dbname={cfg['dbname']!r} user={cfg['user']!r} sslmode={cfg['sslmode']}"
         )
-    return psycopg2.connect(
-        dbname=os.environ.get("DB_NAME", "postgres"),
-        user=os.environ.get("DB_USER", "postgres"),
-        password=os.environ.get("DB_PASSWORD", "postgres"),
-        host=os.environ.get("DB_HOST", "db"),
-        port=os.environ.get("DB_PORT", "5432"),
-        connect_timeout=10,
-    )
+        if not cfg["host"]:
+            print(
+                "ERROR: DATABASE_URL has no hostname.\n"
+                "Use full Neon URI, example:\n"
+                "  postgresql://USER:PASSWORD@ep-xxxx.region.aws.neon.tech/tanzania_gis_db?sslmode=require\n"
+                "Dashboard → Neon → Connection details → copy URI (not only database name).",
+                file=sys.stderr,
+            )
+            raise SystemExit(2)
+        return cfg
+
+    host = os.environ.get("DB_HOST", "").strip()
+    if not host:
+        print(
+            "ERROR: DATABASE_URL is not set.\n"
+            "In Render → Environment, paste Neon connection string as DATABASE_URL.",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
+
+    return {
+        "dbname": os.environ.get("DB_NAME", "postgres"),
+        "user": os.environ.get("DB_USER", "postgres"),
+        "password": os.environ.get("DB_PASSWORD", "postgres"),
+        "host": host,
+        "port": int(os.environ.get("DB_PORT", "5432")),
+        "sslmode": os.environ.get("DB_SSLMODE", "prefer"),
+    }
+
+cfg = connect_params()
 
 for i in range(30):
     try:
-        conn = connect_once()
+        conn = psycopg2.connect(
+            dbname=cfg["dbname"],
+            user=cfg["user"],
+            password=cfg["password"],
+            host=cfg["host"],
+            port=cfg["port"],
+            sslmode=cfg["sslmode"],
+            connect_timeout=10,
+        )
         conn.close()
         print("PostGIS is ready")
         break
@@ -63,7 +98,7 @@ for i in range(30):
         time.sleep(2)
 else:
     raise SystemExit(
-        "PostGIS did not become ready. Check DATABASE_URL (Neon URI with ?sslmode=require)."
+        "PostGIS did not become ready. Check DATABASE_URL (Neon URI with host + ?sslmode=require)."
     )
 PY
 
