@@ -1,5 +1,5 @@
-# LUMC-Dodoma — Render Blueprint
-# Docs: deploy/DEPLOY_RENDER.md
+# LUMC-Dodoma — Render FREE Blueprint
+# Web = free. Databases = Neon free (PostGIS) — see deploy/DEPLOY_RENDER_FREE.md
 # Dashboard: https://dashboard.render.com → New → Blueprint
 
 services:
@@ -15,31 +15,16 @@ services:
         value: "1"
       - key: DJANGO_ALLOWED_HOSTS
         value: ".onrender.com,localhost"
-      - key: DJANGO_CSRF_TRUSTED_ORIGINS
-        sync: false
       - key: DJANGO_SECRET_KEY
         generateValue: true
+      # Paste Neon connection strings after Blueprint apply (Dashboard → Environment)
       - key: DATABASE_URL
-        fromDatabase:
-          name: lumc-gis-db
-          property: connectionString
+        sync: false
       - key: DETAILED_DATABASE_URL
-        fromDatabase:
-          name: lumc-detailed-db
-          property: connectionString
+        sync: false
+      - key: DJANGO_CSRF_TRUSTED_ORIGINS
+        sync: false
       - key: GIS_PORTAL_URL
         sync: false
       - key: DONATION_SITE_URL
         sync: false
-
-databases:
-  # Basic plan recommended — PostGIS needs enough RAM; free Postgres is not available.
-  - name: lumc-gis-db
-    plan: basic-256mb
-    databaseName: tanzania_gis_db
-    user: lumc
-
-  - name: lumc-detailed-db
-    plan: basic-256mb
-    databaseName: detailed_planning
-    user: lumc

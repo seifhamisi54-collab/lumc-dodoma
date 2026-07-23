@@ -1,5 +1,8 @@
 # LUMC-Dodoma — Deploy kwenye Render
 
+> **Deploy BURE (ilipendekezwa sasa):** [`DEPLOY_RENDER_FREE.md`](./DEPLOY_RENDER_FREE.md)  
+> = Render Free Web + Neon Free PostGIS (USD 0)
+
 **URL (mfano):** `https://lumc-dodoma.onrender.com`  
 **Stack:** Web Service (Docker) + Postgres × 2 (PostGIS)
 
