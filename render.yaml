@@ -7,24 +7,23 @@ services:
     name: lumc-dodoma
     runtime: docker
     plan: free
-    healthCheckPath: /login/
+    healthCheckPath: /healthz/
     envVars:
       - key: DJANGO_DEBUG
         value: "False"
       - key: SERVE_MEDIA
         value: "1"
       - key: DJANGO_ALLOWED_HOSTS
-        value: ".onrender.com,localhost"
+        value: ".onrender.com,localhost,lumc-dodoma.onrender.com"
       - key: DJANGO_SECRET_KEY
         generateValue: true
-      # Paste Neon connection strings after Blueprint apply (Dashboard → Environment)
       - key: DATABASE_URL
         sync: false
       - key: DETAILED_DATABASE_URL
         sync: false
       - key: DJANGO_CSRF_TRUSTED_ORIGINS
-        sync: false
+        value: "https://lumc-dodoma.onrender.com"
       - key: GIS_PORTAL_URL
-        sync: false
+        value: "https://lumc-dodoma.onrender.com"
       - key: DONATION_SITE_URL
-        sync: false
+        value: "https://lumc-dodoma.onrender.com"
