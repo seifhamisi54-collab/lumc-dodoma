@@ -196,12 +196,16 @@ def _set_search_path(sender, connection, **kwargs):
     path = DATABASE_SEARCH_PATHS.get(connection.alias)
     if not path:
         return
-    # Only needed when startup -c search_path was skipped (pooler) or as safety net
     host = (connection.settings_dict.get('HOST') or '')
     if 'pooler' not in host.lower() and connection.settings_dict.get('OPTIONS', {}).get('options'):
         return
-    with connection.cursor() as cursor:
-        cursor.execute(f'SET search_path TO {path}')
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(f'SET search_path TO {path}')
+    except Exception as exc:
+        # Never block requests (login/session) if SET search_path fails on pooler
+        import logging
+        logging.getLogger(__name__).warning('search_path not set (%s): %s', connection.alias, exc)
 
 
 connection_created.connect(_set_search_path)
