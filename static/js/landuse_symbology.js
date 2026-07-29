@@ -49,12 +49,12 @@ var LanduseSymbology = (function() {
         quarry:            { fillColor: rgb(230, 230, 230), color: rgb(0, 0, 0),       label: 'Quarry', pattern: 'gravel' },
         // Historic Site — R104 G52 B13
         historic:          { fillColor: rgb(240, 230, 220), color: rgb(104, 52, 13),   label: 'Historic Site' },
-        // Water Bodies — R151 G219 B242
-        water:             { fillColor: rgb(151, 219, 242), color: rgb(70, 140, 180),  label: 'Water Bodies (Maji)' },
-        // Swamp — Wetland, R151 G219 B242
+        // Water Bodies / Mto — rangi njano (ombi la mtumiaji)
+        water:             { fillColor: rgb(255, 220, 0),   color: rgb(180, 140, 0),   label: 'Water Bodies / Mto (Njano)' },
+        // Swamp — Wetland (baki bluu-kijani ili itofautiane na mto)
         swamp:             { fillColor: rgb(151, 219, 242), color: rgb(40, 120, 80),   label: 'Swamp (Ardhi Oevu)', pattern: 'wetland' },
-        // Water Source — R64 G101 B235
-        water_source:      { fillColor: rgb(151, 200, 242), color: rgb(64, 101, 235),  label: 'Water Source', pattern: 'water' },
+        // Water Source
+        water_source:      { fillColor: rgb(255, 230, 80),  color: rgb(180, 150, 0),   label: 'Water Source / Chanzo cha Maji' },
         // Sand Beach — R255 G200 B10
         sand_beach:        { fillColor: rgb(255, 200, 10),  color: rgb(180, 140, 0),   label: 'Sand Beach' },
         // Cliff — R0 G0 B255
