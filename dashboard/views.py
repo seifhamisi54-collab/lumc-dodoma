@@ -1432,9 +1432,11 @@ def upload_shapefile_api(request):
                     village=village or None,
                     shapefile_name=uploaded.name,
                 )
-            except Exception:
+            except Exception as exc:
                 logger.exception('Auto-import ya matumizi imeshindwa')
-                db_import = {'error': 'Imeshindwa kuhifadhi matumizi kwenye database'}
+                db_import = {
+                    'error': f'Imeshindwa kuhifadhi matumizi kwenye database: {exc}'
+                }
 
         from detailed_planning.services import import_boundaries_from_geojson
 
