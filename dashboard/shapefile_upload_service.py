@@ -74,7 +74,14 @@ def parse_spatial_upload_files(files) -> dict:
             raise ValueError('GeoJSON si sahihi')
         return data
 
-    from osgeo import gdal
+    try:
+        from osgeo import gdal
+    except ImportError as exc:
+        raise ImportError(
+            "GDAL Python (osgeo) haipo. "
+            "Local: hakikisha GDAL imewekwa na PATH ina 'C:\\Program Files\\GDAL'. "
+            "Live/Docker: hakikisha image ina 'pip install GDAL' (angalia Dockerfile)."
+        ) from exc
 
     gdal.UseExceptions()
     os.environ['SHAPE_RESTORE_SHX'] = 'YES'

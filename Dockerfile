@@ -19,12 +19,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Soft defaults; entrypoint resolves real .so paths at runtime
 ENV GDAL_LIBRARY_PATH=/usr/lib/libgdal.so \
-    GEOS_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/libgeos_c.so
+    GEOS_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/libgeos_c.so \
+    GDAL_CONFIG=/usr/bin/gdal-config \
+    CPLUS_INCLUDE_PATH=/usr/include/gdal \
+    C_INCLUDE_PATH=/usr/include/gdal
 
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Django GIS needs libgdal; shapefile upload needs Python package `osgeo` (GDAL bindings)
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir "GDAL==$(gdal-config --version)"
 
 COPY . .
 

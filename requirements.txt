@@ -1,4 +1,6 @@
 # Production / Docker dependencies (GDAL lib comes from system packages)
+# Python package `GDAL`/`osgeo` is installed in Dockerfile (must match gdal-config --version).
+# On Windows local: install GDAL wheel matching your GDAL install (e.g. 3.3.x / 3.12.x).
 Django==4.2.7
 asgiref==3.11.1
 sqlparse==0.5.5
