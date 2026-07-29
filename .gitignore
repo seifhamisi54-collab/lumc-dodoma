@@ -28,4 +28,7 @@ Thumbs.db
 _audit_*_out.txt
 _inspect_out.txt
 _shell_test.txt
+inspect_out.txt
+scripts/dev/*_out.txt
+scripts/dev/inspect_out.txt
 _pip_freeze.txt
