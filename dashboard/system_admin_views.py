@@ -383,8 +383,11 @@ def api_admin_passcode_reset(request):
 
 
 def _serialize_user(user) -> dict:
+    from accounts.permissions import normalize_role_name
+
     role = getattr(user, 'role', None)
-    role_name = role.name if role else None
+    raw_name = role.name if role else None
+    role_name = normalize_role_name(raw_name)
     return {
         'id': user.id,
         'username': user.username,
@@ -429,8 +432,9 @@ def api_admin_overview(request):
         .annotate(count=Count('id'))
         .order_by('role__name')
     )
+    from accounts.permissions import normalize_role_name
     for row in users_by_role:
-        key = row['role__name']
+        key = normalize_role_name(row['role__name']) if row['role__name'] else None
         row['role'] = key or 'none'
         row['role_label'] = ROLE_LABELS.get(key, key or 'Bila jukumu')
 
@@ -520,7 +524,11 @@ def api_roles_matrix(request):
         'status': 'success',
         'actions': list(CRUD_ACTIONS),
         'roles': roles,
-        'note': 'Administrator=admin, Planner=manager, GIS/Data Entry=officer, Viewer=viewer',
+        'note': (
+            'Section Head=section_head · GIS Officer=gis_officer · '
+            'Data Management Officer=data_management_officer · '
+            'Land Dispute Officer=land_dispute_officer'
+        ),
     })
 
 
@@ -558,7 +566,9 @@ def api_users(request):
         return JsonResponse({'error': 'Username tayari ipo'}, status=400)
 
     role_obj = None
-    role_name = (body.get('role') or 'viewer').strip()
+    from accounts.permissions import normalize_role_name
+
+    role_name = normalize_role_name((body.get('role') or 'gis_officer').strip()) or 'gis_officer'
     if role_name:
         role_obj, _ = UserRole.objects.get_or_create(name=role_name)
 
@@ -619,8 +629,11 @@ def api_user_detail(request, user_id):
             setattr(user, field, (body[field] or '').strip())
 
     if 'role' in body:
+        from accounts.permissions import normalize_role_name
+
         role_name = (body.get('role') or '').strip()
         if role_name:
+            role_name = normalize_role_name(role_name) or role_name
             role_obj, _ = UserRole.objects.get_or_create(name=role_name)
             user.role = role_obj
         else:

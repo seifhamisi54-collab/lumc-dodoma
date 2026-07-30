@@ -36,7 +36,7 @@ class AdminPasscodeApiTests(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        role, _ = UserRole.objects.get_or_create(name='admin')
+        role, _ = UserRole.objects.get_or_create(name='section_head')
         cls.admin = User.objects.create_user(
             username='passcode_admin',
             password='AdminPass123!',

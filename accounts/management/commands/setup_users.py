@@ -13,10 +13,10 @@ from accounts.models import UserRole
 User = get_user_model()
 
 DEFAULT_ROLES = [
-    ('admin', 'Admin Mkuu'),
-    ('manager', 'Meneja Mkoa'),
-    ('officer', 'Afisa Wilaya'),
-    ('viewer', 'Mtazamaji'),
+    ('section_head', 'Section Head'),
+    ('gis_officer', 'GIS Officer'),
+    ('data_management_officer', 'Data Management Officer'),
+    ('land_dispute_officer', 'Land Dispute Officer'),
 ]
 
 DEFAULT_USERS = [
@@ -25,7 +25,7 @@ DEFAULT_USERS = [
         'email': 'seifhamisi54@gmail.com',
         'password': 'Nlupc2026!',
         'first_name': 'Seif',
-        'role': 'admin',
+        'role': 'section_head',
         'is_staff': True,
         'is_superuser': True,
     },
@@ -34,7 +34,7 @@ DEFAULT_USERS = [
         'email': 'gisadmin@nlupc.go.tz',
         'password': 'Nlupc2026!',
         'first_name': 'GIS Admin',
-        'role': 'admin',
+        'role': 'section_head',
         'is_staff': True,
         'is_superuser': True,
     },
@@ -43,7 +43,7 @@ DEFAULT_USERS = [
         'email': 'seif@nlupc.go.tz',
         'password': 'Nlupc2026!',
         'first_name': 'Seif Hamisi',
-        'role': 'manager',
+        'role': 'data_management_officer',
         'is_staff': True,
         'is_superuser': True,
     },
@@ -52,7 +52,7 @@ DEFAULT_USERS = [
         'email': 'afisa@example.go.tz',
         'password': 'Nlupc2026!',
         'first_name': 'Afisa Wilaya',
-        'role': 'officer',
+        'role': 'gis_officer',
         'is_staff': False,
         'is_superuser': False,
     },
@@ -61,7 +61,7 @@ DEFAULT_USERS = [
         'email': 'viewer@example.go.tz',
         'password': 'Nlupc2026!',
         'first_name': 'Mtazamaji',
-        'role': 'viewer',
+        'role': 'gis_officer',
         'is_staff': False,
         'is_superuser': False,
     },

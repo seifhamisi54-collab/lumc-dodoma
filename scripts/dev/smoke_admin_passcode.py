@@ -36,7 +36,7 @@ SMOKE_CODE = 'smoke-pass-2026'
 
 def main() -> int:
     ensure_system_setting_table()
-    role, _ = UserRole.objects.get_or_create(name='admin')
+    role, _ = UserRole.objects.get_or_create(name='section_head')
     user, created = User.objects.get_or_create(
         username=SMOKE_USER,
         defaults={

@@ -48,7 +48,7 @@ class CustomUserAdmin(DjangoUserAdmin):
         }),
     )
 
-    actions = ['activate_users', 'deactivate_users', 'make_viewer']
+    actions = ['activate_users', 'deactivate_users', 'make_gis_officer']
 
     @admin.action(description='Amilisha watumiaji waliochaguliwa')
     def activate_users(self, request, queryset):
@@ -58,7 +58,7 @@ class CustomUserAdmin(DjangoUserAdmin):
     def deactivate_users(self, request, queryset):
         queryset.update(is_active=False)
 
-    @admin.action(description='Weka jukumu Mtazamaji')
-    def make_viewer(self, request, queryset):
-        viewer, _ = UserRole.objects.get_or_create(name='viewer')
-        queryset.update(role=viewer)
+    @admin.action(description='Weka jukumu GIS Officer')
+    def make_gis_officer(self, request, queryset):
+        role, _ = UserRole.objects.get_or_create(name='gis_officer')
+        queryset.update(role=role)

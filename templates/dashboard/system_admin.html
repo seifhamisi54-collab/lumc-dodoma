@@ -286,7 +286,7 @@
             <!-- 2 Users -->
             <section class="panel" id="panel-users">
                 <h1>User Management</h1>
-                <p class="lead">Ongeza, hariri, activate/deactivate, reset password na assign roles — kwa maofisa wa GIS, Data Entry na Planners.</p>
+                <p class="lead">Ongeza, hariri, activate/deactivate, reset password na assign roles — Core System User Roles.</p>
                 {% if can_manage_users %}
                 <div class="form-grid" id="userForm">
                     <input id="u-username" placeholder="Username *" />
@@ -296,10 +296,10 @@
                     <input id="u-first" placeholder="Jina la kwanza" />
                     <input id="u-last" placeholder="Jina la mwisho" />
                     <select id="u-role">
-                        <option value="viewer">Viewer / Guest</option>
-                        <option value="officer">GIS / Data Entry Officer</option>
-                        <option value="manager">Planner</option>
-                        <option value="admin">Administrator</option>
+                        <option value="gis_officer">GIS Officer</option>
+                        <option value="data_management_officer">Data Management Officer</option>
+                        <option value="land_dispute_officer">Land Dispute Officer</option>
+                        <option value="section_head">Section Head</option>
                     </select>
                     <button type="button" class="btn btn-primary" onclick="createUser()"><i class="fas fa-plus"></i> Ongeza mtumiaji</button>
                 </div>
@@ -310,10 +310,10 @@
                     <input id="userSearch" placeholder="Tafuta username / email..." oninput="loadUsers()" />
                     <select id="userRoleFilter" onchange="loadUsers()">
                         <option value="">Jukumu lolote</option>
-                        <option value="admin">Administrator</option>
-                        <option value="manager">Planner</option>
-                        <option value="officer">GIS / Data Entry</option>
-                        <option value="viewer">Viewer</option>
+                        <option value="section_head">Section Head</option>
+                        <option value="gis_officer">GIS Officer</option>
+                        <option value="data_management_officer">Data Management Officer</option>
+                        <option value="land_dispute_officer">Land Dispute Officer</option>
                     </select>
                     <button type="button" class="btn" onclick="loadUsers()"><i class="fas fa-rotate"></i> Refresh</button>
                 </div>
@@ -353,7 +353,7 @@
                         <tbody id="rolesBody"></tbody>
                     </table>
                 </div>
-                <p class="muted" style="margin-top:12px;">Administrator → admin · Planner → manager · GIS/Data Entry → officer · Viewer/Guest → viewer</p>
+                <p class="muted" style="margin-top:12px;">Section Head · GIS Officer · Data Management Officer · Land Dispute Officer</p>
             </section>
 
             <!-- 4 Org -->
@@ -403,7 +403,7 @@
                 <h1>Security</h1>
                 <p class="lead">Sera za usalama — zitaunganishwa na Django auth (sasa: password validators + session login).</p>
                 <div class="stub-grid">
-                    <div class="stub-card"><h4>2FA</h4><p>Two-factor authentication kwa Administrator na Planner.</p></div>
+                    <div class="stub-card"><h4>2FA</h4><p>Two-factor authentication kwa Section Head na Data Management Officer.</p></div>
                     <div class="stub-card"><h4>Password Policy</h4><p>Urefu, ugumu, muda wa kubadilisha.</p></div>
                     <div class="stub-card"><h4>Login Attempts / Lockout</h4><p>Kuzuia akaunti baada ya majaribio mabaya.</p></div>
                     <div class="stub-card"><h4>Session Timeout</h4><p>Kuondoka kiotomatiki baada ya muda.</p></div>
@@ -641,7 +641,7 @@ function loadUsers() {
                 ${CAN_MANAGE ? `
                 <button title="Activate/Deactivate" onclick="toggleActive(${u.id}, ${u.is_active})"><i class="fas fa-power-off"></i></button>
                 <button title="Reset password" onclick="resetPassword(${u.id})"><i class="fas fa-key"></i></button>
-                <button title="Badilisha jukumu" onclick="changeRole(${u.id}, '${u.role || 'viewer'}')"><i class="fas fa-user-tag"></i></button>
+                <button title="Badilisha jukumu" onclick="changeRole(${u.id}, '${u.role || 'gis_officer'}')"><i class="fas fa-user-tag"></i></button>
                 <button title="Futa" onclick="deleteUser(${u.id}, '${u.username}')"><i class="fas fa-trash" style="color:#b91c1c"></i></button>
                 ` : '<span class="muted">View only</span>'}
             </td>
@@ -709,12 +709,12 @@ function changeRole(id, current) {
         title: 'Assign role',
         input: 'select',
         inputOptions: {
-            admin: 'Administrator',
-            manager: 'Planner',
-            officer: 'GIS / Data Entry Officer',
-            viewer: 'Viewer / Guest',
+            section_head: 'Section Head',
+            gis_officer: 'GIS Officer',
+            data_management_officer: 'Data Management Officer',
+            land_dispute_officer: 'Land Dispute Officer',
         },
-        inputValue: current || 'viewer',
+        inputValue: current || 'gis_officer',
         showCancelButton: true,
     }).then(res => {
         if (!res.isConfirmed) return;

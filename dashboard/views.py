@@ -279,8 +279,8 @@ def signup_view(request):
             first_name=fullname,
             is_active=False,
         )
-        viewer_role, _ = UserRole.objects.get_or_create(name='viewer')
-        user.role = viewer_role
+        default_role, _ = UserRole.objects.get_or_create(name='gis_officer')
+        user.role = default_role
         user.save()
 
         messages.success(

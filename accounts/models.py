@@ -5,10 +5,10 @@ from locations.models import Region, District
 
 class UserRole(models.Model):
     ROLE_CHOICES = [
-        ('admin', 'Admin Mkuu'),
-        ('manager', 'Meneja Mkoa'),
-        ('officer', 'Afisa Wilaya'),
-        ('viewer', 'Mtazamaji'),
+        ('section_head', 'Section Head'),
+        ('gis_officer', 'GIS Officer'),
+        ('data_management_officer', 'Data Management Officer'),
+        ('land_dispute_officer', 'Land Dispute Officer'),
     ]
     name = models.CharField(max_length=50, choices=ROLE_CHOICES, unique=True)
     def __str__(self):
