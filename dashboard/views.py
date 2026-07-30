@@ -1246,12 +1246,14 @@ def api_download_village_data(request, format):
     region = request.GET.get('region') or request.GET.get('region_name')
     district = request.GET.get('district')
     ward = request.GET.get('ward')
+    village = request.GET.get('village')
     try:
         from dashboard.export_service import export_data
-        return export_data('village_data', format, region, district, ward)
+        return export_data('village_data', format, region, district, ward, village)
     except ValueError as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=400)
     except Exception as e:
+        logger.exception('Download village data error')
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 def api_export_data(request, data_type, fmt):
@@ -1259,13 +1261,15 @@ def api_export_data(request, data_type, fmt):
     region = request.GET.get('region') or request.GET.get('region_name')
     district = request.GET.get('district')
     ward = request.GET.get('ward')
+    village = request.GET.get('village')
     try:
         from dashboard.export_service import export_data
-        return export_data(data_type, fmt, region, district, ward)
+        return export_data(data_type, fmt, region, district, ward, village)
     except ValueError as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=400)
     except Exception as e:
         logger.exception('Export error')
+        # Always JSON — never HTML 500 for download clients
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 def api_download_shapefile_by_filter(request, data_type):
@@ -1273,12 +1277,14 @@ def api_download_shapefile_by_filter(request, data_type):
     region = request.GET.get('region') or request.GET.get('region_name')
     district = request.GET.get('district')
     ward = request.GET.get('ward')
+    village = request.GET.get('village')
     try:
         from dashboard.export_service import export_data
-        return export_data(data_type, fmt, region, district, ward)
+        return export_data(data_type, fmt, region, district, ward, village)
     except ValueError as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=400)
     except Exception as e:
+        logger.exception('Download by filter error')
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 def export_shapefile(request, data_type):

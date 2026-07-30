@@ -1176,6 +1176,7 @@ select:focus, input:focus {
                     <optgroup label="Kijiografia (Spatial)">
                         <option value="shapefile">Shapefile (.zip)</option>
                         <option value="geojson">GeoJSON (.geojson)</option>
+                        <option value="json">JSON (.json)</option>
                         <option value="geodatabase">Geodatabase / GeoPackage (.gdb/.gpkg)</option>
                         <option value="gpkg">GeoPackage (.gpkg)</option>
                         <option value="kml">KML (.kml)</option>
@@ -2874,8 +2875,50 @@ function buildDownloadUrl(params) {
 
 function downloadFilteredData() {
     var p = getDownloadParams();
-    window.open(buildDownloadUrl(p), '_blank');
-    showSuccess('Upakuaji umeanza...');
+    var url = buildDownloadUrl(p);
+    showLoading('Inaandaa upakuaji...');
+    fetch(url, { credentials: 'same-origin' })
+        .then(function(r) {
+            var ct = (r.headers.get('Content-Type') || '').toLowerCase();
+            var cd = r.headers.get('Content-Disposition') || '';
+            if (!r.ok) {
+                return r.text().then(function(text) {
+                    hideLoading();
+                    var msg = 'Upakuaji umeshindwa (' + r.status + ')';
+                    try {
+                        var body = JSON.parse(text);
+                        if (body && body.error) msg = body.error;
+                    } catch (e) {}
+                    showError(msg);
+                });
+            }
+            return r.blob().then(function(blob) {
+                hideLoading();
+                // Reject HTML error pages disguised as 200
+                if (ct.indexOf('text/html') !== -1) {
+                    showError('Server ilirudisha HTML badala ya faili. Jaribu tena.');
+                    return;
+                }
+                var filename = 'export.geojson';
+                var m = /filename=\"?([^\";]+)\"?/i.exec(cd);
+                if (m && m[1]) filename = m[1];
+                else if (p.format === 'json') filename = p.dataType + '.json';
+                else if (p.format === 'geojson') filename = p.dataType + '.geojson';
+                else if (p.format === 'shapefile' || p.format === 'shp') filename = p.dataType + '.zip';
+                var a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(function() { URL.revokeObjectURL(a.href); }, 2000);
+                showSuccess('Upakuaji umeanza...');
+            });
+        })
+        .catch(function(err) {
+            hideLoading();
+            showError('Hitilafu ya upakuaji: ' + (err && err.message ? err.message : err));
+        });
 }
 
 function downloadWithDonation() {

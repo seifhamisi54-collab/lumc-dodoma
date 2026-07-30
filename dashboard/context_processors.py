@@ -37,6 +37,8 @@ def financial_year_context(request):
     except Exception:
         pass
     try:
+        from detailed_planning.schema_ensure import ensure_village_plans_schema
+        ensure_village_plans_schema()
         from detailed_planning.models import VillageDetailedPlan
         if hasattr(VillageDetailedPlan, 'financial_year'):
             extra.extend(

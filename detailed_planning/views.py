@@ -210,18 +210,82 @@ def _district_name_q(district: str) -> Q:
 
 
 def _wards_queryset(region, district):
+    """Orodha ya kata — usifurikishe aliases (mf. Madaba→Songea wards zote)."""
     wards: set[str] = set()
+    # Mipaka ya kata kwa wilaya iliyochaguliwa pekee (si aliases)
+    wards.update(
+        WardPlanningBoundary.objects.filter(
+            region_name__iexact=region,
+            district_name__iexact=district,
+            ward_name__isnull=False,
+        )
+        .exclude(ward_name='')
+        .values_list('ward_name', flat=True)
+    )
+    # Kata zenye data halisi (viwanja / mipango / mipaka kijiji) — across aliases
+    data_backed: set[str] = set()
     for dist in _district_search_names(district):
-        wards.update(
-            WardPlanningBoundary.objects.filter(
+        data_backed.update(
+            PlanningParcel.objects.filter(
                 region_name__iexact=region,
                 district_name__iexact=dist,
                 ward_name__isnull=False,
             )
             .exclude(ward_name='')
             .values_list('ward_name', flat=True)
+            .distinct()
         )
-    wards |= _gazette_wards(region, district)
+        data_backed.update(
+            VillageDetailedPlan.objects.filter(
+                region_name__iexact=region,
+                district_name__iexact=dist,
+                ward_name__isnull=False,
+            )
+            .exclude(ward_name='')
+            .values_list('ward_name', flat=True)
+            .distinct()
+        )
+        data_backed.update(
+            VillagePlanningBoundary.objects.filter(
+                region_name__iexact=region,
+                district_name__iexact=dist,
+                ward_name__isnull=False,
+            )
+            .exclude(ward_name='')
+            .values_list('ward_name', flat=True)
+            .distinct()
+        )
+    wards |= data_backed
+
+    # Gazeti: jina halisi la wilaya pekee (bila aliases) ili Madaba isilete kata zote za Songea
+    try:
+        from locations.gazette_models import GazetteVillage
+        wards.update(
+            w for w in GazetteVillage.objects.filter(
+                region_name__iexact=region,
+                district_name__iexact=district,
+            )
+            .exclude(ward_name='')
+            .values_list('ward_name', flat=True)
+            .distinct()
+            if not _is_gazette_noise_name(w, 'ward')
+        )
+    except Exception:
+        pass
+
+    # Fallback tu kama hakuna kata — basi tumia aliases + gazette pana
+    if not wards:
+        for dist in _district_search_names(district):
+            wards.update(
+                WardPlanningBoundary.objects.filter(
+                    region_name__iexact=region,
+                    district_name__iexact=dist,
+                    ward_name__isnull=False,
+                )
+                .exclude(ward_name='')
+                .values_list('ward_name', flat=True)
+            )
+        wards |= _gazette_wards(region, district)
     return sorted(wards)
 
 
@@ -359,43 +423,71 @@ def api_stats(request):
     ward = _clean(request.GET.get('ward'))
     village = _clean(request.GET.get('village'))
 
+    try:
+        from detailed_planning.schema_ensure import ensure_village_plans_schema
+        ensure_village_plans_schema()
+    except Exception:
+        logger.exception('ensure_village_plans_schema failed')
+
     flt = _location_filter(region, district, ward, village)
 
-    merge_duplicate_village_plans(
-        region=region,
-        district=district,
-        ward=ward,
-        village=village,
-        prefer_district=district,
-    )
+    try:
+        merge_duplicate_village_plans(
+            region=region,
+            district=district,
+            ward=ward,
+            village=village,
+            prefer_district=district,
+        )
+    except Exception:
+        logger.exception('merge_duplicate_village_plans failed in api_stats')
 
-    plans_qs = VillageDetailedPlan.objects.filter(flt)
-    parcels = PlanningParcel.objects.filter(flt)
-    parcel_stats = parcel_stats_from_queryset(parcels)
+    try:
+        plans_qs = VillageDetailedPlan.objects.filter(flt)
+        parcels = PlanningParcel.objects.filter(flt)
+        parcel_stats = parcel_stats_from_queryset(parcels)
 
-    plans = deduplicate_village_plan_list(list(plans_qs), prefer_district=district)
+        plans = deduplicate_village_plan_list(list(plans_qs), prefer_district=district)
 
-    plan = None
-    if village:
-        plan = next((p for p in plans if p.village_name.lower() == village.lower()), None)
-        if not plan:
-            plan = get_or_create_village_plan(region, district, ward, village)
+        plan = None
+        if village:
+            plan = next((p for p in plans if p.village_name.lower() == village.lower()), None)
+            if not plan and all([region, district, ward, village]):
+                try:
+                    plan = get_or_create_village_plan(region, district, ward, village)
+                except Exception:
+                    logger.exception('get_or_create_village_plan failed in api_stats')
 
-    stats = {
-        'region': region,
-        'district': district,
-        'ward': ward,
-        'village': village,
-        **parcel_stats,
-        'villages_with_plans': len(plans),
-        'total_mpango_kinaa': len(plans),
-        'villages_with_parcels': parcels.values('village_name').distinct().count(),
-        'data_source': 'planning_parcels',
-        **parcel_source_summary(parcels),
-        'plan_status': plan.plan_status if plan else None,
-        'plan_year': plan.plan_year if plan else None,
-    }
-    return JsonResponse(stats)
+        stats = {
+            'region': region,
+            'district': district,
+            'ward': ward,
+            'village': village,
+            **parcel_stats,
+            'villages_with_plans': len(plans),
+            'total_mpango_kinaa': len(plans),
+            'villages_with_parcels': parcels.values('village_name').distinct().count(),
+            'data_source': 'planning_parcels',
+            **parcel_source_summary(parcels),
+            'plan_status': plan.plan_status if plan else None,
+            'plan_year': plan.plan_year if plan else None,
+        }
+        return JsonResponse(stats)
+    except Exception as e:
+        logger.exception('api_stats failed')
+        return JsonResponse({
+            'region': region,
+            'district': district,
+            'ward': ward,
+            'village': village,
+            'total_parcels': 0,
+            'total_landowners': 0,
+            'identified_parcels': 0,
+            'unidentified_parcels': 0,
+            'villages_with_plans': 0,
+            'total_mpango_kinaa': 0,
+            'error': str(e),
+        }, status=500)
 
 
 @require_GET
@@ -675,23 +767,31 @@ def api_parcels_geojson(request):
     if not all([region, district, ward]):
         return JsonResponse({'type': 'FeatureCollection', 'features': []})
 
-    flt = _location_filter(region, district, ward, village)
-    parcels_qs = PlanningParcel.objects.filter(flt).order_by('village_name', 'parcel_number')
-    features, total_matching, with_geom = _parcels_geojson_features(parcels_qs)
+    try:
+        flt = _location_filter(region, district, ward, village)
+        parcels_qs = PlanningParcel.objects.filter(flt).order_by('village_name', 'parcel_number')
+        features, total_matching, with_geom = _parcels_geojson_features(parcels_qs)
 
-    return JsonResponse({
-        'type': 'FeatureCollection',
-        'features': features,
-        'meta': {
-            'total_matching': total_matching,
-            'with_geometry': with_geom,
-            'returned': len(features),
-            'region': region,
-            'district': district,
-            'ward': ward,
-            'village': village or None,
-        },
-    })
+        return JsonResponse({
+            'type': 'FeatureCollection',
+            'features': features,
+            'meta': {
+                'total_matching': total_matching,
+                'with_geometry': with_geom,
+                'returned': len(features),
+                'region': region,
+                'district': district,
+                'ward': ward,
+                'village': village or None,
+            },
+        })
+    except Exception as e:
+        logger.exception('api_parcels_geojson failed')
+        return JsonResponse({
+            'type': 'FeatureCollection',
+            'features': [],
+            'meta': {'error': str(e)},
+        }, status=500)
 
 
 @require_http_methods(['GET', 'POST'])
@@ -741,30 +841,49 @@ def api_village_plans(request):
     village = _clean(request.GET.get('village'))
     status = _clean(request.GET.get('status'))
 
+    try:
+        from detailed_planning.schema_ensure import ensure_village_plans_schema
+        ensure_village_plans_schema()
+    except Exception:
+        logger.exception('ensure_village_plans_schema failed')
+
     flt = _location_filter(region, district, ward, village)
 
-    merge_duplicate_village_plans(
-        region=region,
-        district=district,
-        ward=ward,
-        village=village,
-        prefer_district=district,
-    )
+    try:
+        merge_duplicate_village_plans(
+            region=region,
+            district=district,
+            ward=ward,
+            village=village,
+            prefer_district=district,
+        )
+    except Exception:
+        logger.exception('merge_duplicate_village_plans failed in api_village_plans')
 
-    qs = VillageDetailedPlan.objects.filter(flt).order_by(
-        'region_name', 'district_name', 'ward_name', 'village_name'
-    )
-    if status:
-        qs = qs.filter(plan_status__iexact=status)
+    try:
+        qs = VillageDetailedPlan.objects.filter(flt).order_by(
+            'region_name', 'district_name', 'ward_name', 'village_name'
+        )
+        if status:
+            qs = qs.filter(plan_status__iexact=status)
 
-    deduped = deduplicate_village_plan_list(list(qs[:500]), prefer_district=district)
-    plans = [serialize_village_plan(p, prefer_district=district) for p in deduped]
-    return JsonResponse({
-        'status': 'success',
-        'count': len(plans),
-        'total_mpango_kinaa': len(plans),
-        'plans': plans,
-    })
+        deduped = deduplicate_village_plan_list(list(qs[:500]), prefer_district=district)
+        plans = [serialize_village_plan(p, prefer_district=district) for p in deduped]
+        return JsonResponse({
+            'status': 'success',
+            'count': len(plans),
+            'total_mpango_kinaa': len(plans),
+            'plans': plans,
+        })
+    except Exception as e:
+        logger.exception('api_village_plans GET failed')
+        return JsonResponse({
+            'status': 'error',
+            'error': str(e),
+            'count': 0,
+            'total_mpango_kinaa': 0,
+            'plans': [],
+        }, status=500)
 
 
 @login_required

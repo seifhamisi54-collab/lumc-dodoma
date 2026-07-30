@@ -157,7 +157,7 @@ def deduplicate_village_plan_list(
     )
 
 
-@transaction.atomic
+@transaction.atomic(using='detailed_planning')
 def merge_duplicate_village_plans(
     *,
     region: str | None = None,
@@ -240,7 +240,7 @@ def get_or_create_village_plan(region: str, district: str, ward: str, village: s
     return plan
 
 
-@transaction.atomic
+@transaction.atomic(using='detailed_planning')
 def create_planning_parcel(
     region: str,
     district: str,
@@ -628,7 +628,7 @@ def _canonical_import_district(upload_district: str | None, props_district: str 
     return normalize_import_district(_clean_text(props_district), upload_district)
 
 
-@transaction.atomic
+@transaction.atomic(using='detailed_planning')
 def import_parcels_from_geojson(
     feature_collection: dict,
     *,
@@ -1562,7 +1562,7 @@ def list_uploaded_shapefiles(
     return items
 
 
-@transaction.atomic
+@transaction.atomic(using='detailed_planning')
 def delete_parcels_by_shapefile_name(
     shapefile_name: str,
     *,

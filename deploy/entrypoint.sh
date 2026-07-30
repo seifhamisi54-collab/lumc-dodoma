@@ -114,6 +114,16 @@ python manage.py migrate dashboard accounts wadau --noinput || echo "WARN: app m
 echo "Migrate detailed_planning DB..."
 python manage.py migrate --database=detailed_planning --noinput || echo "WARN: detailed_planning migrate failed (continuing)"
 
+echo "Ensure village_plans.financial_year..."
+python - <<'PY' || echo "WARN: village_plans schema ensure failed (continuing)"
+import django, os
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'tanzania_gis.settings')
+django.setup()
+from detailed_planning.schema_ensure import ensure_village_plans_schema
+ok = ensure_village_plans_schema(force=True)
+print('village_plans.financial_year OK' if ok else 'village_plans.financial_year SKIP')
+PY
+
 # Keep section login/registration codes in sync with env (LUMC_LOGIN_CODE / LUMC_REGISTRATION_CODE)
 echo "Ensuring SectionAccessConfig codes from settings..."
 python manage.py ensure_section_access_config || echo "WARN: ensure_section_access_config failed (continuing)"

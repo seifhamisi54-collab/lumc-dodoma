@@ -4,6 +4,7 @@ Huduma ya kupakua data kwa formats mbalimbali (Shapefile, GeoJSON, GDB, n.k.)
 import csv
 import io
 import json
+import logging
 import os
 import tempfile
 import zipfile
@@ -13,6 +14,8 @@ from django.db.models import Q
 from django.http import HttpResponse
 
 from dashboard.models import VillageBoundary, SocialService, Parcel
+
+logger = logging.getLogger(__name__)
 
 
 SPATIAL_DATA_TYPES = {
@@ -29,8 +32,9 @@ TABULAR_DATA_TYPES = {
     'parcels',
 }
 
-SPATIAL_FORMATS = {'shapefile', 'shp', 'geojson', 'geodatabase', 'gdb', 'gpkg', 'kml'}
+SPATIAL_FORMATS = {'shapefile', 'shp', 'geojson', 'json', 'geodatabase', 'gdb', 'gpkg', 'kml'}
 TABULAR_FORMATS = {'csv', 'excel', 'xlsx'}
+JSON_FORMATS = {'geojson', 'json'}
 
 
 def _normalize_region(region):
@@ -40,6 +44,39 @@ def _normalize_region(region):
     if r.lower() in ('tanzania', 'all', 'undefined', 'null', 'none', ''):
         return None
     return r
+
+
+def _normalize_fmt(fmt):
+    fmt = (fmt or 'csv').strip().lower()
+    if fmt == 'xlsx':
+        return 'excel'
+    if fmt == 'json':
+        return 'geojson'
+    return fmt
+
+
+def _empty_fc():
+    return {'type': 'FeatureCollection', 'features': []}
+
+
+def _admin_table_exists() -> bool:
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM information_schema.tables
+                    WHERE table_schema = 'boundaries'
+                      AND table_name = 'tanzania_administrative'
+                )
+                """
+            )
+            row = cursor.fetchone()
+            return bool(row and row[0])
+    except Exception:
+        logger.exception('Failed checking boundaries.tanzania_administrative')
+        return False
 
 
 def _build_boundary_geojson(data_type, region=None, district=None, ward=None):
@@ -98,7 +135,7 @@ def _build_boundary_geojson(data_type, region=None, district=None, ward=None):
             GROUP BY vil_mtaa_n, region_nam, district_n, ward_name
         """
     else:
-        return {'type': 'FeatureCollection', 'features': []}
+        return _empty_fc()
 
     features = []
     with connection.cursor() as cursor:
@@ -128,6 +165,124 @@ def _build_boundary_geojson(data_type, region=None, district=None, ward=None):
             })
 
     return {'type': 'FeatureCollection', 'features': features}
+
+
+def _planning_boundary_geojson(data_type, region=None, district=None, ward=None):
+    """Fallback: mipaka kutoka detailed_planning (Neon / bila tanzania_administrative)."""
+    from detailed_planning.models import (
+        DistrictPlanningBoundary,
+        VillagePlanningBoundary,
+        WardPlanningBoundary,
+    )
+    from detailed_planning.services import (
+        _geom_to_wgs84_dict,
+        boundaries_to_feature_collection,
+    )
+    from dashboard.boundary_service import _district_search_names
+
+    region = _normalize_region(region)
+    district = (district or '').strip() or None
+    ward = (ward or '').strip() or None
+
+    try:
+        if data_type == 'region_boundary':
+            if not region:
+                return _empty_fc()
+            qs = DistrictPlanningBoundary.objects.filter(
+                region_name__iexact=region,
+                geom__isnull=False,
+            )
+            merged = None
+            for obj in qs.iterator():
+                geom = obj.geom
+                if not geom:
+                    continue
+                if geom.srid != 4326:
+                    geom = geom.clone()
+                    geom.transform(4326)
+                merged = geom if merged is None else merged.union(geom)
+            geometry = _geom_to_wgs84_dict(merged)
+            if not geometry:
+                return _empty_fc()
+            return {
+                'type': 'FeatureCollection',
+                'features': [{
+                    'type': 'Feature',
+                    'geometry': geometry,
+                    'properties': {'name': region, 'type': 'region', 'region_nam': region},
+                }],
+            }
+
+        if data_type == 'district_boundaries':
+            if not region:
+                return _empty_fc()
+            qs = DistrictPlanningBoundary.objects.filter(
+                region_name__iexact=region,
+                geom__isnull=False,
+            ).order_by('district_name')
+            if district:
+                dist_q = Q()
+                for name in _district_search_names(district):
+                    dist_q |= Q(district_name__iexact=name)
+                qs = qs.filter(dist_q)
+            return boundaries_to_feature_collection(
+                qs, name_attr='district_name', feature_type='district'
+            )
+
+        if data_type == 'ward_boundaries':
+            if not region:
+                return _empty_fc()
+            qs = WardPlanningBoundary.objects.filter(
+                region_name__iexact=region,
+                geom__isnull=False,
+            ).order_by('ward_name')
+            if district:
+                dist_q = Q()
+                for name in _district_search_names(district):
+                    dist_q |= Q(district_name__iexact=name)
+                qs = qs.filter(dist_q)
+            if ward:
+                qs = qs.filter(ward_name__iexact=ward)
+            return boundaries_to_feature_collection(
+                qs, name_attr='ward_name', feature_type='ward'
+            )
+
+        if data_type == 'village_boundaries':
+            if not region:
+                return _empty_fc()
+            qs = VillagePlanningBoundary.objects.filter(
+                region_name__iexact=region,
+                geom__isnull=False,
+            ).order_by('village_name')
+            if district:
+                dist_q = Q()
+                for name in _district_search_names(district):
+                    dist_q |= Q(district_name__iexact=name)
+                qs = qs.filter(dist_q)
+            if ward:
+                qs = qs.filter(ward_name__iexact=ward)
+            return boundaries_to_feature_collection(
+                qs, name_attr='village_name', feature_type='village'
+            )
+    except Exception:
+        logger.exception('planning boundary export failed (%s)', data_type)
+        return _empty_fc()
+
+    return _empty_fc()
+
+
+def _spatial_geojson(data_type, region=None, district=None, ward=None):
+    """Mipaka: jaribu tanzania_administrative, kisha detailed_planning."""
+    fc = _empty_fc()
+    if _admin_table_exists():
+        try:
+            fc = _build_boundary_geojson(data_type, region, district, ward)
+        except Exception:
+            logger.exception('tanzania_administrative export failed; falling back')
+            fc = _empty_fc()
+    if not fc.get('features'):
+        fc = _planning_boundary_geojson(data_type, region, district, ward)
+    return fc
 
 
 def _filter_village_queryset(region=None, district=None, ward=None):
@@ -214,10 +369,17 @@ def _model_to_geojson(queryset, name_field='name'):
         geom = getattr(obj, 'geom', None) or getattr(obj, 'geometry', None)
         if not geom:
             continue
-        gj = json.loads(geom.geojson)
+        try:
+            g = geom
+            if getattr(g, 'srid', None) and g.srid != 4326:
+                g = g.clone()
+                g.transform(4326)
+            gj = json.loads(g.geojson)
+        except Exception:
+            continue
         props = {}
         for f in obj._meta.fields:
-            if f.name in ('geom', 'geom_point'):
+            if f.name in ('geom', 'geom_point', 'geometry'):
                 continue
             val = getattr(obj, f.name, None)
             if val is not None:
@@ -228,7 +390,48 @@ def _model_to_geojson(queryset, name_field='name'):
     return {'type': 'FeatureCollection', 'features': features}
 
 
-def _get_tabular_as_geojson(data_type, region, district, ward):
+def _planning_parcels_geojson(region=None, district=None, ward=None, village=None):
+    """Viwanja kutoka detailed_planning.planning_parcels (DB sahihi + WGS84)."""
+    from detailed_planning.services import (
+        _geom_to_wgs84_dict,
+        parcels_for_location,
+        serialize_ccro_shapefile_fields,
+    )
+
+    region = _normalize_region(region)
+    district = (district or '').strip() or None
+    ward = (ward or '').strip() or None
+    village = (village or '').strip() or None
+
+    features = []
+    try:
+        qs = parcels_for_location(region, district, ward, village).exclude(geom__isnull=True)
+        for p in qs.iterator():
+            geometry = _geom_to_wgs84_dict(p.geom)
+            if not geometry:
+                continue
+            features.append({
+                'type': 'Feature',
+                'geometry': geometry,
+                'properties': {
+                    'parcel_number': p.parcel_number,
+                    'is_identified': p.is_identified,
+                    'owner_name': p.owner_name or '',
+                    'region_name': p.region_name,
+                    'district_name': p.district_name,
+                    'ward_name': p.ward_name,
+                    'village_name': p.village_name,
+                    'area_ha': p.area_ha,
+                    **serialize_ccro_shapefile_fields(p),
+                },
+            })
+    except Exception:
+        logger.exception('planning parcels export failed')
+        return _empty_fc()
+    return {'type': 'FeatureCollection', 'features': features}
+
+
+def _get_tabular_as_geojson(data_type, region, district, ward, village=None):
     region = _normalize_region(region)
     q = Q()
     if region:
@@ -238,6 +441,17 @@ def _get_tabular_as_geojson(data_type, region, district, ward):
     if ward:
         q &= Q(ward_name__iexact=ward.strip())
 
+    if data_type == 'parcels':
+        # Priority: detailed planning parcels (actual Mpango Kinaa data)
+        fc = _planning_parcels_geojson(region, district, ward, village)
+        if fc.get('features'):
+            return fc
+        try:
+            qs = Parcel.objects.filter(q) if q else Parcel.objects.all()
+            return _model_to_geojson(qs, 'parcel_number')
+        except Exception:
+            return fc
+
     if data_type in ('village_data', 'landuse'):
         return _model_to_geojson(_filter_village_queryset(region, district, ward), 'name')
 
@@ -246,16 +460,26 @@ def _get_tabular_as_geojson(data_type, region, district, ward):
             qs = SocialService.objects.filter(q) if q else SocialService.objects.all()
             return _model_to_geojson(qs, 'name')
         except Exception:
-            return {'type': 'FeatureCollection', 'features': []}
+            return _empty_fc()
 
-    if data_type == 'parcels':
-        try:
-            qs = Parcel.objects.filter(q) if q else Parcel.objects.all()
-            return _model_to_geojson(qs, 'parcel_number')
-        except Exception:
-            return {'type': 'FeatureCollection', 'features': []}
+    return _empty_fc()
 
-    return {'type': 'FeatureCollection', 'features': []}
+
+def _json_download_response(geojson_fc, base_name, fmt='geojson'):
+    """Rudisha faili ya JSON/GeoJSON — bila GDAL, kamwe si HTML."""
+    payload = geojson_fc if isinstance(geojson_fc, dict) else _empty_fc()
+    if payload.get('type') != 'FeatureCollection':
+        payload = {'type': 'FeatureCollection', 'features': payload.get('features') or []}
+    body = json.dumps(payload, ensure_ascii=False).encode('utf-8')
+    if fmt == 'json':
+        content_type = 'application/json; charset=utf-8'
+        filename = f'{base_name}.json'
+    else:
+        content_type = 'application/geo+json; charset=utf-8'
+        filename = f'{base_name}.geojson'
+    response = HttpResponse(body, content_type=content_type)
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
 
 
 def _ogr_spatial_export(geojson_fc, fmt, base_name):
@@ -357,15 +581,14 @@ def _safe_base_name(data_type, region, district, ward):
     return '_'.join(parts)[:80] or 'export'
 
 
-def export_data(data_type, fmt, region=None, district=None, ward=None):
+def export_data(data_type, fmt, region=None, district=None, ward=None, village=None):
     """
     Rudisha HttpResponse ya faili lililopakuliwa.
-  Raises ValueError kwa makosa ya mtumiaji.
+    Raises ValueError kwa makosa ya mtumiaji.
     """
     data_type = (data_type or 'village_data').strip().lower()
-    fmt = (fmt or 'csv').strip().lower()
-    if fmt == 'xlsx':
-        fmt = 'excel'
+    requested_fmt = (fmt or 'csv').strip().lower()
+    fmt = _normalize_fmt(fmt)
 
     if data_type in TABULAR_DATA_TYPES and fmt in TABULAR_FORMATS:
         if fmt == 'csv':
@@ -376,18 +599,36 @@ def export_data(data_type, fmt, region=None, district=None, ward=None):
     if fmt in TABULAR_FORMATS and data_type in TABULAR_DATA_TYPES:
         raise ValueError('Chagua format ya kijiografia (Shapefile, GeoJSON, GDB, n.k.) kwa data hii.')
 
-    if fmt not in SPATIAL_FORMATS:
-        raise ValueError(f'Format "{fmt}" haitumiki.')
+    if fmt not in SPATIAL_FORMATS and requested_fmt not in JSON_FORMATS:
+        raise ValueError(f'Format "{requested_fmt}" haitumiki.')
 
     if data_type in SPATIAL_DATA_TYPES:
-        geojson_fc = _build_boundary_geojson(data_type, region, district, ward)
+        geojson_fc = _spatial_geojson(data_type, region, district, ward)
     elif data_type in TABULAR_DATA_TYPES:
-        geojson_fc = _get_tabular_as_geojson(data_type, region, district, ward)
+        geojson_fc = _get_tabular_as_geojson(data_type, region, district, ward, village)
     else:
         raise ValueError(f'Aina ya data "{data_type}" haijulikani.')
 
     base_name = _safe_base_name(data_type, region, district, ward)
-    data, content_type, filename = _ogr_spatial_export(geojson_fc, fmt, base_name)
+
+    # JSON / GeoJSON: never depend on GDAL; always attachment
+    if requested_fmt in JSON_FORMATS or fmt in JSON_FORMATS:
+        out_fmt = 'json' if requested_fmt == 'json' else 'geojson'
+        return _json_download_response(geojson_fc or _empty_fc(), base_name, out_fmt)
+
+    if not (geojson_fc or {}).get('features'):
+        raise ValueError('Hakuna data ya kupakua kwa chujio ulilochagua.')
+
+    try:
+        data, content_type, filename = _ogr_spatial_export(geojson_fc, fmt, base_name)
+    except ImportError as exc:
+        # GDAL missing — fall back to GeoJSON download instead of 500 HTML
+        logger.warning('GDAL unavailable for %s export: %s — returning GeoJSON', fmt, exc)
+        return _json_download_response(geojson_fc, base_name, 'geojson')
+    except Exception:
+        logger.exception('OGR export failed for %s/%s', data_type, fmt)
+        raise
+
     response = HttpResponse(data, content_type=content_type)
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
