@@ -9,7 +9,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.contrib.sessions.models import Session
 from django.core.exceptions import PermissionDenied
-from django.db import IntegrityError, transaction
+from django.db import DatabaseError, IntegrityError, transaction
 from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import render
@@ -454,7 +454,8 @@ def _delete_user_safe(target, actor):
             'username': username,
             'hard_deleted': True,
         })
-    except IntegrityError:
+    except (IntegrityError, DatabaseError):
+        # IntegrityError: FK protect; DatabaseError covers residual type mismatches etc.
         logger.warning('Hard delete failed for user %s; deactivating', uid, exc_info=True)
         target.is_active = False
         target.save(update_fields=['is_active'])
