@@ -11,11 +11,11 @@ class LandConflictCaseAdmin(admin.ModelAdmin):
     )
     list_filter = (
         'financial_year', 'is_resolved', 'status', 'conflict_type',
-        'conflict_source', 'region_name',
+        'region_name',
     )
     search_fields = (
         'case_number', 'title', 'village_name', 'ward_name', 'district_name',
         'complainant', 'respondent', 'unresolved_reason', 'financial_year',
-        'conflict_type_other',
+        'conflict_type_other', 'conflict_source', 'resolution_method',
     )
     readonly_fields = ('created_at', 'updated_at', 'is_resolved')

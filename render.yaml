@@ -1,6 +1,6 @@
-# LUMC-Dodoma — Render FREE Blueprint
-# Web = free. Databases = Neon free (PostGIS) — see deploy/DEPLOY_RENDER_FREE.md
-# Dashboard: https://dashboard.render.com → New → Blueprint
+# LUMC-Dodoma â€” Render FREE Blueprint
+# Web = free. Databases = Neon free (PostGIS) â€” see deploy/DEPLOY_RENDER_FREE.md
+# Dashboard: https://dashboard.render.com â†’ New â†’ Blueprint
 
 services:
   - type: web
@@ -31,3 +31,7 @@ services:
         value: "1"
       - key: SETUP_USERS_RESET
         value: "1"
+      - key: LUMC_REGISTRATION_CODE
+        value: "LUMC-REG-2026"
+      - key: LUMC_LOGIN_CODE
+        value: "LUMC-LOGIN-2026"

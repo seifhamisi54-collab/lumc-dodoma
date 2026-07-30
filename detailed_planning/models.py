@@ -4,6 +4,8 @@ from django.contrib.gis.db import models as gis_models
 from django.db import models
 from django.db.models import Q
 
+from dashboard.financial_year import DEFAULT_FINANCIAL_YEAR, FY_MAX_LENGTH
+
 GENDER_CHOICES = [
     ('M', 'Mwanaume'),
     ('F', 'Mwanamke'),
@@ -118,6 +120,13 @@ class VillageDetailedPlan(models.Model):
 
     plan_status = models.CharField(max_length=50, choices=PLAN_STATUS, default='draft')
     plan_year = models.PositiveIntegerField(null=True, blank=True)
+    financial_year = models.CharField(
+        max_length=FY_MAX_LENGTH,
+        default=DEFAULT_FINANCIAL_YEAR,
+        blank=True,
+        db_index=True,
+        verbose_name='Mwaka wa fedha',
+    )
     notes = models.TextField(blank=True, null=True)
 
     created_by_id = models.IntegerField(null=True, blank=True, verbose_name='ID ya mtumiaji')
@@ -323,6 +332,8 @@ REPORT_TYPE_CHOICES = [
     ('parcel_list', 'Orodha ya Viwanja'),
     ('boundary_map', 'Ramani ya Mipaka'),
     ('statistics', 'Takwimu'),
+    ('quarter_report', 'Quarter Report'),
+    ('section_minutes', 'Minutes za Vikao'),
     ('pdf', 'PDF'),
     ('excel', 'Excel'),
     ('other', 'Nyingine'),
@@ -384,3 +395,76 @@ class PlanningReport(models.Model):
 
     def __str__(self):
         return f'{self.title} ({self.report_year or "—"})'
+
+
+QUARTER_CHOICES = [
+    ('Q1', 'Q1 (Jul–Sep)'),
+    ('Q2', 'Q2 (Oct–Dec)'),
+    ('Q3', 'Q3 (Jan–Mar)'),
+    ('Q4', 'Q4 (Apr–Jun)'),
+]
+
+
+class QuarterReport(models.Model):
+    """Quarter Report — ripoti za robo mwaka (jedwali maalum)."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=255, verbose_name='Kichwa')
+    financial_year = models.CharField(
+        max_length=32, default='2026/2027', db_index=True, verbose_name='Mwaka wa fedha',
+    )
+    quarter = models.CharField(
+        max_length=2, choices=QUARTER_CHOICES, db_index=True, verbose_name='Robo',
+    )
+    notes = models.TextField(blank=True, default='', verbose_name='Maelezo')
+    original_filename = models.CharField(max_length=500, verbose_name='Jina la faili')
+    stored_filename = models.CharField(max_length=500)
+    file_path = models.CharField(max_length=1000, verbose_name='Njia ya faili')
+    file_format = models.CharField(max_length=20, choices=REPORT_FORMAT_CHOICES, default='pdf')
+    file_size_bytes = models.BigIntegerField(null=True, blank=True)
+    created_by_id = models.IntegerField(null=True, blank=True, verbose_name='ID ya mtumiaji')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = '"detailed_planning"."quarter_reports"'
+        verbose_name = 'Quarter Report'
+        verbose_name_plural = 'Quarter Reports'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['financial_year', 'quarter']),
+        ]
+
+    def __str__(self):
+        return f'{self.title} ({self.financial_year} {self.quarter})'
+
+
+class MeetingMinutes(models.Model):
+    """Minutes za Vikao — kumbukumbu za mikutano (jedwali maalum)."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=255, verbose_name='Kichwa')
+    financial_year = models.CharField(
+        max_length=32, blank=True, default='', db_index=True, verbose_name='Mwaka wa fedha',
+    )
+    meeting_date = models.DateField(null=True, blank=True, db_index=True, verbose_name='Tarehe ya kikao')
+    notes = models.TextField(blank=True, default='', verbose_name='Maelezo')
+    original_filename = models.CharField(max_length=500, verbose_name='Jina la faili')
+    stored_filename = models.CharField(max_length=500)
+    file_path = models.CharField(max_length=1000, verbose_name='Njia ya faili')
+    file_format = models.CharField(max_length=20, choices=REPORT_FORMAT_CHOICES, default='pdf')
+    file_size_bytes = models.BigIntegerField(null=True, blank=True)
+    created_by_id = models.IntegerField(null=True, blank=True, verbose_name='ID ya mtumiaji')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = '"detailed_planning"."meeting_minutes"'
+        verbose_name = 'Minutes za Vikao'
+        verbose_name_plural = 'Minutes za Vikao'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['financial_year', 'meeting_date']),
+        ]
+
+    def __str__(self):
+        d = self.meeting_date.isoformat() if self.meeting_date else '—'
+        return f'{self.title} ({d})'

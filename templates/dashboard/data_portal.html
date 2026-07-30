@@ -742,6 +742,53 @@
     .text-muted { color: #8892a6 !important; }
     .mb-3 { margin-bottom: 14px; }
     h5.mb-3 { margin-bottom: 14px; }
+
+    /* Taarifa Zingine — module cards */
+    .tz-modules {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 18px;
+        margin-top: 12px;
+    }
+    .tz-module-card {
+        text-align: left;
+        border: 1px solid rgba(26, 35, 126, 0.1);
+        border-radius: 18px;
+        padding: 22px 20px 18px;
+        background: linear-gradient(160deg, #fff 0%, #f5f7ff 100%);
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        font-family: inherit;
+    }
+    .tz-module-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 14px 32px rgba(15, 23, 42, 0.12);
+    }
+    .tz-module-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 14px;
+    }
+    .tz-module-icon {
+        width: 48px; height: 48px; border-radius: 14px;
+        display: flex; align-items: center; justify-content: center;
+        color: #fff; font-size: 1.15rem;
+    }
+    .tz-card-teal .tz-module-icon { background: linear-gradient(135deg, #0f766e, #14b8a6); }
+    .tz-card-amber .tz-module-icon { background: linear-gradient(135deg, #b45309, #f59e0b); }
+    .tz-module-arrow { color: #94a3b8; }
+    .tz-module-card h3 {
+        margin: 0 0 8px; font-size: 1.15rem; font-weight: 700; color: var(--lumc-primary);
+    }
+    .tz-module-card p {
+        margin: 0 0 14px; font-size: 13px; color: #64748b; line-height: 1.45;
+    }
+    .tz-module-cta {
+        font-size: 12px; font-weight: 700; color: var(--lumc-accent);
+        text-transform: uppercase; letter-spacing: 0.04em;
+    }
 </style>
 {% endblock %}
 
@@ -753,7 +800,7 @@
             <div class="dp-hero-content">
                 <p class="dp-panel-title" style="color:rgba(255,255,255,0.75);">LUMC GIS — Dashibodi ya Takwimu</p>
                 <h1><i class="fas fa-chart-pie"></i> Data Portal</h1>
-                <p class="dp-hero-sub">Takwimu za Land Use, Mipango Kinaa, Wamiliki na Viwanja — muonekano wa kistatistics kwa maamuzi ya ardhi.</p>
+                <p class="dp-hero-sub">Takwimu, Mipango Kinaa, CCRO / Wamiliki, Quarter Report na Minutes — dashibodi moja ya taarifa za ardhi.</p>
             </div>
             {% if region_name %}
             <div class="dp-region-badge">
@@ -767,6 +814,7 @@
             <div class="tab active" onclick="switchTab('statistics', this)"><i class="fas fa-chart-bar"></i> Statistics</div>
             <div class="tab" onclick="switchTab('mpango', this)"><i class="fas fa-file-alt"></i> Mpango Kinaa</div>
             <div class="tab" onclick="switchTab('ccro', this)"><i class="fas fa-users"></i> CCRO / Wamiliki</div>
+            <div class="tab" onclick="switchTab('taarifa', this)"><i class="fas fa-folder-open"></i> Taarifa Zingine</div>
         </div>
         
         <!-- Statistics Tab -->
@@ -976,14 +1024,15 @@
                                 <th>Kijiji</th>
                                 <th>Kata</th>
                                 <th>Wilaya</th>
-                                <th>Mwaka</th>
+                                <th>Mwaka Mpango</th>
+                                <th>Mwaka Fedha</th>
                                 <th>Hali</th>
                                 <th>Waliomiliki</th>
                                 <th>Vitendo</th>
                             </tr>
                         </thead>
                         <tbody id="mk-plans-body">
-                            <tr><td colspan="7" class="text-center">Chagua eneo kuona mipango</td></tr>
+                            <tr><td colspan="8" class="text-center">Chagua eneo kuona mipango</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -992,10 +1041,11 @@
             <div class="stat-card">
                 <div class="section-header">
                     <div class="section-icon"><i class="fas fa-layer-group"></i></div>
-                    <h5>Shapefile za Mpango (Viwanja / Mipaka / Matumizi)</h5>
+                    <h5>Shapefile za Mpango (Viwanja / Mpaka wa Kijiji)</h5>
                 </div>
                 <p class="text-muted" style="font-size:12px;margin-bottom:10px;">
-                    Spatial data inapakiwa kupitia
+                    Orodha inaonyesha <strong>viwanja</strong> na <strong>mipaka ya kijiji</strong> pekee
+                    (mipaka ya kata/wilaya haionyeshwi hapa). Spatial data inapakiwa kupitia
                     <a href="/map/" style="color:#1565c0;font-weight:600;">GIS Portal</a>.
                     Hapa unaweza <strong>kufuta</strong> au <strong>kuhariri</strong> (pakia tena) shapefile.
                 </p>
@@ -1162,6 +1212,139 @@
             </div>
         </div>
 
+        <!-- Taarifa Zingine Tab -->
+        <div id="taarifa-tab" class="tab-content">
+            <div class="filter-section" id="tz-modules-view">
+                <div class="section-header" style="border:none;padding:0;margin-bottom:8px;">
+                    <div class="section-icon"><i class="fas fa-folder-open"></i></div>
+                    <div>
+                        <h5>Taarifa Zingine</h5>
+                        <small class="text-muted">Chagua moduli — Quarter Report au Minutes za Vikao</small>
+                    </div>
+                </div>
+                <div class="tz-modules">
+                    <button type="button" class="tz-module-card tz-card-teal" data-tz-module="quarter_report">
+                        <div class="tz-module-top">
+                            <div class="tz-module-icon"><i class="fas fa-calendar-check"></i></div>
+                            <i class="fas fa-arrow-right tz-module-arrow"></i>
+                        </div>
+                        <h3>Quarter Report</h3>
+                        <p>Ripoti za robo mwaka — pakia, angalia na pakua PDF/Word kwa mwaka wa fedha.</p>
+                        <span class="tz-module-cta">Fungua Moduli</span>
+                    </button>
+                    <button type="button" class="tz-module-card tz-card-amber" data-tz-module="section_minutes">
+                        <div class="tz-module-top">
+                            <div class="tz-module-icon"><i class="fas fa-clipboard-list"></i></div>
+                            <i class="fas fa-arrow-right tz-module-arrow"></i>
+                        </div>
+                        <h3>Minutes za Vikao</h3>
+                        <p>Kumbukumbu za vikao — sajili, pakia na hifadhi minutes za mikutano.</p>
+                        <span class="tz-module-cta">Fungua Moduli</span>
+                    </button>
+                </div>
+            </div>
+
+            <div id="tz-detail-view" style="display:none;">
+                <div class="filter-section">
+                    <div class="section-header" style="border:none;padding:0;margin-bottom:0;">
+                        <div class="section-icon" id="tz-detail-icon"><i class="fas fa-file"></i></div>
+                        <div style="flex:1;">
+                            <h5 id="tz-detail-title">—</h5>
+                            <small class="text-muted" id="tz-detail-sub">—</small>
+                        </div>
+                        <button type="button" class="btn-dp" id="tz-btn-back" style="background:#64748b;">
+                            <i class="fas fa-arrow-left"></i> Rudi
+                        </button>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="section-header">
+                        <div class="section-icon"><i class="fas fa-upload"></i></div>
+                        <h5 id="tz-upload-heading">Pakia Faili</h5>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Kichwa / Jina</label>
+                                <input type="text" id="tz-title" class="filter-select" placeholder="Mf. Ripoti ya Q1" />
+                            </div>
+                        </div>
+                        <div class="col-md-4" id="tz-fy-wrap">
+                            <div class="form-group">
+                                <label>Mwaka wa Fedha</label>
+                                <input type="text" id="tz-financial-year" list="tz-fy-suggestions" class="filter-select"
+                                       value="{{ current_financial_year|default:default_financial_year }}"
+                                       placeholder="mf. 2026/2027" autocomplete="off" />
+                                <datalist id="tz-fy-suggestions">
+                                    {% for fy in financial_years %}
+                                    <option value="{{ fy }}"></option>
+                                    {% endfor %}
+                                </datalist>
+                            </div>
+                        </div>
+                        <div class="col-md-4" id="tz-quarter-wrap">
+                            <div class="form-group">
+                                <label>Robo (Quarter)</label>
+                                <select id="tz-quarter" class="filter-select">
+                                    <option value="">-- Chagua --</option>
+                                    <option value="Q1">Q1 (Jul–Sep)</option>
+                                    <option value="Q2">Q2 (Oct–Dec)</option>
+                                    <option value="Q3">Q3 (Jan–Mar)</option>
+                                    <option value="Q4">Q4 (Apr–Jun)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4" id="tz-meeting-wrap" style="display:none;">
+                            <div class="form-group">
+                                <label>Tarehe ya Kikao</label>
+                                <input type="date" id="tz-meeting-date" class="filter-select" />
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Faili (PDF / Word)</label>
+                                <input type="file" id="tz-file" accept=".pdf,.doc,.docx" class="form-control" />
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Maelezo (si lazima)</label>
+                                <input type="text" id="tz-notes" class="filter-select" placeholder="Maelezo mafupi..." />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="dp-actions" style="margin-top:8px;">
+                        <button type="button" class="btn-dp" id="tz-btn-upload"><i class="fas fa-upload"></i> Pakia</button>
+                        <button type="button" class="btn-dp" id="tz-btn-reload" style="background:#475569;"><i class="fas fa-sync"></i> Pakia Orodha</button>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="section-header">
+                        <div class="section-icon"><i class="fas fa-list"></i></div>
+                        <h5>Orodha — <span id="tz-list-label">—</span></h5>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Kichwa</th>
+                                    <th>Maelezo</th>
+                                    <th>Faili</th>
+                                    <th>Tarehe</th>
+                                    <th>Vitendo</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tz-list-body">
+                                <tr><td colspan="5" class="text-center">Bofya Pakia Orodha au pakia faili mpya</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 </div>
 
@@ -1189,6 +1372,18 @@
                     <div class="form-group">
                         <label>Mwaka wa Mpango</label>
                         <input type="number" id="edit-plan-year" min="2000" max="2100" />
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Mwaka wa Fedha</label>
+                        <input type="text" id="edit-financial-year" list="dp-fy-suggestions"
+                               placeholder="mf. 2026/2027" autocomplete="off" />
+                        <datalist id="dp-fy-suggestions">
+                            {% for fy in financial_years %}
+                            <option value="{{ fy }}"></option>
+                            {% endfor %}
+                        </datalist>
                     </div>
                 </div>
             </div>
@@ -1961,7 +2156,7 @@
                 const preferredDistrict = document.getElementById('mk-district')?.value || '';
                 const plans = dedupeMpangoPlans(data.plans || [], preferredDistrict);
                 if (!plans.length) {
-                    tbody.innerHTML = '<tr><td colspan="7" class="text-center">Hakuna mipango kwa eneo hili</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="8" class="text-center">Hakuna mipango kwa eneo hili</td></tr>';
                     return;
                 }
                 plans.forEach(p => {
@@ -1974,6 +2169,7 @@
                         <td>${p.ward_name}</td>
                         <td>${p.district_name}</td>
                         <td>${p.plan_year || '—'}</td>
+                        <td>${p.financial_year || '—'}</td>
                         <td><span class="${badge}">${p.plan_status_label || p.plan_status}</span></td>
                         <td>${p.total_landowners ?? 0}</td>
                         <td class="action-buttons">
@@ -2106,7 +2302,19 @@
                     tbody.innerHTML = '<tr><td colspan="5" class="text-center">Hakuna shapefile za mpango kwa eneo hili</td></tr>';
                     return;
                 }
-                data.shapefiles.forEach((shp, idx) => {
+                // Data Portal: viwanja + mpaka kijiji pekee (kata/wilaya hazionyeshwi)
+                const allowed = (data.shapefiles || []).filter(shp => {
+                    const level = (shp.boundary_level || '').toLowerCase();
+                    if (level === 'ward' || level === 'district') return false;
+                    const src = (shp.source || '').toLowerCase();
+                    if (src === 'boundary' && (level === 'ward' || level === 'district')) return false;
+                    return true;
+                });
+                if (!allowed.length) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center">Hakuna shapefile za viwanja/kijiji kwa eneo hili</td></tr>';
+                    return;
+                }
+                allowed.forEach((shp, idx) => {
                     const key = 'shp-' + idx;
                     mkShapefileItems[key] = shp;
                     const count = shp.parcel_count ?? shp.feature_count ?? 0;
@@ -2434,6 +2642,8 @@
                 document.getElementById('edit-identified').value = p.identified_parcels ?? 0;
                 document.getElementById('edit-unidentified').value = p.unidentified_parcels ?? 0;
                 document.getElementById('edit-plan-year').value = p.plan_year || '';
+                const fyEl = document.getElementById('edit-financial-year');
+                if (fyEl) fyEl.value = p.financial_year || '{{ current_financial_year|default:default_financial_year }}';
                 document.getElementById('edit-plan-status').value = p.plan_status || 'draft';
                 document.getElementById('edit-notes').value = p.notes || '';
                 document.getElementById('editMpangoModal').classList.add('active');
@@ -2452,6 +2662,7 @@
             identified_parcels: parseInt(document.getElementById('edit-identified').value, 10) || 0,
             unidentified_parcels: parseInt(document.getElementById('edit-unidentified').value, 10) || 0,
             plan_year: parseInt(document.getElementById('edit-plan-year').value, 10) || null,
+            financial_year: (document.getElementById('edit-financial-year') || {}).value || '',
             plan_status: document.getElementById('edit-plan-status').value,
             notes: document.getElementById('edit-notes').value,
         };
@@ -2482,6 +2693,7 @@
         setupEventListeners();
         initMpangoTab();
         initCcrosTab();
+        initTaarifaTab();
         loadRegions().then(() => {
             if (initialRegion) {
                 applyInitialRegion(initialRegion);
@@ -2655,6 +2867,202 @@
         });
     }
 
+    // ——— Taarifa Zingine (Quarter Report / Minutes) ———
+    let tzCurrentModule = null;
+
+    const TZ_MODULES = {
+        quarter_report: {
+            title: 'Quarter Report',
+            sub: 'Ripoti za robo mwaka — pakia na fuatilia faili',
+            icon: 'fa-calendar-check',
+            listLabel: 'Quarter Reports',
+            uploadHeading: 'Pakia Quarter Report',
+        },
+        section_minutes: {
+            title: 'Minutes za Vikao',
+            sub: 'Kumbukumbu za vikao — pakia na fuatilia minutes',
+            icon: 'fa-clipboard-list',
+            listLabel: 'Minutes za Vikao',
+            uploadHeading: 'Pakia Minutes za Vikao',
+        },
+    };
+
+    function openTzModule(moduleKey) {
+        const meta = TZ_MODULES[moduleKey];
+        if (!meta) return;
+        tzCurrentModule = moduleKey;
+        document.getElementById('tz-modules-view').style.display = 'none';
+        document.getElementById('tz-detail-view').style.display = 'block';
+        document.getElementById('tz-detail-title').textContent = meta.title;
+        document.getElementById('tz-detail-sub').textContent = meta.sub;
+        document.getElementById('tz-list-label').textContent = meta.listLabel;
+        document.getElementById('tz-upload-heading').textContent = meta.uploadHeading;
+        document.getElementById('tz-detail-icon').innerHTML = `<i class="fas ${meta.icon}"></i>`;
+
+        const isQuarter = moduleKey === 'quarter_report';
+        document.getElementById('tz-quarter-wrap').style.display = isQuarter ? '' : 'none';
+        document.getElementById('tz-meeting-wrap').style.display = isQuarter ? 'none' : '';
+        loadTzList();
+    }
+
+    function closeTzModule() {
+        tzCurrentModule = null;
+        document.getElementById('tz-detail-view').style.display = 'none';
+        document.getElementById('tz-modules-view').style.display = '';
+        document.getElementById('tz-file').value = '';
+        document.getElementById('tz-title').value = '';
+        document.getElementById('tz-notes').value = '';
+        document.getElementById('tz-quarter').value = '';
+        document.getElementById('tz-meeting-date').value = '';
+    }
+
+    function tzApiBase() {
+        if (tzCurrentModule === 'quarter_report') return PLANNING_API + 'quarter-reports/';
+        if (tzCurrentModule === 'section_minutes') return PLANNING_API + 'meeting-minutes/';
+        return null;
+    }
+
+    function tzQueryParams() {
+        const p = new URLSearchParams();
+        const fy = document.getElementById('tz-financial-year')?.value?.trim();
+        if (fy) p.set('financial_year', fy);
+        if (tzCurrentModule === 'quarter_report') {
+            const q = document.getElementById('tz-quarter')?.value;
+            if (q) p.set('quarter', q);
+        }
+        return p.toString();
+    }
+
+    function loadTzList() {
+        const tbody = document.getElementById('tz-list-body');
+        const base = tzApiBase();
+        if (!tbody || !base) return;
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center">Inapakia...</td></tr>';
+        const qs = tzQueryParams();
+        fetch(base + (qs ? ('?' + qs) : ''))
+            .then(res => res.json())
+            .then(data => {
+                const rows = data.reports || [];
+                if (!rows.length) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center">Hakuna faili bado — pakia hapo juu</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = rows.map(r => {
+                    const metaParts = [];
+                    if (r.quarter) metaParts.push(r.quarter);
+                    if (r.financial_year) metaParts.push(r.financial_year);
+                    if (r.meeting_date) metaParts.push(r.meeting_date);
+                    if (r.notes) metaParts.push(r.notes);
+                    const meta = metaParts.join(' · ') || '—';
+                    const delBtn = CAN_UPLOAD
+                        ? `<button type="button" class="btn-delete" data-tz-del="${r.id}" data-tz-title="${escapeHtml(r.title)}"><i class="fas fa-trash"></i></button>`
+                        : '';
+                    return `<tr>
+                        <td><strong>${escapeHtml(r.title)}</strong></td>
+                        <td>${escapeHtml(meta)}</td>
+                        <td>${escapeHtml(r.original_filename || '—')}</td>
+                        <td>${formatReportDate(r.created_at)}</td>
+                        <td class="action-buttons">
+                            <a class="btn-pdf" href="${r.download_url}" target="_blank" rel="noopener"><i class="fas fa-download"></i> Pakua</a>
+                            ${delBtn}
+                        </td>
+                    </tr>`;
+                }).join('');
+                tbody.querySelectorAll('[data-tz-del]').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        deleteTzReport(btn.getAttribute('data-tz-del'), btn.getAttribute('data-tz-title') || '');
+                    });
+                });
+            })
+            .catch(err => {
+                console.error('TZ list:', err);
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Hitilafu ya kupakia</td></tr>';
+            });
+    }
+
+    function uploadTzFile() {
+        if (!tzCurrentModule) return;
+        const base = tzApiBase();
+        if (!base) return;
+        const fileInput = document.getElementById('tz-file');
+        const file = fileInput?.files?.[0];
+        if (!file) {
+            Swal.fire('Tahadhari', 'Chagua faili (PDF au Word)', 'warning');
+            return;
+        }
+        if (tzCurrentModule === 'quarter_report' && !document.getElementById('tz-quarter').value) {
+            Swal.fire('Tahadhari', 'Chagua robo (Quarter)', 'warning');
+            return;
+        }
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('title', document.getElementById('tz-title')?.value || '');
+        fd.append('financial_year', document.getElementById('tz-financial-year')?.value || '');
+        fd.append('quarter', document.getElementById('tz-quarter')?.value || '');
+        fd.append('meeting_date', document.getElementById('tz-meeting-date')?.value || '');
+        fd.append('notes', document.getElementById('tz-notes')?.value || '');
+
+        Swal.fire({ title: 'Inapakia...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        fetch(base + 'upload/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken() },
+            body: fd,
+            credentials: 'same-origin',
+        })
+            .then(res => res.json().then(body => ({ ok: res.ok, body })))
+            .then(({ ok, body }) => {
+                if (ok && (body.status === 'success' || body.success)) {
+                    Swal.fire('Imefanikiwa', 'Faili imehifadhiwa kwenye database', 'success');
+                    fileInput.value = '';
+                    document.getElementById('tz-title').value = '';
+                    document.getElementById('tz-notes').value = '';
+                    loadTzList();
+                } else {
+                    Swal.fire('Hitilafu', body.error || 'Imeshindikana kupakia', 'error');
+                }
+            })
+            .catch(err => Swal.fire('Hitilafu', err.message || String(err), 'error'));
+    }
+
+    window.deleteTzReport = function(reportId, title) {
+        const base = tzApiBase();
+        if (!base) return;
+        Swal.fire({
+            title: 'Futa faili?',
+            text: title || 'Faili hii itafutwa',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Futa',
+            cancelButtonText: 'Ghairi',
+        }).then(result => {
+            if (!result.isConfirmed) return;
+            fetch(base + reportId + '/', {
+                method: 'DELETE',
+                headers: { 'X-CSRFToken': csrfToken() },
+                credentials: 'same-origin',
+            })
+                .then(res => res.json().then(body => ({ ok: res.ok, body })))
+                .then(({ ok, body }) => {
+                    if (ok) {
+                        Swal.fire('Imefutwa', '', 'success');
+                        loadTzList();
+                    } else {
+                        Swal.fire('Hitilafu', body.error || 'Imeshindikana', 'error');
+                    }
+                })
+                .catch(err => Swal.fire('Hitilafu', err.message, 'error'));
+        });
+    };
+
+    function initTaarifaTab() {
+        document.querySelectorAll('[data-tz-module]').forEach(btn => {
+            btn.addEventListener('click', () => openTzModule(btn.getAttribute('data-tz-module')));
+        });
+        document.getElementById('tz-btn-back')?.addEventListener('click', closeTzModule);
+        document.getElementById('tz-btn-upload')?.addEventListener('click', uploadTzFile);
+        document.getElementById('tz-btn-reload')?.addEventListener('click', loadTzList);
+    }
+
     function switchTab(tabName, tabEl) {
         const tabs = document.querySelectorAll('.tab');
         const contents = document.querySelectorAll('.tab-content');
@@ -2681,13 +3089,15 @@
             loadStats();
             loadPlanningStats();
             loadDistrictSummary();
+        } else if (tabName === 'taarifa') {
+            if (!tzCurrentModule) closeTzModule();
         }
     }
 
     (function bootTabs() {
         const params = new URLSearchParams(window.location.search);
         const tab = params.get('tab');
-        const tabMap = { planning: 'mpango', mpango: 'mpango', ccro: 'ccro' };
+        const tabMap = { planning: 'mpango', mpango: 'mpango', ccro: 'ccro', taarifa: 'taarifa', other: 'taarifa' };
         const target = tabMap[tab] || tab;
         if (target && document.getElementById(target + '-tab')) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -2703,6 +3113,8 @@
                     loadMpangoStats();
                     loadMpangoPlans();
                 }, 300);
+            } else if (target === 'taarifa') {
+                closeTzModule();
             }
         }
     })();

@@ -167,6 +167,37 @@
             border-left: 1px solid var(--nav-border);
         }
 
+        .lumc-fy-box {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 132px;
+        }
+        .lumc-fy-box label {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--nav-muted);
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            margin: 0;
+        }
+        .lumc-fy-box input {
+            border: 1px solid var(--nav-border);
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--nav-primary);
+            background: #f8fafc;
+            width: 100%;
+            min-width: 120px;
+        }
+        .lumc-fy-box input:focus {
+            outline: 2px solid rgba(37, 99, 235, 0.25);
+            border-color: #93c5fd;
+            background: #fff;
+        }
+
         .lumc-user-chip {
             display: inline-flex;
             align-items: center;
@@ -302,10 +333,26 @@
                             <i class="fas fa-balance-scale"></i> Migogoro
                         </a>
                     </li>
+                    <li>
+                        <a href="/wadau/" class="{% if '/wadau' in request.path %}active{% endif %}">
+                            <i class="fas fa-handshake"></i> Wadau
+                        </a>
+                    </li>
                 </ul>
 
                 <div class="lumc-nav-user">
                     {% if user.is_authenticated %}
+                    <div class="lumc-fy-box" title="Mwaka wa fedha — unaweza kuandika">
+                        <label for="lumc-global-fy">Mwaka wa Fedha</label>
+                        <input id="lumc-global-fy" list="lumc-fy-suggestions" type="text"
+                               value="{{ current_financial_year|default:default_financial_year }}"
+                               placeholder="2026/2027" autocomplete="off">
+                        <datalist id="lumc-fy-suggestions">
+                            {% for fy in financial_years %}
+                            <option value="{{ fy }}"></option>
+                            {% endfor %}
+                        </datalist>
+                    </div>
                     <span class="lumc-user-chip">
                         <i class="fas fa-user-circle"></i> {{ user.username }}
                     </span>
@@ -322,6 +369,9 @@
         </div>
     </nav>
 
+    {# Ensure CSRF cookie + token for fetch()/XHR on all portal pages #}
+    <form id="lumc-csrf-form" style="display:none" aria-hidden="true">{% csrf_token %}</form>
+
     <main>
         {% block content %}{% endblock %}
     </main>
@@ -336,11 +386,42 @@
         (function () {
             var btn = document.getElementById('lumcNavToggle');
             var panel = document.getElementById('lumcNavCollapse');
-            if (!btn || !panel) return;
-            btn.addEventListener('click', function () {
-                var open = panel.classList.toggle('show');
-                btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-                btn.innerHTML = open ? '<i class="fas fa-times"></i>' : '<i class="fas fa-bars"></i>';
+            if (btn && panel) {
+                btn.addEventListener('click', function () {
+                    var open = panel.classList.toggle('show');
+                    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+                    btn.innerHTML = open ? '<i class="fas fa-times"></i>' : '<i class="fas fa-bars"></i>';
+                });
+            }
+
+            var fyInput = document.getElementById('lumc-global-fy');
+            if (!fyInput) return;
+            function csrfToken() {
+                var el = document.querySelector('#lumc-csrf-form [name=csrfmiddlewaretoken], [name=csrfmiddlewaretoken]');
+                if (el && el.value) return el.value;
+                var m = document.cookie.match(/csrftoken=([^;]+)/);
+                return m ? decodeURIComponent(m[1]) : '';
+            }
+            function saveFy() {
+                var fy = (fyInput.value || '').trim();
+                if (!fy) return;
+                fetch('/api/financial-year/', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken()
+                    },
+                    body: JSON.stringify({ financial_year: fy })
+                }).catch(function () {});
+            }
+            fyInput.addEventListener('change', saveFy);
+            fyInput.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    saveFy();
+                    fyInput.blur();
+                }
             });
         })();
     </script>

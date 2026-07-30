@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="sw">
 <head>
     <meta charset="UTF-8">
@@ -288,6 +288,13 @@
             --card-tint-2: rgba(251, 146, 60, 0.2);
             --card-border: rgba(253, 186, 116, 0.65);
             --card-glow: rgba(234, 88, 12, 0.28);
+        }
+        .module-card.card-indigo {
+            --card-accent: #4338ca;
+            --card-tint: rgba(99, 102, 241, 0.3);
+            --card-tint-2: rgba(129, 140, 248, 0.2);
+            --card-border: rgba(165, 180, 252, 0.65);
+            --card-glow: rgba(67, 56, 202, 0.28);
         }
 
         .module-top {
@@ -701,8 +708,20 @@
             </div>
         </a>
         <div class="topbar-right">
-            <div class="user-pill">
-                <i class="fas fa-user-circle"></i> {{ user.username }}
+            <div class="user-pill" style="display:flex;align-items:center;gap:10px;">
+                <label style="display:flex;flex-direction:column;gap:2px;font-size:10px;font-weight:700;color:#64748b;margin:0;">
+                    Mwaka wa Fedha
+                    <input id="home-global-fy" list="home-fy-suggestions" type="text"
+                           value="{{ current_financial_year|default:default_financial_year }}"
+                           placeholder="2026/2027" autocomplete="off"
+                           style="border:1px solid #e2e8f0;border-radius:8px;padding:5px 8px;font-weight:700;color:#1a237e;min-width:110px;background:#fff;">
+                </label>
+                <datalist id="home-fy-suggestions">
+                    {% for fy in financial_years %}
+                    <option value="{{ fy }}"></option>
+                    {% endfor %}
+                </datalist>
+                <span><i class="fas fa-user-circle"></i> {{ user.username }}</span>
             </div>
             <a href="{% url 'logout' %}" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</a>
         </div>
@@ -711,7 +730,7 @@
     <section class="hero" id="homeHero">
         <div class="hero-panel">
             <h1>Nyumbani</h1>
-            <p>Chagua moduli ili kuendelea — GIS, data, migogoro ya ardhi, CCRO na usimamizi wa mfumo.</p>
+            <p>Chagua moduli ili kuendelea — GIS, data, migogoro ya ardhi, wadau, CCRO na usimamizi wa mfumo.</p>
         </div>
     </section>
 
@@ -744,6 +763,16 @@
             </div>
             <h3 class="module-title">Migogoro ya Ardhi</h3>
             <p class="module-desc">Database ya kesi za migogoro ya ardhi — usajili, ufuatiliaji na usuluhishi kutoka mkoa hadi kijiji.</p>
+            <div class="module-cta">Access Module</div>
+        </a>
+
+        <a href="/wadau/" class="module-card card-indigo">
+            <div class="module-top">
+                <div class="module-icon icon-indigo"><i class="fas fa-handshake"></i></div>
+                <i class="fas fa-arrow-right module-arrow"></i>
+            </div>
+            <h3 class="module-title">Wadau</h3>
+            <p class="module-desc">Orodha ya wadau (stakeholders) — majina, mashirika, mawasiliano na eneo kutoka mkoa hadi kijiji.</p>
             <div class="module-cta">Access Module</div>
         </a>
 
@@ -1680,6 +1709,30 @@
             });
         }
         {% endif %}
+    </script>
+    <script>
+    (function () {
+        var fyInput = document.getElementById('home-global-fy');
+        if (!fyInput) return;
+        function csrf() {
+            var m = document.cookie.match(/csrftoken=([^;]+)/);
+            return m ? decodeURIComponent(m[1]) : '';
+        }
+        function save() {
+            var fy = (fyInput.value || '').trim();
+            if (!fy) return;
+            fetch('/api/financial-year/', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() },
+                body: JSON.stringify({ financial_year: fy })
+            }).catch(function () {});
+        }
+        fyInput.addEventListener('change', save);
+        fyInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') { e.preventDefault(); save(); fyInput.blur(); }
+        });
+    })();
     </script>
 </body>
 </html>

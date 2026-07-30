@@ -29,6 +29,7 @@ CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf.split(',') if o.strip()]
 
 CSRF_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_SECURE = not DEBUG
+CSRF_FAILURE_VIEW = 'dashboard.csrf.csrf_failure'
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # GDAL — Windows local paths (Docker sets GDAL_LIBRARY_PATH / GEOS_LIBRARY_PATH via env)
@@ -56,6 +57,7 @@ INSTALLED_APPS = [
     'dashboard',
     'detailed_planning',
     'land_conflicts',
+    'wadau',
 ]
 
 MIDDLEWARE = [
@@ -90,6 +92,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'dashboard.context_processors.integration_urls',
+                'dashboard.context_processors.financial_year_context',
             ],
         },
     },
@@ -116,8 +119,14 @@ def _postgis_config(name, user, password, host, port, search_path, sslmode=None)
     # Direct (non-pooler) hosts can still use -c for slightly earlier path setup.
     if search_path and host and 'pooler' not in host.lower():
         cfg['OPTIONS']['options'] = f'-c search_path={search_path}'
-    if sslmode:
-        cfg['OPTIONS']['sslmode'] = sslmode
+    # Local Postgres usually has no SSL; cloud needs require.
+    host_l = (host or '').lower()
+    if sslmode is None:
+        if host_l in ('localhost', '127.0.0.1', 'db', ''):
+            sslmode = 'disable'
+        else:
+            sslmode = 'require'
+    cfg['OPTIONS']['sslmode'] = sslmode
     return cfg
 
 
@@ -251,6 +260,25 @@ AUTH_USER_MODEL = 'accounts.CustomUser'
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/login/'
+
+# Shared section secrets (seed SectionAccessConfig on first use; override via admin)
+LUMC_REGISTRATION_CODE = os.environ.get('LUMC_REGISTRATION_CODE', 'LUMC-REG-2026')
+LUMC_LOGIN_CODE = os.environ.get('LUMC_LOGIN_CODE', 'LUMC-LOGIN-2026')
+
+# Password reset: bila SMTP (localhost:25 haipo) — tumia filebased ili Django mail isivunjike
+_email_host = os.environ.get('EMAIL_HOST', '').strip()
+if not _email_host or _email_host.lower() in ('localhost', '127.0.0.1'):
+    EMAIL_BACKEND = 'django.core.mail.backends.filebased.EmailBackend'
+    EMAIL_FILE_PATH = BASE_DIR / 'tmp' / 'password_reset_emails'
+    EMAIL_FILE_PATH.mkdir(parents=True, exist_ok=True)
+else:
+    EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
+    EMAIL_HOST = _email_host
+    EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
+    EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+    EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+    EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', '1').strip().lower() in ('1', 'true', 'yes', 'on')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'LUMC GIS <noreply@lumc.local>')
 
 GIS_PORTAL_URL = os.environ.get('GIS_PORTAL_URL', 'http://localhost:8000')
 

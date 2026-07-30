@@ -2,6 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.http import HttpResponse, JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
 from django.db import connection
 from django.db.models import Sum, Count, Q
 from django.contrib.auth import get_user_model
@@ -27,6 +28,14 @@ import logging
 import csv
 from datetime import datetime
 import uuid
+
+from dashboard.financial_year import (
+    DEFAULT_FINANCIAL_YEAR,
+    normalize_financial_year,
+    session_financial_year,
+    set_session_financial_year,
+    suggested_financial_years,
+)
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -143,6 +152,29 @@ def home(request):
         'can_admin': can_admin,
     })
 
+
+@login_required
+@require_http_methods(['GET', 'POST'])
+def api_financial_year(request):
+    """Soma / weka mwaka wa fedha wa session — inatumika kwenye moduli zote."""
+    if request.method == 'GET':
+        fy = session_financial_year(request)
+        return JsonResponse({
+            'success': True,
+            'financial_year': fy,
+            'default_financial_year': DEFAULT_FINANCIAL_YEAR,
+            'suggestions': suggested_financial_years(),
+        })
+
+    try:
+        body = json.loads(request.body.decode('utf-8') or '{}')
+    except json.JSONDecodeError:
+        body = {}
+    raw = body.get('financial_year') or request.POST.get('financial_year') or ''
+    fy = set_session_financial_year(request, raw)
+    return JsonResponse({'success': True, 'financial_year': fy})
+
+
 @login_required
 def landuse_home(request):
     return render(request, 'dashboard/landuse_home.html')
@@ -212,24 +244,35 @@ def data_portal(request):
 
 def signup_view(request):
     if request.method == 'POST':
+        from accounts.models import (
+            UserRole,
+            get_registration_code,
+            section_code_matches,
+        )
+
         fullname = request.POST.get('fullname')
         email = request.POST.get('email')
         username = request.POST.get('username')
         password = request.POST.get('password')
         confirm_password = request.POST.get('confirm_password')
-        
+        registration_code = request.POST.get('registration_code') or ''
+
+        if not section_code_matches(registration_code, get_registration_code()):
+            messages.error(request, 'Nambari ya usajili si sahihi au haipo.')
+            return redirect('signup')
+
         if password != confirm_password:
             messages.error(request, 'Passwords do not match!')
             return redirect('signup')
-        
+
         if User.objects.filter(username=username).exists():
             messages.error(request, 'Username already exists!')
             return redirect('signup')
-        
+
         if User.objects.filter(email=email).exists():
             messages.error(request, 'Email already registered!')
             return redirect('signup')
-        
+
         user = User.objects.create_user(
             username=username,
             email=email,
@@ -237,7 +280,6 @@ def signup_view(request):
             first_name=fullname,
             is_active=False,
         )
-        from accounts.models import UserRole
         viewer_role, _ = UserRole.objects.get_or_create(name='viewer')
         user.role = viewer_role
         user.save()
@@ -247,7 +289,7 @@ def signup_view(request):
             'Akaunti imeundwa. Subiri msimamizi aiamilishe kabla ya kuingia.',
         )
         return redirect('login')
-    
+
     return render(request, 'login.html')
 
 

@@ -13,9 +13,11 @@ from django.db import transaction
 
 from detailed_planning.models import (
     DistrictPlanningBoundary,
+    MeetingMinutes,
     PlanningParcel,
     PlanningReport,
     PlanningShapefile,
+    QuarterReport,
     VillageDetailedPlan,
     VillagePlanningBoundary,
     WardPlanningBoundary,
@@ -1085,8 +1087,20 @@ def save_planning_report_file(
     if not title:
         if report_type == 'boundary_map':
             title = f'Ramani — {village or ward or district or region}'
+        elif report_type == 'quarter_report':
+            title = f'Quarter Report — {district or region}'
+        elif report_type == 'section_minutes':
+            title = f'Minutes za Vikao — {district or region}'
         else:
             title = f'Ripoti — {village or ward or district or region}'
+
+    fmt = 'pdf'
+    if ext in ('.doc', '.docx'):
+        fmt = 'docx'
+    elif ext == '.xlsx':
+        fmt = 'xlsx'
+    elif ext == '.csv':
+        fmt = 'csv'
 
     return PlanningReport.objects.create(
         title=title,
@@ -1099,7 +1113,7 @@ def save_planning_report_file(
         original_filename=uploaded_file.name,
         stored_filename=stored_name,
         file_path=saved_path,
-        file_format='pdf',
+        file_format=fmt,
         file_size_bytes=getattr(uploaded_file, 'size', None),
         village_plan=village_plan,
         generated_by_id=_user_id(generated_by),
@@ -1218,6 +1232,7 @@ def serialize_village_plan(
         'plan_status': plan.plan_status,
         'plan_status_label': status_labels.get(plan.plan_status, plan.plan_status),
         'plan_year': plan.plan_year,
+        'financial_year': getattr(plan, 'financial_year', None) or '',
         'notes': plan.notes or '',
         'updated_at': plan.updated_at.isoformat() if plan.updated_at else None,
     }
@@ -1233,8 +1248,11 @@ def serialize_planning_report(report: PlanningReport) -> dict:
         'ward_name': report.ward_name or '',
         'village_name': report.village_name or '',
         'report_year': report.report_year,
+        'summary': report.summary or '',
+        'notes': report.notes or '',
         'original_filename': report.original_filename,
         'file_size_bytes': report.file_size_bytes,
+        'file_format': report.file_format,
         'created_at': report.created_at.isoformat() if report.created_at else None,
         'download_url': f'/api/planning/reports/{report.id}/download/',
     }
@@ -1260,6 +1278,137 @@ def delete_planning_report(report: PlanningReport) -> None:
     """Futa rekodi ya ripoti na faili yake ya PDF."""
     _delete_media_file(report.file_path)
     report.delete()
+
+
+def _file_format_from_name(filename: str) -> str:
+    ext = os.path.splitext(filename or '')[1].lower()
+    if ext in ('.doc', '.docx'):
+        return 'docx'
+    if ext == '.xlsx':
+        return 'xlsx'
+    if ext == '.csv':
+        return 'csv'
+    return 'pdf'
+
+
+def save_quarter_report_file(
+    uploaded_file,
+    *,
+    title: str | None = None,
+    financial_year: str,
+    quarter: str,
+    notes: str = '',
+    generated_by=None,
+) -> QuarterReport:
+    """Hifadhi Quarter Report kwenye jedwali quarter_reports."""
+    from dashboard.financial_year import normalize_financial_year
+
+    ext = os.path.splitext(uploaded_file.name)[1].lower() or '.pdf'
+    stored_name = f'{uuid.uuid4().hex}{ext}'
+    fy = normalize_financial_year(financial_year)
+    q = (quarter or '').strip().upper()
+    rel_path = f'quarter_reports/{_safe_path_segment(fy)}/{q}/{stored_name}'
+    saved_path = default_storage.save(rel_path, uploaded_file)
+    if not title:
+        title = f'Quarter Report — {fy} {q}'
+    return QuarterReport.objects.create(
+        title=title,
+        financial_year=fy,
+        quarter=q,
+        notes=notes or '',
+        original_filename=uploaded_file.name,
+        stored_filename=stored_name,
+        file_path=saved_path,
+        file_format=_file_format_from_name(uploaded_file.name),
+        file_size_bytes=getattr(uploaded_file, 'size', None),
+        created_by_id=_user_id(generated_by),
+    )
+
+
+def serialize_quarter_report(obj: QuarterReport) -> dict:
+    return {
+        'id': str(obj.id),
+        'title': obj.title,
+        'report_type': 'quarter_report',
+        'financial_year': obj.financial_year,
+        'quarter': obj.quarter,
+        'summary': obj.quarter,
+        'notes': obj.notes or '',
+        'original_filename': obj.original_filename,
+        'file_size_bytes': obj.file_size_bytes,
+        'file_format': obj.file_format,
+        'created_at': obj.created_at.isoformat() if obj.created_at else None,
+        'download_url': f'/api/planning/quarter-reports/{obj.id}/download/',
+    }
+
+
+def delete_quarter_report(obj: QuarterReport) -> None:
+    _delete_media_file(obj.file_path)
+    obj.delete()
+
+
+def save_meeting_minutes_file(
+    uploaded_file,
+    *,
+    title: str | None = None,
+    financial_year: str = '',
+    meeting_date=None,
+    notes: str = '',
+    generated_by=None,
+) -> MeetingMinutes:
+    """Hifadhi Minutes za Vikao kwenye jedwali meeting_minutes."""
+    from datetime import date as date_cls
+
+    from dashboard.financial_year import normalize_financial_year
+
+    ext = os.path.splitext(uploaded_file.name)[1].lower() or '.pdf'
+    stored_name = f'{uuid.uuid4().hex}{ext}'
+    fy = normalize_financial_year(financial_year) if (financial_year or '').strip() else ''
+    md = meeting_date
+    if isinstance(md, str) and md.strip():
+        try:
+            md = date_cls.fromisoformat(md.strip()[:10])
+        except ValueError:
+            md = None
+    date_seg = md.isoformat() if md else 'undated'
+    rel_path = f'meeting_minutes/{_safe_path_segment(fy or "general")}/{date_seg}/{stored_name}'
+    saved_path = default_storage.save(rel_path, uploaded_file)
+    if not title:
+        title = f'Minutes za Vikao — {md.isoformat() if md else "bila tarehe"}'
+    return MeetingMinutes.objects.create(
+        title=title,
+        financial_year=fy,
+        meeting_date=md,
+        notes=notes or '',
+        original_filename=uploaded_file.name,
+        stored_filename=stored_name,
+        file_path=saved_path,
+        file_format=_file_format_from_name(uploaded_file.name),
+        file_size_bytes=getattr(uploaded_file, 'size', None),
+        created_by_id=_user_id(generated_by),
+    )
+
+
+def serialize_meeting_minutes(obj: MeetingMinutes) -> dict:
+    return {
+        'id': str(obj.id),
+        'title': obj.title,
+        'report_type': 'section_minutes',
+        'financial_year': obj.financial_year or '',
+        'meeting_date': obj.meeting_date.isoformat() if obj.meeting_date else None,
+        'summary': obj.meeting_date.isoformat() if obj.meeting_date else '',
+        'notes': obj.notes or '',
+        'original_filename': obj.original_filename,
+        'file_size_bytes': obj.file_size_bytes,
+        'file_format': obj.file_format,
+        'created_at': obj.created_at.isoformat() if obj.created_at else None,
+        'download_url': f'/api/planning/meeting-minutes/{obj.id}/download/',
+    }
+
+
+def delete_meeting_minutes(obj: MeetingMinutes) -> None:
+    _delete_media_file(obj.file_path)
+    obj.delete()
 
 
 def delete_planning_shapefile(shapefile: PlanningShapefile) -> None:
@@ -1354,55 +1503,60 @@ def list_uploaded_shapefiles(
     ward: str | None = None,
     village: str | None = None,
 ) -> list[dict]:
-    """Orodha ya shapefile zilizopakiwa — DB, viwanja, na mipaka."""
+    """Orodha ya shapefile za mpango: viwanja + mipaka ya kijiji (bila kata/wilaya)."""
     from django.db.models import Q
 
     items: list[dict] = list_parcel_shapefile_imports(region, district, ward, village)
     loc = _shapefile_location_filter(region, district, ward, village)
 
-    for shp in PlanningShapefile.objects.filter(loc).order_by('-uploaded_at')[:200]:
+    # PlanningShapefile: onyesha kijiji + viwanja / matumizi; ficha kata & wilaya
+    for shp in (
+        PlanningShapefile.objects.filter(loc)
+        .exclude(boundary_level__in=('district', 'ward'))
+        .order_by('-uploaded_at')[:200]
+    ):
         items.append(serialize_planning_shapefile(shp))
 
-    boundary_specs = (
-        ('district', DistrictPlanningBoundary, ('region_name', 'district_name')),
-        ('ward', WardPlanningBoundary, ('region_name', 'district_name', 'ward_name')),
-        ('village', VillagePlanningBoundary, ('region_name', 'district_name', 'ward_name', 'village_name')),
-    )
+    # Mipaka: kijiji pekee (kata/wilaya hazionyeshwi kwenye Data Portal)
     location_values = {
         'region_name': region,
         'district_name': district,
         'ward_name': ward,
         'village_name': village,
     }
-    for level, model, fields in boundary_specs:
-        q = Q()
-        for field in fields:
-            value = location_values.get(field)
-            if not value:
-                continue
-            if field == 'district_name':
-                district_q = Q()
-                from dashboard.boundary_service import _district_search_names
-                for name in _district_search_names(value):
-                    district_q |= Q(district_name__iexact=name)
-                q &= district_q
-            else:
-                q &= Q(**{f'{field}__iexact': value})
-        qs = model.objects.filter(q).exclude(shapefile_name__isnull=True).exclude(shapefile_name='')
-        for boundary in qs.order_by('-updated_at')[:100]:
-            items.append({
-                'id': str(boundary.id),
-                'source': 'boundary',
-                'title': boundary.shapefile_name,
-                'original_filename': boundary.shapefile_name,
-                'boundary_level': level,
-                'region_name': boundary.region_name,
-                'district_name': boundary.district_name or '',
-                'ward_name': getattr(boundary, 'ward_name', '') or '',
-                'village_name': getattr(boundary, 'village_name', '') or '',
-                'feature_count': 1,
-                'uploaded_at': boundary.updated_at.isoformat() if boundary.updated_at else None,
-            })
+    fields = ('region_name', 'district_name', 'ward_name', 'village_name')
+    q = Q()
+    for field in fields:
+        value = location_values.get(field)
+        if not value:
+            continue
+        if field == 'district_name':
+            district_q = Q()
+            from dashboard.boundary_service import _district_search_names
+            for name in _district_search_names(value):
+                district_q |= Q(district_name__iexact=name)
+            q &= district_q
+        else:
+            q &= Q(**{f'{field}__iexact': value})
+    qs = (
+        VillagePlanningBoundary.objects.filter(q)
+        .exclude(shapefile_name__isnull=True)
+        .exclude(shapefile_name='')
+    )
+    for boundary in qs.order_by('-updated_at')[:100]:
+        items.append({
+            'id': str(boundary.id),
+            'source': 'boundary',
+            'title': boundary.shapefile_name,
+            'original_filename': boundary.shapefile_name,
+            'boundary_level': 'village',
+            'region_name': boundary.region_name,
+            'district_name': boundary.district_name or '',
+            'ward_name': getattr(boundary, 'ward_name', '') or '',
+            'village_name': getattr(boundary, 'village_name', '') or '',
+            'feature_count': 1,
+            'uploaded_at': boundary.updated_at.isoformat() if boundary.updated_at else None,
+        })
 
     items.sort(key=lambda x: x.get('uploaded_at') or '', reverse=True)
     return items

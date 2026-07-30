@@ -1,0 +1,683 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Wadau — LUMC{% endblock %}
+
+{% block extra_css %}
+<style>
+    .wd-wrap { max-width: 1240px; margin: 0 auto; padding: 24px 24px 56px; }
+    .wd-hero {
+        background: linear-gradient(135deg, #312e81 0%, #4338ca 45%, #6366f1 100%);
+        color: #fff; border-radius: 16px; padding: 26px 30px; margin-bottom: 20px;
+        box-shadow: 0 10px 28px rgba(67, 56, 202, 0.25);
+    }
+    .wd-hero h1 {
+        margin: 0 0 8px; font-family: 'Outfit', sans-serif; font-size: 1.65rem; font-weight: 700;
+    }
+    .wd-hero p { margin: 0; opacity: 0.92; font-size: 14px; max-width: 720px; line-height: 1.5; }
+    .wd-kpis {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 12px; margin-bottom: 18px;
+    }
+    .wd-kpi {
+        background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 14px 16px;
+        box-shadow: 0 2px 10px rgba(15,23,42,0.04);
+    }
+    .wd-kpi .label { font-size: 12px; color: #64748b; font-weight: 600; }
+    .wd-kpi .value { font-family: 'Outfit', sans-serif; font-size: 1.55rem; font-weight: 700; margin-top: 4px; color: #4338ca; }
+    .wd-kpi.ok .value { color: #15803d; }
+    .wd-kpi.off .value { color: #94a3b8; }
+    .wd-card {
+        background: #fff; border: 1px solid #e2e8f0; border-radius: 14px;
+        padding: 18px 20px; box-shadow: 0 2px 12px rgba(15,23,42,0.04); margin-bottom: 16px;
+    }
+    .wd-card h2 {
+        margin: 0 0 12px; font-family: 'Outfit', sans-serif; font-size: 1.05rem; font-weight: 700;
+    }
+    .wd-filters {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 10px; align-items: end;
+    }
+    .wd-filters label, .wd-form-grid label {
+        display: block; font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 4px;
+    }
+    .wd-filters select, .wd-filters input,
+    .wd-form-grid input, .wd-form-grid select, .wd-form-grid textarea {
+        width: 100%; border: 1px solid #e2e8f0; border-radius: 10px;
+        padding: 8px 11px; font-size: 13px; font-family: inherit; background: #fff;
+    }
+    .wd-btn {
+        display: inline-flex; align-items: center; gap: 7px; border: none; border-radius: 10px;
+        padding: 9px 14px; font-weight: 600; font-size: 13px; cursor: pointer;
+        font-family: inherit; background: #4338ca; color: #fff;
+    }
+    .wd-btn:hover { background: #312e81; }
+    .wd-btn.secondary { background: #eef2ff; color: #3730a3; }
+    .wd-btn.danger { background: #fee2e2; color: #b91c1c; }
+    .wd-btn.edit { background: #e0e7ff; color: #3730a3; }
+    .wd-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 12px 0; }
+    .wd-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    .wd-table th, .wd-table td {
+        padding: 9px 10px; border-bottom: 1px solid #f1f5f9; text-align: left; vertical-align: top;
+    }
+    .wd-table th {
+        color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap;
+    }
+    .wd-status {
+        display: inline-block; padding: 3px 8px; border-radius: 999px;
+        font-size: 11px; font-weight: 700; background: #e0e7ff; color: #3730a3;
+    }
+    .wd-status.off { background: #f1f5f9; color: #64748b; }
+    .wd-chip {
+        display: inline-block; padding: 2px 8px; border-radius: 999px;
+        font-size: 11px; font-weight: 700; background: #eef2ff; color: #4338ca;
+    }
+    .wd-empty { text-align: center; color: #64748b; padding: 26px 12px; }
+    .wd-form-grid {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;
+    }
+    .wd-form-grid .full { grid-column: 1 / -1; }
+    #wd-form-panel { display: none; }
+    #wd-form-panel.open { display: block; }
+    .table-scroll { overflow-x: auto; }
+    .wd-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wd-wrap">
+    <div class="wd-hero" style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between;">
+        <div style="flex:1;min-width:220px;">
+            <h1><i class="fas fa-handshake"></i> Wadau (Stakeholders)</h1>
+            <p>
+                Orodha ya wadau wa mradi na maeneo — sajili, hariri na fuatilia mawasiliano,
+                aina ya mdau na eneo (mkoa → wilaya → kata → kijiji) kwa <strong>mwaka wa fedha</strong>.
+            </p>
+        </div>
+        <div style="min-width:200px;">
+            <label style="display:block;font-size:11px;opacity:0.9;margin-bottom:6px;font-weight:600;">Mwaka wa Fedha</label>
+            <input id="wd-fy" list="wd-fy-suggestions" type="text"
+                   value="{{ current_financial_year|default:default_financial_year }}"
+                   placeholder="mf. 2026/2027" autocomplete="off"
+                   style="width:100%;border:none;border-radius:8px;padding:8px 10px;font-weight:700;color:#312e81;">
+            <datalist id="wd-fy-suggestions">
+                {% for fy in financial_years %}
+                <option value="{{ fy }}"></option>
+                {% endfor %}
+            </datalist>
+        </div>
+    </div>
+
+    <div class="wd-kpis">
+        <div class="wd-kpi" style="border-color:#c7d2fe;background:linear-gradient(180deg,#eef2ff,#fff);">
+            <div class="label">Jumla ya Wadau</div>
+            <div class="value" id="kpi-total">{{ stats.total|default:0 }}</div>
+        </div>
+        <div class="wd-kpi ok">
+            <div class="label">Hai / Active</div>
+            <div class="value" id="kpi-active">{{ stats.active|default:0 }}</div>
+        </div>
+        <div class="wd-kpi off">
+            <div class="label">Si hai</div>
+            <div class="value" id="kpi-inactive">{{ stats.inactive|default:0 }}</div>
+        </div>
+    </div>
+
+    <div class="wd-card">
+        <h2><i class="fas fa-filter"></i> Chuja</h2>
+        <div class="wd-filters">
+            <div>
+                <label>Mkoa</label>
+                <select id="wd-region"><option value="">-- Chagua Mkoa --</option></select>
+            </div>
+            <div>
+                <label>Wilaya</label>
+                <select id="wd-district" disabled><option value="">-- Chagua Wilaya --</option></select>
+            </div>
+            <div>
+                <label>Kata</label>
+                <select id="wd-ward" disabled><option value="">-- Chagua Kata --</option></select>
+            </div>
+            <div>
+                <label>Kijiji</label>
+                <select id="wd-village" disabled><option value="">-- Chagua Kijiji --</option></select>
+            </div>
+            <div>
+                <label>Aina ya Mdau</label>
+                <select id="wd-filter-type">
+                    <option value="">Aina zote</option>
+                    {% for value, label in stakeholder_types %}
+                    <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label>Hali</label>
+                <select id="wd-filter-active">
+                    <option value="">Zote</option>
+                    <option value="1">Hai</option>
+                    <option value="0">Si hai</option>
+                </select>
+            </div>
+            <div>
+                <label>Tafuta</label>
+                <input id="wd-q" placeholder="Jina / shirika / simu...">
+            </div>
+            <div>
+                <label>&nbsp;</label>
+                <button type="button" class="wd-btn secondary" id="btn-reload" style="width:100%;justify-content:center;">
+                    <i class="fas fa-sync"></i> Pakia Data
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="wd-card" id="wd-form-panel">
+        <h2 id="wd-form-title">Sajili Mdau</h2>
+        <input type="hidden" id="f-edit-id" value="">
+        <div class="wd-form-grid">
+            <div>
+                <label>Mwaka wa Fedha *</label>
+                <input id="f-fy" list="wd-fy-suggestions-form" type="text"
+                       value="{{ current_financial_year|default:default_financial_year }}"
+                       placeholder="mf. 2026/2027" autocomplete="off">
+                <datalist id="wd-fy-suggestions-form">
+                    {% for fy in financial_years %}
+                    <option value="{{ fy }}"></option>
+                    {% endfor %}
+                </datalist>
+            </div>
+            <div>
+                <label>Jina *</label>
+                <input id="f-name" placeholder="Jina la mdau">
+            </div>
+            <div>
+                <label>Shirika / Taasisi</label>
+                <input id="f-organization" placeholder="Mf. Ofisi ya Ardhi">
+            </div>
+            <div>
+                <label>Aina ya Mdau</label>
+                <select id="f-type">
+                    {% for value, label in stakeholder_types %}
+                    <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label>Wajibu / Maslahi</label>
+                <input id="f-role" placeholder="Mf. Mwakilishi wa kijiji">
+            </div>
+            <div>
+                <label>Simu</label>
+                <input id="f-phone" placeholder="+255...">
+            </div>
+            <div>
+                <label>Barua pepe</label>
+                <input id="f-email" type="email" placeholder="email@example.com">
+            </div>
+            <div>
+                <label>Mkoa</label>
+                <select id="f-region"><option value="">-- Chagua Mkoa --</option></select>
+            </div>
+            <div>
+                <label>Wilaya</label>
+                <select id="f-district" disabled><option value="">-- Chagua Wilaya --</option></select>
+            </div>
+            <div>
+                <label>Kata</label>
+                <select id="f-ward" disabled><option value="">-- Chagua Kata --</option></select>
+            </div>
+            <div>
+                <label>Kijiji</label>
+                <select id="f-village" disabled><option value="">-- Chagua Kijiji --</option></select>
+            </div>
+            <div>
+                <label>Hali</label>
+                <select id="f-active">
+                    <option value="1">Hai</option>
+                    <option value="0">Si hai</option>
+                </select>
+            </div>
+            <div class="full">
+                <label>Maelezo</label>
+                <textarea id="f-notes" rows="3" placeholder="Maelezo ya ziada..."></textarea>
+            </div>
+        </div>
+        <div class="wd-toolbar">
+            <button type="button" class="wd-btn" id="btn-save"><i class="fas fa-save"></i> <span id="btn-save-label">Hifadhi Mdau</span></button>
+            <button type="button" class="wd-btn secondary" id="btn-cancel"><i class="fas fa-times"></i> Funga</button>
+        </div>
+    </div>
+
+    <div class="wd-card">
+        <div class="wd-toolbar" style="margin-top:0;">
+            <h2 style="margin:0;flex:1;"><i class="fas fa-users"></i> Orodha ya Wadau</h2>
+            <button type="button" class="wd-btn" id="btn-new"><i class="fas fa-plus"></i> Sajili Mdau</button>
+        </div>
+        <div class="table-scroll">
+            <table class="wd-table">
+                <thead>
+                    <tr>
+                        <th>Mwaka</th>
+                        <th>Jina</th>
+                        <th>Shirika</th>
+                        <th>Aina</th>
+                        <th>Mawasiliano</th>
+                        <th>Eneo</th>
+                        <th>Wajibu</th>
+                        <th>Hali</th>
+                        <th>Vitendo</th>
+                    </tr>
+                </thead>
+                <tbody id="wd-tbody">
+                    <tr><td colspan="9" class="wd-empty">Inapakia...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const PLANNING_API = '/api/planning/';
+    const API = '/wadau/api/stakeholders/';
+    let editingId = null;
+    const csrf = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value
+        || (document.cookie.match(/csrftoken=([^;]+)/) || [])[1]
+        || '';
+
+    function headers(json) {
+        const h = { 'X-CSRFToken': csrf };
+        if (json) h['Content-Type'] = 'application/json';
+        return h;
+    }
+
+    function resetSelect(sel, placeholder, disabled) {
+        sel.innerHTML = '';
+        const o = document.createElement('option');
+        o.value = '';
+        o.textContent = placeholder;
+        sel.appendChild(o);
+        sel.disabled = !!disabled;
+        sel.value = '';
+    }
+
+    function fillOptions(sel, items, placeholder, disabled) {
+        resetSelect(sel, placeholder, disabled);
+        (items || []).forEach(item => {
+            const name = typeof item === 'string' ? item : (item.name || item);
+            if (!name) return;
+            const o = document.createElement('option');
+            o.value = name;
+            o.textContent = name;
+            sel.appendChild(o);
+        });
+    }
+
+    function ensureOption(sel, value) {
+        if (!value) return;
+        for (let i = 0; i < sel.options.length; i++) {
+            if (sel.options[i].value.toLowerCase() === value.toLowerCase()) {
+                sel.selectedIndex = i;
+                return;
+            }
+        }
+        const o = document.createElement('option');
+        o.value = value;
+        o.textContent = value;
+        sel.appendChild(o);
+        sel.value = value;
+        sel.disabled = false;
+    }
+
+    function setupCascade(ids) {
+        const region = document.getElementById(ids.region);
+        const district = document.getElementById(ids.district);
+        const ward = document.getElementById(ids.ward);
+        const village = document.getElementById(ids.village);
+        if (!region) return;
+
+        fetch(PLANNING_API + 'regions/')
+            .then(r => r.json())
+            .then(data => fillOptions(region, Array.isArray(data) ? data : [], '-- Chagua Mkoa --', false))
+            .catch(() => {});
+
+        region.addEventListener('change', () => {
+            resetSelect(district, '-- Chagua Wilaya --', true);
+            resetSelect(ward, '-- Chagua Kata --', true);
+            resetSelect(village, '-- Chagua Kijiji --', true);
+            if (!region.value) { if (ids.onChange) ids.onChange(); return; }
+            fetch(PLANNING_API + 'districts/' + encodeURIComponent(region.value) + '/')
+                .then(r => r.json())
+                .then(data => {
+                    fillOptions(district, data, '-- Chagua Wilaya --', false);
+                    if (ids.onChange) ids.onChange();
+                });
+        });
+
+        district.addEventListener('change', () => {
+            resetSelect(ward, '-- Chagua Kata --', true);
+            resetSelect(village, '-- Chagua Kijiji --', true);
+            if (!district.value) { if (ids.onChange) ids.onChange(); return; }
+            fetch(PLANNING_API + 'wards/' + encodeURIComponent(region.value) + '/' + encodeURIComponent(district.value) + '/')
+                .then(r => r.json())
+                .then(data => {
+                    fillOptions(ward, data, '-- Chagua Kata --', false);
+                    if (ids.onChange) ids.onChange();
+                });
+        });
+
+        ward.addEventListener('change', () => {
+            resetSelect(village, '-- Chagua Kijiji --', true);
+            if (!ward.value) { if (ids.onChange) ids.onChange(); return; }
+            fetch(
+                PLANNING_API + 'villages/' + encodeURIComponent(region.value) + '/' +
+                encodeURIComponent(district.value) + '/' + encodeURIComponent(ward.value) + '/'
+            )
+                .then(r => r.json())
+                .then(data => {
+                    fillOptions(village, data, '-- Chagua Kijiji --', false);
+                    if (ids.onChange) ids.onChange();
+                });
+        });
+
+        village.addEventListener('change', () => { if (ids.onChange) ids.onChange(); });
+    }
+
+    function setCascadeValues(prefix, loc) {
+        const region = document.getElementById(prefix + '-region');
+        const district = document.getElementById(prefix + '-district');
+        const ward = document.getElementById(prefix + '-ward');
+        const village = document.getElementById(prefix + '-village');
+        if (!region || !loc.region_name) return Promise.resolve();
+
+        return fetch(PLANNING_API + 'regions/')
+            .then(r => r.json())
+            .then(data => {
+                fillOptions(region, Array.isArray(data) ? data : [], '-- Chagua Mkoa --', false);
+                ensureOption(region, loc.region_name);
+                return fetch(PLANNING_API + 'districts/' + encodeURIComponent(loc.region_name) + '/');
+            })
+            .then(r => r.json())
+            .then(data => {
+                fillOptions(district, data, '-- Chagua Wilaya --', false);
+                ensureOption(district, loc.district_name);
+                if (!loc.district_name) return [];
+                return fetch(PLANNING_API + 'wards/' + encodeURIComponent(loc.region_name) + '/' + encodeURIComponent(loc.district_name) + '/').then(r => r.json());
+            })
+            .then(data => {
+                fillOptions(ward, data || [], '-- Chagua Kata --', !(data && data.length));
+                ensureOption(ward, loc.ward_name);
+                if (!loc.ward_name || !loc.district_name) return [];
+                return fetch(
+                    PLANNING_API + 'villages/' + encodeURIComponent(loc.region_name) + '/' +
+                    encodeURIComponent(loc.district_name) + '/' + encodeURIComponent(loc.ward_name) + '/'
+                ).then(r => r.json());
+            })
+            .then(data => {
+                fillOptions(village, data || [], '-- Chagua Kijiji --', !(data && data.length));
+                ensureOption(village, loc.village_name);
+            })
+            .catch(() => {});
+    }
+
+    const DEFAULT_FY = '{{ default_financial_year|default:"2026/2027" }}';
+
+    function currentFy() {
+        return (document.getElementById('wd-fy') || {}).value || DEFAULT_FY;
+    }
+
+    function persistFy(fy) {
+        fetch('/api/financial-year/', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: headers(true),
+            body: JSON.stringify({ financial_year: fy || DEFAULT_FY }),
+        }).catch(() => {});
+    }
+
+    function filterParams() {
+        const p = new URLSearchParams();
+        const region = document.getElementById('wd-region').value;
+        const district = document.getElementById('wd-district').value;
+        const ward = document.getElementById('wd-ward').value;
+        const village = document.getElementById('wd-village').value;
+        const type = document.getElementById('wd-filter-type').value;
+        const active = document.getElementById('wd-filter-active').value;
+        const q = document.getElementById('wd-q').value.trim();
+        const fy = currentFy();
+        if (region) p.set('region_name', region);
+        if (district) p.set('district_name', district);
+        if (ward) p.set('ward_name', ward);
+        if (village) p.set('village_name', village);
+        if (type) p.set('stakeholder_type', type);
+        if (active !== '') p.set('is_active', active);
+        if (q) p.set('q', q);
+        if (fy) p.set('financial_year', fy);
+        return p;
+    }
+
+    function resetForm() {
+        editingId = null;
+        document.getElementById('f-edit-id').value = '';
+        document.getElementById('wd-form-title').textContent = 'Sajili Mdau';
+        document.getElementById('btn-save-label').textContent = 'Hifadhi Mdau';
+        document.getElementById('f-fy').value = currentFy();
+        document.getElementById('f-name').value = '';
+        document.getElementById('f-organization').value = '';
+        document.getElementById('f-type').selectedIndex = 0;
+        document.getElementById('f-role').value = '';
+        document.getElementById('f-phone').value = '';
+        document.getElementById('f-email').value = '';
+        document.getElementById('f-notes').value = '';
+        document.getElementById('f-active').value = '1';
+        resetSelect(document.getElementById('f-district'), '-- Chagua Wilaya --', true);
+        resetSelect(document.getElementById('f-ward'), '-- Chagua Kata --', true);
+        resetSelect(document.getElementById('f-village'), '-- Chagua Kijiji --', true);
+        document.getElementById('f-region').value = '';
+    }
+
+    function openForm() {
+        document.getElementById('wd-form-panel').classList.add('open');
+        document.getElementById('wd-form-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function collectPayload() {
+        return {
+            financial_year: document.getElementById('f-fy').value.trim() || currentFy(),
+            name: document.getElementById('f-name').value.trim(),
+            organization: document.getElementById('f-organization').value.trim(),
+            stakeholder_type: document.getElementById('f-type').value,
+            role: document.getElementById('f-role').value.trim(),
+            phone: document.getElementById('f-phone').value.trim(),
+            email: document.getElementById('f-email').value.trim(),
+            region_name: document.getElementById('f-region').value,
+            district_name: document.getElementById('f-district').value,
+            ward_name: document.getElementById('f-ward').value,
+            village_name: document.getElementById('f-village').value,
+            notes: document.getElementById('f-notes').value.trim(),
+            is_active: document.getElementById('f-active').value === '1',
+        };
+    }
+
+    function loadList() {
+        const tbody = document.getElementById('wd-tbody');
+        tbody.innerHTML = '<tr><td colspan="9" class="wd-empty">Inapakia...</td></tr>';
+        fetch(API + '?' + filterParams().toString(), { credentials: 'same-origin' })
+            .then(r => r.json())
+            .then(data => {
+                const t = data.totals || {};
+                if (t.total != null) document.getElementById('kpi-total').textContent = t.total;
+                if (t.active != null) document.getElementById('kpi-active').textContent = t.active;
+                if (t.inactive != null) document.getElementById('kpi-inactive').textContent = t.inactive;
+
+                const rows = data.results || [];
+                if (!rows.length) {
+                    tbody.innerHTML = '<tr><td colspan="9" class="wd-empty">Hakuna wadau. Bofya <strong>Sajili Mdau</strong>.</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = rows.map(s => {
+                    const eneo = [s.village_name, s.ward_name, s.district_name, s.region_name].filter(Boolean).join(' / ') || '—';
+                    const contact = [s.phone, s.email].filter(Boolean).join('<br>') || '—';
+                    return `<tr>
+                        <td><span class="wd-chip">${s.financial_year || '—'}</span></td>
+                        <td><strong>${s.name}</strong></td>
+                        <td>${s.organization || '—'}</td>
+                        <td><span class="wd-chip">${s.stakeholder_type_label || s.stakeholder_type}</span></td>
+                        <td>${contact}</td>
+                        <td>${eneo}</td>
+                        <td>${s.role || '—'}</td>
+                        <td><span class="wd-status ${s.is_active ? '' : 'off'}">${s.is_active ? 'Hai' : 'Si hai'}</span></td>
+                        <td class="wd-actions">
+                            <button type="button" class="wd-btn edit" data-edit="${s.id}" title="Hariri"><i class="fas fa-edit"></i></button>
+                            <button type="button" class="wd-btn danger" data-del="${s.id}" title="Futa"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>`;
+                }).join('');
+            })
+            .catch(() => {
+                tbody.innerHTML = '<tr><td colspan="9" class="wd-empty">Hitilafu ya kupakia data</td></tr>';
+            });
+    }
+
+    function startEdit(id) {
+        fetch(API + id + '/', { credentials: 'same-origin' })
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success || !data.stakeholder) {
+                    if (window.Swal) Swal.fire('Hitilafu', data.message || 'Mdau hajapatikana', 'error');
+                    else alert(data.message || 'Mdau hajapatikana');
+                    return;
+                }
+                const s = data.stakeholder;
+                editingId = s.id;
+                document.getElementById('f-edit-id').value = s.id;
+                document.getElementById('wd-form-title').textContent = 'Hariri Mdau — ' + s.name;
+                document.getElementById('btn-save-label').textContent = 'Hifadhi Mabadiliko';
+                document.getElementById('f-fy').value = s.financial_year || currentFy();
+                document.getElementById('f-name').value = s.name || '';
+                document.getElementById('f-organization').value = s.organization || '';
+                document.getElementById('f-type').value = s.stakeholder_type || 'community';
+                document.getElementById('f-role').value = s.role || '';
+                document.getElementById('f-phone').value = s.phone || '';
+                document.getElementById('f-email').value = s.email || '';
+                document.getElementById('f-notes').value = s.notes || '';
+                document.getElementById('f-active').value = s.is_active ? '1' : '0';
+                setCascadeValues('f', s).then(openForm);
+            });
+    }
+
+    document.getElementById('wd-fy').addEventListener('change', () => {
+        const fy = currentFy();
+        document.getElementById('f-fy').value = fy;
+        persistFy(fy);
+        loadList();
+    });
+    document.getElementById('wd-fy').addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            document.getElementById('wd-fy').dispatchEvent(new Event('change'));
+        }
+    });
+
+    document.getElementById('btn-new').addEventListener('click', () => {
+        resetForm();
+        openForm();
+    });
+    document.getElementById('btn-cancel').addEventListener('click', () => {
+        document.getElementById('wd-form-panel').classList.remove('open');
+        resetForm();
+    });
+    document.getElementById('btn-reload').addEventListener('click', loadList);
+    document.getElementById('wd-q').addEventListener('keydown', e => {
+        if (e.key === 'Enter') loadList();
+    });
+
+    document.getElementById('btn-save').addEventListener('click', () => {
+        const payload = collectPayload();
+        if (!payload.name) {
+            if (window.Swal) Swal.fire('Tahadhari', 'Jaza jina la mdau', 'warning');
+            else alert('Jaza jina la mdau');
+            return;
+        }
+        const isEdit = !!editingId;
+        const url = isEdit ? API + editingId + '/' : API;
+        const method = isEdit ? 'PUT' : 'POST';
+        fetch(url, {
+            method,
+            credentials: 'same-origin',
+            headers: headers(true),
+            body: JSON.stringify(payload),
+        })
+            .then(r => r.json().then(data => ({ ok: r.ok, data })))
+            .then(({ ok, data }) => {
+                if (!ok || !data.success) {
+                    if (window.Swal) Swal.fire('Hitilafu', data.message || 'Imeshindikana kuhifadhi', 'error');
+                    else alert(data.message || 'Imeshindikana kuhifadhi');
+                    return;
+                }
+                document.getElementById('wd-form-panel').classList.remove('open');
+                resetForm();
+                loadList();
+                if (window.Swal) Swal.fire('Imefanikiwa', isEdit ? 'Mdau amehaririwa' : 'Mdau amesajiliwa', 'success');
+            })
+            .catch(() => {
+                if (window.Swal) Swal.fire('Hitilafu', 'Hitilafu ya mtandao', 'error');
+                else alert('Hitilafu ya mtandao');
+            });
+    });
+
+    document.getElementById('wd-tbody').addEventListener('click', e => {
+        const editBtn = e.target.closest('[data-edit]');
+        const delBtn = e.target.closest('[data-del]');
+        if (editBtn) {
+            startEdit(editBtn.getAttribute('data-edit'));
+            return;
+        }
+        if (delBtn) {
+            const id = delBtn.getAttribute('data-del');
+            const doDelete = () => {
+                fetch(API + id + '/', {
+                    method: 'DELETE',
+                    credentials: 'same-origin',
+                    headers: headers(false),
+                })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (!data.success) {
+                            if (window.Swal) Swal.fire('Hitilafu', data.message || 'Imeshindikana kufuta', 'error');
+                            return;
+                        }
+                        loadList();
+                    });
+            };
+            if (window.Swal) {
+                Swal.fire({
+                    title: 'Futa mdau?',
+                    text: 'Hatua hii haiwezi kubatilishwa.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Ndiyo, futa',
+                    cancelButtonText: 'Ghairi',
+                }).then(res => { if (res.isConfirmed) doDelete(); });
+            } else if (confirm('Futa mdau?')) {
+                doDelete();
+            }
+        }
+    });
+
+    setupCascade({
+        region: 'wd-region', district: 'wd-district', ward: 'wd-ward', village: 'wd-village',
+        onChange: loadList,
+    });
+    setupCascade({
+        region: 'f-region', district: 'f-district', ward: 'f-ward', village: 'f-village',
+    });
+    document.getElementById('wd-filter-type').addEventListener('change', loadList);
+    document.getElementById('wd-filter-active').addEventListener('change', loadList);
+
+    loadList();
+})();
+</script>
+{% endblock %}

@@ -1,5 +1,6 @@
 import json
 from datetime import date
+from functools import wraps
 
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q
@@ -12,23 +13,38 @@ from .models import (
     LandConflictCase,
     available_financial_years,
     financial_year_from_date,
+    normalize_financial_year,
 )
+from dashboard.financial_year import session_financial_year, set_session_financial_year
+
+
+def api_login_required(view_func):
+    """Like login_required but returns JSON 401 (not HTML login redirect)."""
+    @wraps(view_func)
+    def _wrapped(request, *args, **kwargs):
+        if not getattr(request.user, 'is_authenticated', False):
+            return JsonResponse(
+                {'success': False, 'message': 'Ingia kwanza', 'code': 'login_required'},
+                status=401,
+            )
+        return view_func(request, *args, **kwargs)
+    return _wrapped
 
 
 def _db_conflict_types():
     return list(LandConflictCase.ConflictType.choices)
 
 
-def _db_conflict_sources():
-    return list(LandConflictCase.ConflictSource.choices)
-
-
-def _db_resolution_methods():
-    return list(LandConflictCase.ResolutionMethod.choices)
-
-
 def _db_financial_years():
     return available_financial_years()
+
+
+def _normalize_free_text_choice(value, label_map):
+    """Rudisha maandishi huru; badilisha code ya zamani kuwa jina la Kiswahili."""
+    raw = (value or '').strip()
+    if not raw:
+        return ''
+    return label_map.get(raw, raw)
 
 
 def _parse_body(request):
@@ -52,15 +68,7 @@ def _parse_date(value):
 
 
 def _normalize_fy(value):
-    fy = (value or '').strip()
-    if not fy:
-        return DEFAULT_FINANCIAL_YEAR
-    # accept 2026-2027 → 2026/2027
-    fy = fy.replace('-', '/')
-    if len(fy) == 9 and fy[4] == '/':
-        return fy
-    return DEFAULT_FINANCIAL_YEAR
-
+    return normalize_financial_year(value, default=DEFAULT_FINANCIAL_YEAR)
 
 def _case_to_dict(case):
     return {
@@ -159,6 +167,7 @@ def _apply_location_filters(qs, request):
             | Q(village_name__icontains=q)
             | Q(village_name_other__icontains=q)
             | Q(conflict_source__icontains=q)
+            | Q(resolution_method__icontains=q)
             | Q(unresolved_reason__icontains=q)
             | Q(financial_year__icontains=q)
         )
@@ -195,13 +204,20 @@ def _case_payload(data, user=None, existing=None):
         'financial_year': financial_year,
         'conflict_type': data.get('conflict_type') or LandConflictCase.ConflictType.VILLAGE_BOUNDARY,
         'conflict_type_other': (data.get('conflict_type_other') or '').strip(),
-        'conflict_source': data.get('conflict_source') or LandConflictCase.ConflictSource.OTHER,
+        'conflict_source': _normalize_free_text_choice(
+            data.get('conflict_source'), LandConflictCase.CONFLICT_SOURCE_LABELS
+        ),
         'status': status,
         'is_resolved': is_resolved,
         'region_name': (data.get('region_name') or '').strip(),
         'district_name': (data.get('district_name') or '').strip(),
         'ward_name': (data.get('ward_name') or '').strip(),
-        'village_name': (data.get('village_name') or '').strip(),
+        # Kijiji removed from UI — keep historical value on update when blank
+        'village_name': (
+            (data.get('village_name') or '').strip()
+            if (data.get('village_name') or '').strip() or not existing
+            else (existing.village_name or '')
+        ),
         'village_name_other': (data.get('village_name_other') or '').strip(),
         'complainant': (data.get('complainant') or '').strip(),
         'respondent': (data.get('respondent') or '').strip(),
@@ -209,7 +225,9 @@ def _case_payload(data, user=None, existing=None):
         'started_date': started,
         'resolved_date': _parse_date(data.get('resolved_date')),
         'filed_date': _parse_date(data.get('filed_date')) or (existing.filed_date if existing else date.today()),
-        'resolution_method': data.get('resolution_method') or LandConflictCase.ResolutionMethod.NONE,
+        'resolution_method': _normalize_free_text_choice(
+            data.get('resolution_method'), LandConflictCase.RESOLUTION_METHOD_LABELS
+        ),
         'resolution_details': (data.get('resolution_details') or '').strip(),
         'unresolved_reason': (data.get('unresolved_reason') or '').strip(),
     }
@@ -217,8 +235,6 @@ def _case_payload(data, user=None, existing=None):
         payload['resolved_date'] = None
     else:
         payload['unresolved_reason'] = ''
-        if not payload['resolution_method'] or payload['resolution_method'] == LandConflictCase.ResolutionMethod.NONE:
-            payload['resolution_method'] = LandConflictCase.ResolutionMethod.OTHER
     if payload['conflict_type'] != LandConflictCase.ConflictType.OTHER:
         payload['conflict_type_other'] = ''
     return payload
@@ -240,16 +256,21 @@ def _type_stats(qs=None):
 
 @login_required
 def migogoro_portal(request):
-    fy = _normalize_fy(request.GET.get('financial_year') or DEFAULT_FINANCIAL_YEAR)
+    fy = _normalize_fy(
+        request.GET.get('financial_year')
+        or request.GET.get('fy')
+        or session_financial_year(request)
+    )
+    set_session_financial_year(request, fy)
     stats = _type_stats(LandConflictCase.objects.filter(financial_year=fy))
     fy_choices = _db_financial_years()
+    if fy not in fy_choices:
+        fy_choices.insert(0, fy)
     if DEFAULT_FINANCIAL_YEAR not in fy_choices:
         fy_choices.insert(0, DEFAULT_FINANCIAL_YEAR)
     return render(request, 'land_conflicts/portal.html', {
         'stats': stats,
         'conflict_types': _db_conflict_types(),
-        'conflict_sources': _db_conflict_sources(),
-        'resolution_methods': _db_resolution_methods(),
         'status_choices': LandConflictCase.Status.choices,
         'financial_years': fy_choices,
         'current_financial_year': fy,
@@ -257,10 +278,10 @@ def migogoro_portal(request):
     })
 
 
-@login_required
+@api_login_required
 @require_http_methods(['GET'])
 def api_lookups(request):
-    """Orodha za aina / chanzo / utatuzi / FY (kutoka model choices — jedwali moja)."""
+    """Orodha za aina / FY (chanzo na utatuzi ni maandishi huru)."""
     return JsonResponse({
         'success': True,
         'table': 'migogoro',
@@ -268,14 +289,6 @@ def api_lookups(request):
         'conflict_types': [
             {'code': code, 'name': name}
             for code, name in LandConflictCase.ConflictType.choices
-        ],
-        'conflict_sources': [
-            {'code': code, 'name': name}
-            for code, name in LandConflictCase.ConflictSource.choices
-        ],
-        'resolution_methods': [
-            {'code': code, 'name': name}
-            for code, name in LandConflictCase.ResolutionMethod.choices
         ],
         'financial_years': [
             {'code': y, 'label': y, 'is_default': y == DEFAULT_FINANCIAL_YEAR}
@@ -285,7 +298,7 @@ def api_lookups(request):
     })
 
 
-@login_required
+@api_login_required
 @require_http_methods(['GET'])
 def api_summary(request):
     """Muhtasari: mikoa / wilaya / kata / vijiji vyenye migogoro (kwa FY)."""
@@ -293,7 +306,7 @@ def api_summary(request):
     # Default FY when not specified
     if not (request.GET.get('financial_year') or request.GET.get('fy')):
         qs = qs.filter(financial_year=DEFAULT_FINANCIAL_YEAR)
-    group = (request.GET.get('group') or 'village').strip().lower()
+    group = (request.GET.get('group') or 'ward').strip().lower()
 
     if group == 'region':
         rows = (
@@ -383,7 +396,7 @@ def api_summary(request):
     })
 
 
-@login_required
+@api_login_required
 @require_http_methods(['GET', 'POST'])
 def api_cases(request):
     if request.method == 'GET':
@@ -401,11 +414,8 @@ def api_cases(request):
     data = _parse_body(request)
     region = (data.get('region_name') or '').strip()
     district = (data.get('district_name') or '').strip()
-    village = (data.get('village_name') or '').strip()
     if not region or not district:
         return JsonResponse({'success': False, 'message': 'Chagua mkoa na wilaya'}, status=400)
-    if not village:
-        return JsonResponse({'success': False, 'message': 'Chagua kijiji chenye mgogoro'}, status=400)
     if not (data.get('complainant') or '').strip() or not (data.get('respondent') or '').strip():
         return JsonResponse({
             'success': False,
@@ -415,6 +425,8 @@ def api_cases(request):
         return JsonResponse({'success': False, 'message': 'Chagua aina ya mgogoro'}, status=400)
     if data.get('conflict_type') == LandConflictCase.ConflictType.OTHER and not (data.get('conflict_type_other') or '').strip():
         return JsonResponse({'success': False, 'message': 'Eleza aina nyingine ya mgogoro'}, status=400)
+    if not (data.get('conflict_source') or '').strip():
+        return JsonResponse({'success': False, 'message': 'Andika chanzo cha mgogoro'}, status=400)
     if not data.get('started_date'):
         return JsonResponse({'success': False, 'message': 'Weka tarehe mgogoro ulipoanzia'}, status=400)
 
@@ -424,13 +436,10 @@ def api_cases(request):
             'success': False,
             'message': 'Eleza kwanini mgogoro bado haujatatuliwa',
         }, status=400)
-    if payload['is_resolved'] and (
-        not payload['resolution_method']
-        or payload['resolution_method'] == LandConflictCase.ResolutionMethod.NONE
-    ):
+    if payload['is_resolved'] and not payload['resolution_method']:
         return JsonResponse({
             'success': False,
-            'message': 'Chagua mbinu za utatuzi kwa mgogoro uliotatuliwa',
+            'message': 'Andika mbinu za utatuzi kwa mgogoro uliotatuliwa',
         }, status=400)
 
     case = LandConflictCase.objects.create(
@@ -438,10 +447,11 @@ def api_cases(request):
         created_by_id=request.user.id if request.user.is_authenticated else None,
         **payload,
     )
+    set_session_financial_year(request, payload['financial_year'])
     return JsonResponse({'success': True, 'case': _case_to_dict(case)}, status=201)
 
 
-@login_required
+@api_login_required
 @require_http_methods(['GET', 'PATCH', 'PUT', 'DELETE'])
 def api_case_detail(request, case_id):
     try:
@@ -476,13 +486,13 @@ def api_case_detail(request, case_id):
     payload = _case_payload(data, user=request.user, existing=case)
     if not payload.get('region_name') or not payload.get('district_name'):
         return JsonResponse({'success': False, 'message': 'Chagua mkoa na wilaya'}, status=400)
-    if not payload.get('village_name'):
-        return JsonResponse({'success': False, 'message': 'Chagua kijiji chenye mgogoro'}, status=400)
     if not payload.get('complainant') or not payload.get('respondent'):
         return JsonResponse({
             'success': False,
             'message': 'Jaza Mlalamikaji na Mlalamikiwa (mfano: Ifunde - Njaro)',
         }, status=400)
+    if not payload.get('conflict_source'):
+        return JsonResponse({'success': False, 'message': 'Andika chanzo cha mgogoro'}, status=400)
     if payload.get('conflict_type') == LandConflictCase.ConflictType.OTHER and not payload.get('conflict_type_other'):
         return JsonResponse({'success': False, 'message': 'Eleza aina nyingine ya mgogoro'}, status=400)
     if not payload['is_resolved'] and not payload['unresolved_reason']:
@@ -490,16 +500,14 @@ def api_case_detail(request, case_id):
             'success': False,
             'message': 'Eleza kwanini mgogoro bado haujatatuliwa',
         }, status=400)
-    if payload['is_resolved'] and (
-        not payload['resolution_method']
-        or payload['resolution_method'] == LandConflictCase.ResolutionMethod.NONE
-    ):
+    if payload['is_resolved'] and not payload['resolution_method']:
         return JsonResponse({
             'success': False,
-            'message': 'Chagua mbinu za utatuzi kwa mgogoro uliotatuliwa',
+            'message': 'Andika mbinu za utatuzi kwa mgogoro uliotatuliwa',
         }, status=400)
 
     for key, value in payload.items():
         setattr(case, key, value)
     case.save()
+    set_session_financial_year(request, payload['financial_year'])
     return JsonResponse({'success': True, 'case': _case_to_dict(case)})

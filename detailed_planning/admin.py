@@ -8,11 +8,15 @@ from .models import (
 
     DistrictPlanningBoundary,
 
+    MeetingMinutes,
+
     PlanningParcel,
 
     PlanningReport,
 
     PlanningShapefile,
+
+    QuarterReport,
 
     VillageDetailedPlan,
 
@@ -198,4 +202,19 @@ class PlanningReportAdmin(admin.ModelAdmin):
 
     list_filter = ('report_type', 'status', 'file_format', 'report_year')
 
+
+@admin.register(QuarterReport)
+class QuarterReportAdmin(admin.ModelAdmin):
+    list_display = ('title', 'financial_year', 'quarter', 'original_filename', 'created_at')
+    list_filter = ('financial_year', 'quarter', 'file_format')
+    search_fields = ('title', 'notes', 'original_filename')
+    readonly_fields = ('created_at', 'updated_at', 'created_by_id')
+
+
+@admin.register(MeetingMinutes)
+class MeetingMinutesAdmin(admin.ModelAdmin):
+    list_display = ('title', 'financial_year', 'meeting_date', 'original_filename', 'created_at')
+    list_filter = ('financial_year', 'file_format')
+    search_fields = ('title', 'notes', 'original_filename')
+    readonly_fields = ('created_at', 'updated_at', 'created_by_id')
 

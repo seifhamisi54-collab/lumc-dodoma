@@ -1,13 +1,26 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 
-from accounts.models import CustomUser, UserRole
+from accounts.models import CustomUser, SectionAccessConfig, UserRole
 
 
 @admin.register(UserRole)
 class UserRoleAdmin(admin.ModelAdmin):
     list_display = ('name', 'get_name_display')
     search_fields = ('name',)
+
+
+@admin.register(SectionAccessConfig)
+class SectionAccessConfigAdmin(admin.ModelAdmin):
+    list_display = ('registration_code', 'login_code', 'updated_at')
+    fields = ('registration_code', 'login_code', 'updated_at')
+    readonly_fields = ('updated_at',)
+
+    def has_add_permission(self, request):
+        return not SectionAccessConfig.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(CustomUser)

@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from locations.models import Region, District
@@ -21,3 +22,61 @@ class CustomUser(AbstractUser):
     profile_picture = models.CharField(max_length=500, null=True, blank=True)  # Badala ya ImageField
     def __str__(self):
         return self.username
+
+
+class SectionAccessConfig(models.Model):
+    """Singleton: shared section registration + institution login codes."""
+
+    registration_code = models.CharField(
+        max_length=128,
+        verbose_name='Nambari ya Usajili (Section)',
+        help_text='Inahitajika wakati wa kujisajili. Shared kwa sehemu yote.',
+    )
+    login_code = models.CharField(
+        max_length=128,
+        verbose_name='Nambari ya Kuingia (Taasisi)',
+        help_text='Inahitajika wakati wa login pamoja na username/password.',
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Section Access Config'
+        verbose_name_plural = 'Section Access Config'
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        pass
+
+    def __str__(self):
+        return 'Section Access Config'
+
+    @classmethod
+    def get_solo(cls):
+        defaults = {
+            'registration_code': getattr(settings, 'LUMC_REGISTRATION_CODE', 'LUMC-REG-2026'),
+            'login_code': getattr(settings, 'LUMC_LOGIN_CODE', 'LUMC-LOGIN-2026'),
+        }
+        obj, _ = cls.objects.get_or_create(pk=1, defaults=defaults)
+        return obj
+
+
+def get_registration_code() -> str:
+    try:
+        return (SectionAccessConfig.get_solo().registration_code or '').strip()
+    except Exception:
+        return (getattr(settings, 'LUMC_REGISTRATION_CODE', 'LUMC-REG-2026') or '').strip()
+
+
+def get_login_code() -> str:
+    try:
+        return (SectionAccessConfig.get_solo().login_code or '').strip()
+    except Exception:
+        return (getattr(settings, 'LUMC_LOGIN_CODE', 'LUMC-LOGIN-2026') or '').strip()
+
+
+def section_code_matches(provided: str, expected: str) -> bool:
+    """Case-sensitive compare after trim. Never log codes."""
+    return (provided or '').strip() == (expected or '').strip()

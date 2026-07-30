@@ -9,11 +9,13 @@ urlpatterns = [
     # PAGE VIEWS
     # =====================================================
     path('', views.home, name='home'),
+    path('api/financial-year/', views.api_financial_year, name='api_financial_year'),
     path('map/', views.map_view, name='map_view'),
     path('map/tools/', views.gis_tools_view, name='gis_tools'),
     path('landuse/', views.landuse_home, name='landuse_home'),
     path('data-portal/', views.data_portal, name='data_portal'),
     path('migogoro/', include('land_conflicts.urls')),
+    path('wadau/', include('wadau.urls')),
     path('system-admin/', sysadmin.system_admin_page, name='system_admin'),
     path('system-admin/unlock/', sysadmin.admin_unlock_page, name='admin_unlock'),
     

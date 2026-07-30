@@ -3,54 +3,29 @@ from datetime import date
 
 from django.db import models
 
-
-# Mwaka wa fedha Tanzania: Julai 1 → Juni 30
-DEFAULT_FINANCIAL_YEAR = '2026/2027'
-FY_START_YEAR = 2020
-FY_YEARS_AHEAD = 15
-
-
-def financial_year_from_date(value=None) -> str:
-    """Rudisha FY kama 2026/2027 kutoka tarehe (Jul–Jun)."""
-    d = value or date.today()
-    if hasattr(d, 'year'):
-        year, month = d.year, d.month
-    else:
-        try:
-            parsed = date.fromisoformat(str(d)[:10])
-            year, month = parsed.year, parsed.month
-        except ValueError:
-            return DEFAULT_FINANCIAL_YEAR
-    if month >= 7:
-        return f'{year}/{year + 1}'
-    return f'{year - 1}/{year}'
+from dashboard.financial_year import (
+    DEFAULT_FINANCIAL_YEAR,
+    FY_MAX_LENGTH,
+    FY_START_YEAR,
+    FY_YEARS_AHEAD,
+    financial_year_from_date,
+    normalize_financial_year,
+    suggested_financial_years,
+)
 
 
 def available_financial_years(extra=None) -> list[str]:
-    """Orodha ya FY (kutoka hesabu + miaka iliyotumika kwenye kesi)."""
-    years: set[str] = set()
-    current = financial_year_from_date()
+    """Compat: orodha ya FY + miaka iliyotumika kwenye kesi."""
+    db_extra = list(extra or [])
     try:
-        current_start = int(current.split('/')[0])
-    except (ValueError, IndexError):
-        current_start = date.today().year
-    end_start = max(
-        current_start + FY_YEARS_AHEAD,
-        int(DEFAULT_FINANCIAL_YEAR.split('/')[0]) + FY_YEARS_AHEAD,
-    )
-    for y in range(FY_START_YEAR, end_start + 1):
-        years.add(f'{y}/{y + 1}')
-    if extra:
-        years |= set(extra)
-    try:
-        years |= set(
+        db_extra.extend(
             LandConflictCase.objects.exclude(financial_year='')
             .values_list('financial_year', flat=True)
             .distinct()
         )
     except Exception:
         pass
-    return sorted(years, reverse=True)
+    return suggested_financial_years(extra=db_extra)
 
 
 AVAILABLE_FINANCIAL_YEARS = []  # filled lazily via available_financial_years()
@@ -72,36 +47,38 @@ class LandConflictCase(models.Model):
         RESOURCES = 'resources', '3. Mgogoro wa Rasilimali'
         OTHER = 'other', '4. Mingineyo'
 
-    class ConflictSource(models.TextChoices):
-        UNCLEAR_BOUNDARY = 'unclear_boundary', 'Mipaka isiyoeleweka'
-        NO_DOCUMENTS = 'no_documents', 'Ukosefu wa hati / usajili'
-        INHERITANCE_DISPUTE = 'inheritance_dispute', 'Mgogoro wa urithi'
-        LAND_GRABBING = 'land_grabbing', 'Kunyakua ardhi'
-        POPULATION_PRESSURE = 'population_pressure', 'Msongamano wa watu'
-        RESOURCE_COMPETITION = 'resource_competition', 'Ushindani wa rasilimali'
-        RESETTLEMENT = 'resettlement', 'Uhamishaji / makazi mapya'
-        INVESTOR_PROJECT = 'investor_project', 'Mradi wa uwekezaji'
-        ADMIN_DECISION = 'admin_decision', 'Uamuzi wa utawala'
-        OTHER = 'other', 'Chanzo kingine'
-
-    class ResolutionMethod(models.TextChoices):
-        MEDIATION = 'mediation', 'Usuluhishi wa kijamii'
-        VILLAGE_COUNCIL = 'village_council', 'Baraza la Kijiji'
-        WARD_TRIBUNAL = 'ward_tribunal', 'Baraza la Kata'
-        DISTRICT_LAND = 'district_land', 'Ofisi ya Ardhi ya Wilaya'
-        COURT = 'court', 'Mahakama'
-        NEGOTIATION = 'negotiation', 'Majadiliano'
-        SURVEY = 'survey', 'Upimaji / mipaka mpya'
-        COMPENSATION = 'compensation', 'Fidia'
-        OTHER = 'other', 'Nyingine'
-        NONE = 'none', 'Bado hakuna'
+    # Legacy choice maps (kwa kuhamia data ya zamani → maandishi huru)
+    CONFLICT_SOURCE_LABELS = {
+        'unclear_boundary': 'Mipaka isiyoeleweka',
+        'no_documents': 'Ukosefu wa hati / usajili',
+        'inheritance_dispute': 'Mgogoro wa urithi',
+        'land_grabbing': 'Kunyakua ardhi',
+        'population_pressure': 'Msongamano wa watu',
+        'resource_competition': 'Ushindani wa rasilimali',
+        'resettlement': 'Uhamishaji / makazi mapya',
+        'investor_project': 'Mradi wa uwekezaji',
+        'admin_decision': 'Uamuzi wa utawala',
+        'other': 'Chanzo kingine',
+    }
+    RESOLUTION_METHOD_LABELS = {
+        'mediation': 'Usuluhishi wa kijamii',
+        'village_council': 'Baraza la Kijiji',
+        'ward_tribunal': 'Baraza la Kata',
+        'district_land': 'Ofisi ya Ardhi ya Wilaya',
+        'court': 'Mahakama',
+        'negotiation': 'Majadiliano',
+        'survey': 'Upimaji / mipaka mpya',
+        'compensation': 'Fidia',
+        'other': 'Nyingine',
+        'none': '',
+    }
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     case_number = models.CharField(max_length=40, unique=True, db_index=True)
     title = models.CharField(max_length=255, blank=True, default='')
 
     financial_year = models.CharField(
-        max_length=9,
+        max_length=FY_MAX_LENGTH,
         default=DEFAULT_FINANCIAL_YEAR,
         db_index=True,
         verbose_name='Mwaka wa fedha',
@@ -121,11 +98,10 @@ class LandConflictCase(models.Model):
         help_text='Jaza ikiwa aina ni Mingineyo',
     )
 
-    conflict_source = models.CharField(
-        max_length=40,
-        choices=ConflictSource.choices,
-        default=ConflictSource.OTHER,
-        db_index=True,
+    conflict_source = models.TextField(
+        blank=True,
+        default='',
+        verbose_name='Chanzo cha Mgogoro',
     )
 
     status = models.CharField(
@@ -164,8 +140,10 @@ class LandConflictCase(models.Model):
     resolved_date = models.DateField(null=True, blank=True)
     filed_date = models.DateField(null=True, blank=True)
 
-    resolution_method = models.CharField(
-        max_length=40, choices=ResolutionMethod.choices, default=ResolutionMethod.NONE
+    resolution_method = models.TextField(
+        blank=True,
+        default='',
+        verbose_name='Mbinu za utatuzi',
     )
     resolution_details = models.TextField(blank=True, default='', verbose_name='Maelezo ya mbinu za utatuzi')
     unresolved_reason = models.TextField(
@@ -199,10 +177,12 @@ class LandConflictCase(models.Model):
         return dict(self.ConflictType.choices).get(self.conflict_type, self.conflict_type)
 
     def get_conflict_source_display(self):
-        return dict(self.ConflictSource.choices).get(self.conflict_source, self.conflict_source)
+        raw = (self.conflict_source or '').strip()
+        return self.CONFLICT_SOURCE_LABELS.get(raw, raw)
 
     def get_resolution_method_display(self):
-        return dict(self.ResolutionMethod.choices).get(self.resolution_method, self.resolution_method)
+        raw = (self.resolution_method or '').strip()
+        return self.RESOLUTION_METHOD_LABELS.get(raw, raw)
 
     def parties_label(self) -> str:
         """Mfano: Ifunde - Njaro (kutoka Mlalamikaji na Mlalamikiwa)."""
@@ -214,8 +194,6 @@ class LandConflictCase(models.Model):
 
     def save(self, *args, **kwargs):
         self.is_resolved = self.status in (self.Status.RESOLVED, self.Status.CLOSED)
-        if self.is_resolved and not self.resolution_method:
-            self.resolution_method = self.ResolutionMethod.OTHER
         if not self.financial_year:
             self.financial_year = financial_year_from_date(self.started_date or self.filed_date)
         if self.conflict_type != self.ConflictType.OTHER:

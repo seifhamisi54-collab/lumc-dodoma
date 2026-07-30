@@ -53,7 +53,7 @@ def connect_params():
                 "ERROR: DATABASE_URL has no hostname.\n"
                 "Use full Neon URI, example:\n"
                 "  postgresql://USER:PASSWORD@ep-xxxx.region.aws.neon.tech/tanzania_gis_db?sslmode=require\n"
-                "Dashboard → Neon → Connection details → copy URI (not only database name).",
+                "Dashboard â†’ Neon â†’ Connection details â†’ copy URI (not only database name).",
                 file=sys.stderr,
             )
             raise SystemExit(2)
@@ -63,7 +63,7 @@ def connect_params():
     if not host:
         print(
             "ERROR: DATABASE_URL is not set.\n"
-            "In Render → Environment, paste Neon connection string as DATABASE_URL.",
+            "In Render â†’ Environment, paste Neon connection string as DATABASE_URL.",
             file=sys.stderr,
         )
         raise SystemExit(2)
@@ -108,6 +108,9 @@ python manage.py collectstatic --noinput || echo "WARN: collectstatic failed (co
 echo "Migrate default DB..."
 python manage.py migrate --noinput || echo "WARN: migrate failed (continuing)"
 python manage.py migrate sessions --noinput || echo "WARN: sessions migrate failed (continuing)"
+
+echo "Migrate detailed_planning DB..."
+python manage.py migrate --database=detailed_planning --noinput || echo "WARN: detailed_planning migrate failed (continuing)"
 
 # Create default login accounts on every deploy (passwords only reset if SETUP_USERS_RESET=1)
 if [ "${SETUP_DEFAULT_USERS:-1}" = "1" ]; then

@@ -12,9 +12,11 @@ from dashboard.boundary_service import _district_search_names
 from dashboard.shapefile_upload_service import parse_spatial_upload_files, spatial_files_from_request
 from detailed_planning.models import (
     DistrictPlanningBoundary,
+    MeetingMinutes,
     PlanningParcel,
     PlanningReport,
     PlanningShapefile,
+    QuarterReport,
     VillageDetailedPlan,
     VillagePlanningBoundary,
     WardPlanningBoundary,
@@ -28,19 +30,25 @@ from detailed_planning.services import (
     compute_is_identified,
     create_planning_parcel,
     deduplicate_village_plan_list,
+    delete_meeting_minutes,
     delete_parcels_by_shapefile_name,
     delete_planning_report,
     delete_planning_shapefile,
+    delete_quarter_report,
     get_or_create_village_plan,
     list_parcel_shapefile_imports,
     list_uploaded_shapefiles,
     merge_duplicate_village_plans,
     parcel_source_summary,
     parcel_stats_from_queryset,
+    save_meeting_minutes_file,
     save_planning_report_file,
+    save_quarter_report_file,
     serialize_ccro_landowner,
     serialize_ccro_shapefile_fields,
+    serialize_meeting_minutes,
     serialize_planning_report,
+    serialize_quarter_report,
     serialize_village_plan,
 )
 
@@ -710,6 +718,10 @@ def api_village_plans(request):
                 plan.plan_year = int(body['plan_year'])
             except (TypeError, ValueError):
                 pass
+        if body.get('financial_year') is not None:
+            from dashboard.financial_year import normalize_financial_year, set_session_financial_year
+            plan.financial_year = normalize_financial_year(body.get('financial_year') or '')
+            set_session_financial_year(request, plan.financial_year)
         if body.get('plan_status'):
             valid = {c[0] for c in VillageDetailedPlan.PLAN_STATUS}
             if body['plan_status'] in valid:
@@ -792,6 +804,11 @@ def api_village_plan_detail(request, plan_id):
         valid = {c[0] for c in VillageDetailedPlan.PLAN_STATUS}
         if body['plan_status'] in valid:
             plan.plan_status = body['plan_status']
+
+    if 'financial_year' in body:
+        from dashboard.financial_year import normalize_financial_year, set_session_financial_year
+        plan.financial_year = normalize_financial_year(body.get('financial_year') or '')
+        set_session_financial_year(request, plan.financial_year)
 
     if 'notes' in body:
         plan.notes = body['notes']
@@ -1020,11 +1037,16 @@ def api_report_upload(request):
     if not uploaded or not region:
         return JsonResponse({'error': 'Faili na mkoa vinahitajika'}, status=400)
 
+    if report_type in ('quarter_report', 'section_minutes'):
+        return JsonResponse({
+            'error': 'Tumia API maalum: /api/planning/quarter-reports/ au /api/planning/meeting-minutes/',
+        }, status=400)
+
     if report_type not in ('plan_summary', 'boundary_map', 'pdf'):
         return JsonResponse({'error': 'Aina ya ripoti si sahihi'}, status=400)
 
-    if not uploaded.name.lower().endswith('.pdf'):
-        return JsonResponse({'error': 'Faili lazima iwe PDF'}, status=400)
+    if not uploaded.name.lower().endswith(('.pdf', '.doc', '.docx')):
+        return JsonResponse({'error': 'Faili lazima iwe PDF au Word'}, status=400)
 
     village_plan = None
     if plan_id:
@@ -1060,6 +1082,156 @@ def api_report_upload(request):
     except Exception as e:
         logger.exception('report upload failed')
         return JsonResponse({'error': str(e)}, status=500)
+
+
+def _file_download_response(obj):
+    """Pakua faili kutoka storage kwa QuarterReport / MeetingMinutes / PlanningReport."""
+    content_map = {
+        'pdf': 'application/pdf',
+        'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'csv': 'text/csv',
+    }
+    ctype = content_map.get(getattr(obj, 'file_format', '') or 'pdf', 'application/octet-stream')
+    if not obj.file_path or not default_storage.exists(obj.file_path):
+        abs_path = obj.file_path
+        if abs_path and os.path.isfile(abs_path):
+            return FileResponse(
+                open(abs_path, 'rb'),
+                content_type=ctype,
+                as_attachment=True,
+                filename=obj.original_filename,
+            )
+        return JsonResponse({'error': 'Faili haijapatikana'}, status=404)
+    file_handle = default_storage.open(obj.file_path, 'rb')
+    return FileResponse(
+        file_handle,
+        content_type=ctype,
+        as_attachment=True,
+        filename=obj.original_filename,
+    )
+
+
+@require_GET
+def api_quarter_reports(request):
+    """Orodha ya Quarter Reports kutoka jedwali quarter_reports."""
+    fy = _clean(request.GET.get('financial_year') or request.GET.get('fy'))
+    quarter = _clean(request.GET.get('quarter'))
+    qs = QuarterReport.objects.all()
+    if fy:
+        qs = qs.filter(financial_year__iexact=fy)
+    if quarter:
+        qs = qs.filter(quarter__iexact=quarter.upper())
+    rows = [serialize_quarter_report(r) for r in qs.order_by('-created_at')[:200]]
+    return JsonResponse({'status': 'success', 'count': len(rows), 'reports': rows})
+
+
+@login_required
+@require_POST
+def api_quarter_report_upload(request):
+    """Pakia Quarter Report → detailed_planning.quarter_reports."""
+    uploaded = request.FILES.get('file')
+    if not uploaded:
+        return JsonResponse({'error': 'Faili inahitajika'}, status=400)
+    if not uploaded.name.lower().endswith(('.pdf', '.doc', '.docx')):
+        return JsonResponse({'error': 'Faili lazima iwe PDF au Word'}, status=400)
+    quarter = _clean(request.POST.get('quarter'))
+    if quarter.upper() not in ('Q1', 'Q2', 'Q3', 'Q4'):
+        return JsonResponse({'error': 'Chagua robo sahihi (Q1–Q4)'}, status=400)
+    try:
+        obj = save_quarter_report_file(
+            uploaded,
+            title=_clean(request.POST.get('title')) or None,
+            financial_year=_clean(request.POST.get('financial_year')) or '',
+            quarter=quarter,
+            notes=_clean(request.POST.get('notes')) or '',
+            generated_by=request.user,
+        )
+        return JsonResponse({'status': 'success', 'report': serialize_quarter_report(obj)}, status=201)
+    except Exception as e:
+        logger.exception('quarter report upload failed')
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@require_GET
+def api_quarter_report_download(request, report_id):
+    try:
+        obj = QuarterReport.objects.get(pk=report_id)
+    except QuarterReport.DoesNotExist:
+        return JsonResponse({'error': 'Quarter Report haijapatikana'}, status=404)
+    return _file_download_response(obj)
+
+
+@login_required
+@require_http_methods(['DELETE'])
+def api_quarter_report_delete(request, report_id):
+    denied = _upload_permission_denied(request)
+    if denied:
+        return denied
+    try:
+        obj = QuarterReport.objects.get(pk=report_id)
+    except QuarterReport.DoesNotExist:
+        return JsonResponse({'error': 'Quarter Report haijapatikana'}, status=404)
+    delete_quarter_report(obj)
+    return JsonResponse({'status': 'success', 'message': 'Quarter Report imefutwa'})
+
+
+@require_GET
+def api_meeting_minutes(request):
+    """Orodha ya Minutes za Vikao kutoka jedwali meeting_minutes."""
+    fy = _clean(request.GET.get('financial_year') or request.GET.get('fy'))
+    qs = MeetingMinutes.objects.all()
+    if fy:
+        qs = qs.filter(financial_year__iexact=fy)
+    rows = [serialize_meeting_minutes(r) for r in qs.order_by('-created_at')[:200]]
+    return JsonResponse({'status': 'success', 'count': len(rows), 'reports': rows})
+
+
+@login_required
+@require_POST
+def api_meeting_minutes_upload(request):
+    """Pakia Minutes za Vikao → detailed_planning.meeting_minutes."""
+    uploaded = request.FILES.get('file')
+    if not uploaded:
+        return JsonResponse({'error': 'Faili inahitajika'}, status=400)
+    if not uploaded.name.lower().endswith(('.pdf', '.doc', '.docx')):
+        return JsonResponse({'error': 'Faili lazima iwe PDF au Word'}, status=400)
+    try:
+        obj = save_meeting_minutes_file(
+            uploaded,
+            title=_clean(request.POST.get('title')) or None,
+            financial_year=_clean(request.POST.get('financial_year')) or '',
+            meeting_date=_clean(request.POST.get('meeting_date')) or None,
+            notes=_clean(request.POST.get('notes')) or '',
+            generated_by=request.user,
+        )
+        return JsonResponse({'status': 'success', 'report': serialize_meeting_minutes(obj)}, status=201)
+    except Exception as e:
+        logger.exception('meeting minutes upload failed')
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@require_GET
+def api_meeting_minutes_download(request, report_id):
+    try:
+        obj = MeetingMinutes.objects.get(pk=report_id)
+    except MeetingMinutes.DoesNotExist:
+        return JsonResponse({'error': 'Minutes haijapatikana'}, status=404)
+    return _file_download_response(obj)
+
+
+@login_required
+@require_http_methods(['DELETE'])
+def api_meeting_minutes_delete(request, report_id):
+    denied = _upload_permission_denied(request)
+    if denied:
+        return denied
+    try:
+        obj = MeetingMinutes.objects.get(pk=report_id)
+    except MeetingMinutes.DoesNotExist:
+        return JsonResponse({'error': 'Minutes haijapatikana'}, status=404)
+    delete_meeting_minutes(obj)
+    return JsonResponse({'status': 'success', 'message': 'Minutes zimefutwa'})
 
 
 @require_GET

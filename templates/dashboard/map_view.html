@@ -720,6 +720,18 @@ select:focus, input:focus {
         <a href="/download/shapefile/"><i class="fas fa-download"></i> Download</a>
     </div>
     <div class="user-info">
+        <label style="display:flex;flex-direction:column;gap:2px;font-size:10px;opacity:0.85;margin-right:8px;">
+            Mwaka wa Fedha
+            <input id="map-global-fy" list="map-fy-suggestions" type="text"
+                   value="{{ current_financial_year|default:default_financial_year }}"
+                   placeholder="2026/2027" autocomplete="off"
+                   style="border:1px solid rgba(255,255,255,0.25);border-radius:8px;padding:5px 8px;font-weight:700;color:#0f172a;min-width:110px;">
+        </label>
+        <datalist id="map-fy-suggestions">
+            {% for fy in financial_years %}
+            <option value="{{ fy }}"></option>
+            {% endfor %}
+        </datalist>
         <span><i class="fas fa-user-circle"></i> {{ user.username }}</span>
         <a href="{% url 'logout' %}" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Toka</a>
     </div>
@@ -4432,6 +4444,31 @@ document.addEventListener('DOMContentLoaded', function() {
     switchGisTool('{{ initial_tool|default:"qgis-editor" }}');
     {% endif %}
 });
+</script>
+
+<script>
+(function () {
+    var fyInput = document.getElementById('map-global-fy');
+    if (!fyInput) return;
+    function csrf() {
+        var m = document.cookie.match(/csrftoken=([^;]+)/);
+        return m ? decodeURIComponent(m[1]) : '';
+    }
+    function save() {
+        var fy = (fyInput.value || '').trim();
+        if (!fy) return;
+        fetch('/api/financial-year/', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() },
+            body: JSON.stringify({ financial_year: fy })
+        }).catch(function () {});
+    }
+    fyInput.addEventListener('change', save);
+    fyInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); save(); fyInput.blur(); }
+    });
+})();
 </script>
 </body>
 </html>
