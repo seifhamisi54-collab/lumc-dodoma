@@ -59,7 +59,18 @@ class SectionAccessConfig(models.Model):
             'registration_code': getattr(settings, 'LUMC_REGISTRATION_CODE', 'LUMC-REG-2026'),
             'login_code': getattr(settings, 'LUMC_LOGIN_CODE', 'LUMC-LOGIN-2026'),
         }
-        obj, _ = cls.objects.get_or_create(pk=1, defaults=defaults)
+        obj, created = cls.objects.get_or_create(pk=1, defaults=defaults)
+        # Repair empty codes on existing rows (e.g. partial admin save).
+        if not created:
+            dirty = False
+            if not (obj.registration_code or '').strip():
+                obj.registration_code = defaults['registration_code']
+                dirty = True
+            if not (obj.login_code or '').strip():
+                obj.login_code = defaults['login_code']
+                dirty = True
+            if dirty:
+                obj.save(update_fields=['registration_code', 'login_code', 'updated_at'])
         return obj
 
 
