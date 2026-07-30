@@ -524,6 +524,7 @@
 <script>
 const API = '/api/system-admin/';
 const CAN_MANAGE = {{ can_manage_users|yesno:"true,false" }};
+const CURRENT_USER_ID = {{ request.user.id|default:"null" }};
 
 function getCookie(name) {
     const v = `; ${document.cookie}`;
@@ -642,7 +643,7 @@ function loadUsers() {
                 <button title="Activate/Deactivate" onclick="toggleActive(${u.id}, ${u.is_active})"><i class="fas fa-power-off"></i></button>
                 <button title="Reset password" onclick="resetPassword(${u.id})"><i class="fas fa-key"></i></button>
                 <button title="Badilisha jukumu" onclick="changeRole(${u.id}, '${u.role || 'gis_officer'}')"><i class="fas fa-user-tag"></i></button>
-                <button title="Futa" onclick="deleteUser(${u.id}, '${u.username}')"><i class="fas fa-trash" style="color:#b91c1c"></i></button>
+                ${u.id !== CURRENT_USER_ID ? `<button title="Futa mtumiaji" onclick="deleteUser(${u.id}, '${String(u.username).replace(/'/g, "\\'")}')"><i class="fas fa-trash" style="color:#b91c1c"></i></button>` : ''}
                 ` : '<span class="muted">View only</span>'}
             </td>
         </tr>`).join('');
@@ -730,19 +731,31 @@ function changeRole(id, current) {
 }
 
 function deleteUser(id, username) {
+    if (id === CURRENT_USER_ID) {
+        Swal.fire('Hairuhusiwi', 'Huwezi kufuta akaunti yako mwenyewe', 'error');
+        return;
+    }
     Swal.fire({
-        title: 'Futa ' + username + '?',
+        title: 'Futa mtumiaji?',
+        html: 'Una uhakika unataka kufuta <strong>' + username + '</strong>?<br>Kitendo hiki hakiwezi kutenduliwa.',
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#b91c1c',
-        confirmButtonText: 'Futa',
+        confirmButtonText: 'Ndiyo, futa',
+        cancelButtonText: 'Ghairi',
     }).then(res => {
         if (!res.isConfirmed) return;
         apiFetch(API + 'users/' + id + '/', {
             method: 'DELETE',
         }).then(({ ok, data }) => {
-            if (ok && data.status === 'success') { loadUsers(); loadOverview(); Swal.fire('Imefutwa', '', 'success'); }
-            else Swal.fire('Hitilafu', data.error || 'Imeshindikana', 'error');
+            if (ok && data.status === 'success') {
+                loadUsers();
+                loadOverview();
+                const msg = data.deactivated
+                    ? (data.message || 'Mtumiaji amezimwa (kufuta kamili hakukuwezekana)')
+                    : ('Mtumiaji ' + (username || '') + ' amefutwa');
+                Swal.fire(data.deactivated ? 'Amezimwa' : 'Imefutwa', msg, 'success');
+            } else Swal.fire('Hitilafu', data.error || 'Imeshindikana kufuta', 'error');
         }).catch(() => {});
     });
 }

@@ -9,6 +9,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.contrib.sessions.models import Session
 from django.core.exceptions import PermissionDenied
+from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import render
@@ -23,6 +24,7 @@ from accounts.permissions import (
     ROLE_CRUD_MATRIX,
     ROLE_LABELS,
     ROLE_PERMISSIONS,
+    ROLE_SECTION_HEAD,
     can_access_admin_panel,
     can_manage_users,
 )
@@ -406,6 +408,66 @@ def _serialize_user(user) -> dict:
     }
 
 
+def _user_is_section_head_or_super(user) -> bool:
+    """Je, mtumiaji ni superuser au Section Head (anayeweza kusimamia watumiaji)?"""
+    if not user or not user.is_active:
+        return False
+    if user.is_superuser:
+        return True
+    from accounts.permissions import normalize_role_name
+
+    role = getattr(user, 'role', None)
+    return normalize_role_name(role.name if role else None) == ROLE_SECTION_HEAD
+
+
+def _count_privileged_admins(*, exclude_id=None) -> int:
+    """Hesabu Section Head / superuser hai — ili kuepuka kufunga mfumo."""
+    qs = User.objects.filter(is_active=True).filter(
+        Q(is_superuser=True)
+        | Q(role__name=ROLE_SECTION_HEAD)
+        | Q(role__name='admin')  # legacy alias
+    )
+    if exclude_id is not None:
+        qs = qs.exclude(pk=exclude_id)
+    return qs.distinct().count()
+
+
+def _delete_user_safe(target, actor):
+    """Futa mtumiaji kwa sheria za usalama. Rudisha (JsonResponse, status) au None=OK path handled."""
+    if target.id == actor.id:
+        return JsonResponse({'error': 'Huwezi kufuta akaunti yako mwenyewe'}, status=400)
+    if target.is_superuser and not actor.is_superuser:
+        return JsonResponse({'error': 'Huwezi kufuta superuser'}, status=403)
+    if _user_is_section_head_or_super(target) and _count_privileged_admins(exclude_id=target.id) < 1:
+        return JsonResponse({
+            'error': 'Huwezi kufuta Section Head / superuser wa mwisho — mfumo utafungwa',
+        }, status=400)
+
+    uid = target.id
+    username = target.username
+    try:
+        with transaction.atomic():
+            target.delete()
+        return JsonResponse({
+            'status': 'success',
+            'deleted': uid,
+            'username': username,
+            'hard_deleted': True,
+        })
+    except IntegrityError:
+        logger.warning('Hard delete failed for user %s; deactivating', uid, exc_info=True)
+        target.is_active = False
+        target.save(update_fields=['is_active'])
+        return JsonResponse({
+            'status': 'success',
+            'deleted': uid,
+            'username': username,
+            'deactivated': True,
+            'hard_deleted': False,
+            'message': 'Mtumiaji amezimwa (kufuta kamili hakukuwezekana kwa sababu ya data zinazohusiana)',
+        })
+
+
 @require_GET
 def api_admin_overview(request):
     """KPI za System Administration — nature ya LUMC (GIS + Planning + CCRO)."""
@@ -600,28 +662,12 @@ def api_user_detail(request, user_id):
     if request.method == 'GET':
         return JsonResponse({'status': 'success', 'item': _serialize_user(user)})
 
-    if not (can_manage_users(request.user) or can_access_admin_panel(request.user)):
+    # Hariri / futa — Section Head, manage_users, au superuser pekee
+    if not can_manage_users(request.user):
         return JsonResponse({'error': 'Huna ruhusa ya kusimamia watumiaji'}, status=403)
 
     if request.method == 'DELETE':
-        if user.id == request.user.id:
-            return JsonResponse({'error': 'Huwezi kufuta akaunti yako mwenyewe'}, status=400)
-        if user.is_superuser and not request.user.is_superuser:
-            return JsonResponse({'error': 'Huwezi kufuta superuser'}, status=403)
-        uid = user.id
-        try:
-            user.delete()
-            return JsonResponse({'status': 'success', 'deleted': uid})
-        except Exception:
-            # Fallback: zima akaunti ikiwa delete inashindwa (FK / DB legacy)
-            user.is_active = False
-            user.save(update_fields=['is_active'])
-            return JsonResponse({
-                'status': 'success',
-                'deleted': uid,
-                'deactivated': True,
-                'message': 'Mtumiaji amezimwa (kufuta kamili hakukuwezekana)',
-            })
+        return _delete_user_safe(user, request.user)
 
     body = _parse_body(request)
     for field in ('email', 'first_name', 'last_name', 'phone'):
