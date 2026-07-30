@@ -106,8 +106,10 @@ echo "Collectstatic..."
 python manage.py collectstatic --noinput || echo "WARN: collectstatic failed (continuing)"
 
 echo "Migrate default DB..."
-python manage.py migrate --noinput || echo "WARN: migrate failed (continuing)"
+# Fail boot if default migrate fails — missing tables cause 500 on System Admin / Organizations
+python manage.py migrate --noinput
 python manage.py migrate sessions --noinput || echo "WARN: sessions migrate failed (continuing)"
+python manage.py migrate dashboard accounts wadau --noinput || echo "WARN: app migrate re-check failed (continuing)"
 
 echo "Migrate detailed_planning DB..."
 python manage.py migrate --database=detailed_planning --noinput || echo "WARN: detailed_planning migrate failed (continuing)"

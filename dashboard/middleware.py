@@ -1,13 +1,37 @@
 """Middleware — zuia System Admin / Organizations bila passcode."""
 from __future__ import annotations
 
+import logging
 from urllib.parse import quote
 
+from django.conf import settings
+from django.db import connections
 from django.http import JsonResponse
 from django.shortcuts import redirect
 
 from accounts.permissions import can_access_admin_panel
 from dashboard.admin_gate import is_unlocked, passcode_is_configured, path_is_exempt, path_is_protected
+
+logger = logging.getLogger(__name__)
+
+
+class EnsureSearchPathMiddleware:
+    """Re-apply search_path every request (Neon/PgBouncer transaction pool resets it)."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        paths = getattr(settings, 'DATABASE_SEARCH_PATHS', {}) or {}
+        for alias, path in paths.items():
+            if not path or alias not in connections.databases:
+                continue
+            try:
+                with connections[alias].cursor() as cursor:
+                    cursor.execute(f'SET search_path TO {path}')
+            except Exception as exc:
+                logger.warning('search_path not set on request (%s): %s', alias, exc)
+        return self.get_response(request)
 
 
 class AdminPasscodeMiddleware:

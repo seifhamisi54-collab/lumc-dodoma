@@ -1,9 +1,14 @@
 """Passcode gate — System Administration & Organizations (Django Admin)."""
 from __future__ import annotations
 
+import logging
+
 from django.contrib.auth.hashers import check_password, make_password
+from django.db import OperationalError, ProgrammingError
 
 from dashboard.models import SystemSetting
+
+logger = logging.getLogger(__name__)
 
 SESSION_UNLOCK_KEY = 'lumc_admin_unlocked'
 PASSCODE_SETTING_KEY = 'admin_area_passcode'
@@ -28,8 +33,13 @@ EXEMPT_PREFIXES = (
 
 
 def get_passcode_hash() -> str:
-    row = SystemSetting.objects.filter(key=PASSCODE_SETTING_KEY).first()
-    return (row.value if row else '') or ''
+    """Soma hash ya passcode. Missing table / DB glitch → treat as not configured."""
+    try:
+        row = SystemSetting.objects.filter(key=PASSCODE_SETTING_KEY).first()
+        return (row.value if row else '') or ''
+    except (ProgrammingError, OperationalError) as exc:
+        logger.warning('SystemSetting unavailable for passcode gate: %s', exc)
+        return ''
 
 
 def passcode_is_configured() -> bool:

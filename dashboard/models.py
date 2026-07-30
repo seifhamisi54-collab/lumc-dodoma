@@ -651,6 +651,7 @@ class Currency(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = '"boundaries"."dashboard_currency"'
         ordering = ['code']
         verbose_name = 'Sarafu'
         verbose_name_plural = 'Sarafu'
@@ -692,6 +693,7 @@ class Locality(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = '"boundaries"."dashboard_locality"'
         ordering = ['locality_type', 'name']
         verbose_name = 'Eneo'
         verbose_name_plural = 'Maeneo (Locality)'
@@ -714,6 +716,7 @@ class Designation(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = '"boundaries"."dashboard_designation"'
         ordering = ['sort_order', 'name']
         verbose_name = 'Cheo'
         verbose_name_plural = 'Majina ya Kazi (Designation)'
@@ -744,6 +747,7 @@ class SystemFormTemplate(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = '"boundaries"."dashboard_systemformtemplate"'
         ordering = ['category', 'name']
         verbose_name = 'Fomu ya Mfumo'
         verbose_name_plural = 'Fomu za Mfumo'
@@ -772,6 +776,7 @@ class CcroConfigOption(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = '"boundaries"."dashboard_ccroconfigoption"'
         ordering = ['category', 'sort_order', 'value']
         unique_together = [('category', 'value')]
         verbose_name = 'Chaguo la CCRO'
@@ -792,6 +797,7 @@ class SystemSetting(models.Model):
     )
 
     class Meta:
+        db_table = '"boundaries"."dashboard_systemsetting"'
         ordering = ['key']
         verbose_name = 'Mpangilio wa Mfumo'
         verbose_name_plural = 'Mipangilio ya Mfumo'
