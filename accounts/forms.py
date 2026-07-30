@@ -2,7 +2,7 @@ from django import forms
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.forms import AuthenticationForm
 
-from accounts.models import get_login_code, section_code_matches
+from accounts.models import login_code_is_valid, login_code_required
 
 
 class SectionLoginForm(AuthenticationForm):
@@ -11,7 +11,7 @@ class SectionLoginForm(AuthenticationForm):
     login_code = forms.CharField(
         label='Nambari ya Kuingia (Taasisi)',
         strip=True,
-        required=True,
+        required=False,  # enforced in clean() when LUMC_LOGIN_CODE_REQUIRED
         error_messages={
             'required': 'Tafadhali weka Nambari ya Kuingia (Taasisi).',
         },
@@ -24,6 +24,14 @@ class SectionLoginForm(AuthenticationForm):
 
     error_messages = {
         **AuthenticationForm.error_messages,
+        'invalid_login': (
+            'Jina la mtumiaji au nenosiri si sahihi. '
+            'Jaribu tena, au badilisha nenosiri kupitia “Umesahau nenosiri?”.'
+        ),
+        'inactive': (
+            'Akaunti bado haijaamilishwa. '
+            'Wasiliana na msimamizi (System Admin) aiamilishe akaunti.'
+        ),
         'invalid_login_code': (
             'Nambari ya Kuingia (Taasisi) si sahihi. '
             'Angalia nambari na ujaribu tena.'
@@ -44,17 +52,17 @@ class SectionLoginForm(AuthenticationForm):
             provided = self.data.get('login_code', '') if self.data is not None else ''
 
         provided = (provided or '').strip()
-        if not provided:
-            # Do not call authenticate — avoid generic username/password message.
-            raise forms.ValidationError(
-                self.error_messages['missing_login_code'],
-                code='missing_login_code',
-            )
-        if not section_code_matches(provided, get_login_code()):
-            raise forms.ValidationError(
-                self.error_messages['invalid_login_code'],
-                code='invalid_login_code',
-            )
+        if login_code_required():
+            if not provided:
+                raise forms.ValidationError(
+                    self.error_messages['missing_login_code'],
+                    code='missing_login_code',
+                )
+            if not login_code_is_valid(provided):
+                raise forms.ValidationError(
+                    self.error_messages['invalid_login_code'],
+                    code='invalid_login_code',
+                )
 
         username = self.cleaned_data.get('username')
         password = self.cleaned_data.get('password')

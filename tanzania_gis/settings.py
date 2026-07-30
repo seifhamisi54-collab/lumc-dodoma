@@ -262,9 +262,11 @@ LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/login/'
 
-# Shared section secrets (seed SectionAccessConfig on first use; override via admin)
+# Shared section secrets (seed/sync SectionAccessConfig on deploy; override via env)
 LUMC_REGISTRATION_CODE = os.environ.get('LUMC_REGISTRATION_CODE', 'LUMC-REG-2026')
 LUMC_LOGIN_CODE = os.environ.get('LUMC_LOGIN_CODE', 'LUMC-LOGIN-2026')
+# Set to 0 only as emergency unlock (not preferred)
+LUMC_LOGIN_CODE_REQUIRED = os.environ.get('LUMC_LOGIN_CODE_REQUIRED', '1')
 
 # Password reset: bila SMTP (localhost:25 haipo) — tumia filebased ili Django mail isivunjike
 _email_host = os.environ.get('EMAIL_HOST', '').strip()

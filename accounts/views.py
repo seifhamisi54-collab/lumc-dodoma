@@ -50,12 +50,13 @@ def password_reset_view(request):
         context['error'] = 'Username au email si sahihi.'
         return render(request, 'registration/password_reset_form.html', context, status=400)
 
+    # Email is optional. If provided, it must match the account email.
+    # Username alone is enough for section reset (no SMTP on Render).
     stored_email = (user.email or '').strip()
-    if stored_email:
-        if not email or email.lower() != stored_email.lower():
+    if email:
+        if not stored_email or email.lower() != stored_email.lower():
             context['error'] = 'Username au email si sahihi.'
             return render(request, 'registration/password_reset_form.html', context, status=400)
-    # Ikiwa akaunti haina email, username pekee inatosha
 
     if not user.is_active:
         context['error'] = 'Akaunti haijaamilishwa. Wasiliana na msimamizi.'

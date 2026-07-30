@@ -54,11 +54,19 @@ class SectionAccessConfig(models.Model):
         return 'Section Access Config'
 
     @classmethod
-    def get_solo(cls):
-        defaults = {
-            'registration_code': getattr(settings, 'LUMC_REGISTRATION_CODE', 'LUMC-REG-2026'),
-            'login_code': getattr(settings, 'LUMC_LOGIN_CODE', 'LUMC-LOGIN-2026'),
+    def settings_defaults(cls):
+        return {
+            'registration_code': (
+                getattr(settings, 'LUMC_REGISTRATION_CODE', 'LUMC-REG-2026') or 'LUMC-REG-2026'
+            ).strip(),
+            'login_code': (
+                getattr(settings, 'LUMC_LOGIN_CODE', 'LUMC-LOGIN-2026') or 'LUMC-LOGIN-2026'
+            ).strip(),
         }
+
+    @classmethod
+    def get_solo(cls):
+        defaults = cls.settings_defaults()
         obj, created = cls.objects.get_or_create(pk=1, defaults=defaults)
         # Repair empty codes on existing rows (e.g. partial admin save).
         if not created:
@@ -73,21 +81,81 @@ class SectionAccessConfig(models.Model):
                 obj.save(update_fields=['registration_code', 'login_code', 'updated_at'])
         return obj
 
+    @classmethod
+    def ensure_from_settings(cls, force: bool = True):
+        """Create/repair SectionAccessConfig from env/settings.
+
+        force=True (default): overwrite DB codes with settings so production
+        always matches LUMC_LOGIN_CODE / LUMC_REGISTRATION_CODE.
+        """
+        defaults = cls.settings_defaults()
+        obj, created = cls.objects.get_or_create(pk=1, defaults=defaults)
+        if created:
+            return obj, True
+
+        dirty = False
+        for field in ('registration_code', 'login_code'):
+            current = (getattr(obj, field) or '').strip()
+            wanted = defaults[field]
+            if not current or (force and current != wanted):
+                setattr(obj, field, wanted)
+                dirty = True
+        if dirty:
+            obj.save(update_fields=['registration_code', 'login_code', 'updated_at'])
+        return obj, dirty
+
 
 def get_registration_code() -> str:
     try:
-        return (SectionAccessConfig.get_solo().registration_code or '').strip()
+        code = (SectionAccessConfig.get_solo().registration_code or '').strip()
+        if code:
+            return code
     except Exception:
-        return (getattr(settings, 'LUMC_REGISTRATION_CODE', 'LUMC-REG-2026') or '').strip()
+        pass
+    return (getattr(settings, 'LUMC_REGISTRATION_CODE', 'LUMC-REG-2026') or '').strip()
 
 
 def get_login_code() -> str:
+    """Primary expected login code (DB, else settings)."""
     try:
-        return (SectionAccessConfig.get_solo().login_code or '').strip()
+        code = (SectionAccessConfig.get_solo().login_code or '').strip()
+        if code:
+            return code
     except Exception:
-        return (getattr(settings, 'LUMC_LOGIN_CODE', 'LUMC-LOGIN-2026') or '').strip()
+        pass
+    return (getattr(settings, 'LUMC_LOGIN_CODE', 'LUMC-LOGIN-2026') or '').strip()
+
+
+def _settings_login_code() -> str:
+    return (getattr(settings, 'LUMC_LOGIN_CODE', 'LUMC-LOGIN-2026') or '').strip()
+
+
+def _settings_registration_code() -> str:
+    return (getattr(settings, 'LUMC_REGISTRATION_CODE', 'LUMC-REG-2026') or '').strip()
 
 
 def section_code_matches(provided: str, expected: str) -> bool:
-    """Case-sensitive compare after trim. Never log codes."""
-    return (provided or '').strip() == (expected or '').strip()
+    """Case-insensitive compare after trim. Never log codes."""
+    return (provided or '').strip().casefold() == (expected or '').strip().casefold()
+
+
+def login_code_is_valid(provided: str) -> bool:
+    """Accept DB code or settings/env fallback (covers stale admin overrides)."""
+    provided = (provided or '').strip()
+    if not provided:
+        return False
+    candidates = {get_login_code(), _settings_login_code()}
+    return any(section_code_matches(provided, c) for c in candidates if c)
+
+
+def registration_code_is_valid(provided: str) -> bool:
+    provided = (provided or '').strip()
+    if not provided:
+        return False
+    candidates = {get_registration_code(), _settings_registration_code()}
+    return any(section_code_matches(provided, c) for c in candidates if c)
+
+
+def login_code_required() -> bool:
+    raw = (getattr(settings, 'LUMC_LOGIN_CODE_REQUIRED', '1') or '1').strip().lower()
+    return raw not in ('0', 'false', 'no', 'off')

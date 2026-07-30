@@ -114,6 +114,10 @@ python manage.py migrate dashboard accounts wadau --noinput || echo "WARN: app m
 echo "Migrate detailed_planning DB..."
 python manage.py migrate --database=detailed_planning --noinput || echo "WARN: detailed_planning migrate failed (continuing)"
 
+# Keep section login/registration codes in sync with env (LUMC_LOGIN_CODE / LUMC_REGISTRATION_CODE)
+echo "Ensuring SectionAccessConfig codes from settings..."
+python manage.py ensure_section_access_config || echo "WARN: ensure_section_access_config failed (continuing)"
+
 # Create default login accounts on every deploy (passwords only reset if SETUP_USERS_RESET=1)
 if [ "${SETUP_DEFAULT_USERS:-1}" = "1" ]; then
   echo "Ensuring default user accounts..."

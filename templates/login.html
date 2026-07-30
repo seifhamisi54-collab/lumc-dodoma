@@ -197,9 +197,27 @@
         }
         
         .forgot-link {
-            color: #1a7a3a;
-            text-decoration: none;
+            color: #0f4c2c;
+            text-decoration: underline;
+            font-size: 13px;
+            font-weight: 700;
+        }
+        .forgot-link:hover { color: #1a7a3a; }
+        .reset-hint {
+            margin: -8px 0 18px;
             font-size: 12px;
+            color: #475569;
+            line-height: 1.4;
+        }
+        .reset-hint a {
+            color: #0f4c2c;
+            font-weight: 700;
+            text-decoration: underline;
+        }
+        .debug-code-hint {
+            margin: 0 0 14px;
+            font-size: 11px;
+            color: #64748b;
         }
         
         .btn-login, .btn-signup {
@@ -486,12 +504,19 @@
                     </div>
                     <div class="form-group">
                         <label><i class="fas fa-key"></i> Nambari ya Kuingia (Taasisi)</label>
-                        <input type="text" name="login_code" id="id_login_code" class="form-control" placeholder="Nambari ya kuingia ya taasisi" required autocomplete="off">
+                        <input type="text" name="login_code" id="id_login_code" class="form-control" placeholder="mf. LUMC-LOGIN-2026" required autocomplete="off">
+                        {% if debug %}
+                        <div class="debug-code-hint">DEBUG: expected login code is configured via LUMC_LOGIN_CODE</div>
+                        {% endif %}
                     </div>
                     <div class="checkbox-group">
                         <label><input type="checkbox" name="remember_me" id="remember_me"> Remember me</label>
-                        <a href="{% url 'password_reset' %}" class="forgot-link">Forgot password?</a>
+                        <a href="{% url 'password_reset' %}" class="forgot-link">Umesahau nenosiri?</a>
                     </div>
+                    <p class="reset-hint">
+                        Nenosiri halifanyi kazi?
+                        <a href="{% url 'password_reset' %}">Badilisha hapa (username pekee, bila email)</a>
+                    </p>
                     <input type="hidden" name="next" value="{{ next }}">
                     <button type="submit" class="btn-login">Login</button>
                 </form>

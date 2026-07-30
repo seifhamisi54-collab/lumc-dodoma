@@ -246,8 +246,7 @@ def signup_view(request):
     if request.method == 'POST':
         from accounts.models import (
             UserRole,
-            get_registration_code,
-            section_code_matches,
+            registration_code_is_valid,
         )
 
         fullname = request.POST.get('fullname')
@@ -257,7 +256,7 @@ def signup_view(request):
         confirm_password = request.POST.get('confirm_password')
         registration_code = request.POST.get('registration_code') or ''
 
-        if not section_code_matches(registration_code, get_registration_code()):
+        if not registration_code_is_valid(registration_code):
             messages.error(request, 'Nambari ya usajili si sahihi au haipo.')
             return redirect('signup')
 
