@@ -4,7 +4,8 @@ from __future__ import annotations
 import logging
 
 from django.contrib.auth.hashers import check_password, make_password
-from django.db import OperationalError, ProgrammingError
+from django.db import connection, transaction
+from django.db.utils import OperationalError, ProgrammingError
 
 from dashboard.models import SystemSetting
 
@@ -32,6 +33,50 @@ EXEMPT_PREFIXES = (
 )
 
 
+def _rollback_quietly() -> None:
+    """After ProgrammingError/OperationalError Postgres aborts the txn until rollback."""
+    try:
+        connection.rollback()
+    except Exception:
+        pass
+
+
+def ensure_system_setting_table() -> None:
+    """Create/move boundaries.dashboard_systemsetting if missing (Neon pooler / partial migrate)."""
+    with connection.cursor() as cur:
+        cur.execute('CREATE SCHEMA IF NOT EXISTS boundaries')
+        cur.execute(
+            """
+            SELECT table_schema
+            FROM information_schema.tables
+            WHERE table_name = 'dashboard_systemsetting'
+              AND table_schema IN ('public', 'boundaries')
+            """
+        )
+        schemas = {row[0] for row in cur.fetchall()}
+        if 'boundaries' not in schemas and 'public' in schemas:
+            cur.execute('ALTER TABLE public.dashboard_systemsetting SET SCHEMA boundaries')
+            schemas.add('boundaries')
+        if 'boundaries' not in schemas:
+            cur.execute(
+                """
+                CREATE TABLE boundaries.dashboard_systemsetting (
+                    id BIGSERIAL PRIMARY KEY,
+                    key VARCHAR(100) NOT NULL UNIQUE,
+                    value TEXT NOT NULL DEFAULT '',
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    updated_by_id INTEGER NULL
+                )
+                """
+            )
+            cur.execute(
+                """
+                CREATE INDEX IF NOT EXISTS dashboard_systemsetting_key_idx
+                ON boundaries.dashboard_systemsetting (key)
+                """
+            )
+
+
 def get_passcode_hash() -> str:
     """Soma hash ya passcode. Missing table / DB glitch → treat as not configured."""
     try:
@@ -39,6 +84,7 @@ def get_passcode_hash() -> str:
         return (row.value if row else '') or ''
     except (ProgrammingError, OperationalError) as exc:
         logger.warning('SystemSetting unavailable for passcode gate: %s', exc)
+        _rollback_quietly()
         return ''
 
 
@@ -48,10 +94,26 @@ def passcode_is_configured() -> bool:
 
 def set_passcode(raw_passcode: str, user=None) -> None:
     digest = make_password((raw_passcode or '').strip())
-    SystemSetting.objects.update_or_create(
-        key=PASSCODE_SETTING_KEY,
-        defaults={'value': digest, 'updated_by': user if getattr(user, 'is_authenticated', False) else None},
-    )
+    updated_by = user if getattr(user, 'is_authenticated', False) else None
+    defaults = {'value': digest, 'updated_by': updated_by}
+
+    try:
+        with transaction.atomic():
+            SystemSetting.objects.update_or_create(
+                key=PASSCODE_SETTING_KEY,
+                defaults=defaults,
+            )
+            return
+    except (ProgrammingError, OperationalError) as exc:
+        logger.warning('SystemSetting write failed, ensuring table: %s', exc)
+        _rollback_quietly()
+
+    ensure_system_setting_table()
+    with transaction.atomic():
+        SystemSetting.objects.update_or_create(
+            key=PASSCODE_SETTING_KEY,
+            defaults=defaults,
+        )
 
 
 def verify_passcode(raw_passcode: str) -> bool:

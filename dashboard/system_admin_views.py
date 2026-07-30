@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import uuid
 
 from django.contrib.auth import get_user_model
@@ -15,6 +16,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_http_methods
 
+logger = logging.getLogger(__name__)
 from accounts.models import UserRole
 from accounts.permissions import (
     CRUD_ACTIONS,
@@ -270,21 +272,29 @@ def api_admin_unlock(request):
     """Thibitisha passcode na fungua session."""
     if not request.user.is_authenticated:
         return JsonResponse({'error': 'Ingia kwanza'}, status=401)
-    body = _parse_body(request)
-    code = (body.get('passcode') or body.get('password') or '').strip()
-    if not passcode_is_configured():
+    try:
+        body = _parse_body(request)
+        code = (body.get('passcode') or body.get('password') or '').strip()
+        if not passcode_is_configured():
+            return JsonResponse({
+                'error': 'Passcode haijawekwa bado. Weka passcode mpya kwenye ukurasa wa setup.',
+                'code': 'passcode_not_set',
+                'setup_url': '/system-admin/unlock/?setup=1',
+            }, status=400)
+        if not verify_passcode(code):
+            return JsonResponse({'error': 'Passcode si sahihi', 'code': 'invalid_passcode'}, status=403)
+        unlock_session(request)
         return JsonResponse({
-            'error': 'Passcode haijawekwa bado. Weka passcode kwanza.',
-            'code': 'passcode_not_set',
-        }, status=400)
-    if not verify_passcode(code):
-        return JsonResponse({'error': 'Passcode si sahihi', 'code': 'invalid_passcode'}, status=403)
-    unlock_session(request)
-    return JsonResponse({
-        'status': 'success',
-        'unlocked': True,
-        'next': body.get('next') or '/system-admin/',
-    })
+            'status': 'success',
+            'unlocked': True,
+            'next': body.get('next') or '/system-admin/',
+        })
+    except Exception as exc:
+        logger.exception('api_admin_unlock failed')
+        return JsonResponse({
+            'error': f'Imeshindikana kufungua: {exc}',
+            'code': 'unlock_error',
+        }, status=500)
 
 
 @require_http_methods(['POST'])
@@ -310,27 +320,34 @@ def api_admin_passcode(request):
             'unlocked': is_unlocked(request),
         })
 
-    body = _parse_body(request)
-    new_code = (body.get('passcode') or body.get('new_passcode') or '').strip()
-    if len(new_code) < 4:
-        return JsonResponse({'error': 'Passcode angalau herufi/namba 4'}, status=400)
+    try:
+        body = _parse_body(request)
+        new_code = (body.get('passcode') or body.get('new_passcode') or '').strip()
+        if len(new_code) < 4:
+            return JsonResponse({'error': 'Passcode angalau herufi/namba 4'}, status=400)
 
-    configured = passcode_is_configured()
-    if configured:
-        if not is_unlocked(request):
-            return JsonResponse({'error': 'Fungua kwa passcode ya sasa kwanza'}, status=403)
-        current = (body.get('current_passcode') or '').strip()
-        # Ikiwa amefungua session, ruhusu kubadilisha; vinginevyo thibitisha ya sasa
-        if current and not verify_passcode(current):
-            return JsonResponse({'error': 'Passcode ya sasa si sahihi'}, status=403)
+        configured = passcode_is_configured()
+        if configured:
+            if not is_unlocked(request):
+                return JsonResponse({'error': 'Fungua kwa passcode ya sasa kwanza'}, status=403)
+            current = (body.get('current_passcode') or '').strip()
+            # Ikiwa amefungua session, ruhusu kubadilisha; vinginevyo thibitisha ya sasa
+            if current and not verify_passcode(current):
+                return JsonResponse({'error': 'Passcode ya sasa si sahihi'}, status=403)
 
-    set_passcode(new_code, user=request.user)
-    unlock_session(request)
-    return JsonResponse({
-        'status': 'success',
-        'configured': True,
-        'message': 'Passcode imewekwa. Itahitajika kila unapoingia System Administration au Organizations.',
-    })
+        set_passcode(new_code, user=request.user)
+        unlock_session(request)
+        return JsonResponse({
+            'status': 'success',
+            'configured': True,
+            'message': 'Passcode imewekwa. Itahitajika kila unapoingia System Administration au Organizations.',
+        })
+    except Exception as exc:
+        logger.exception('api_admin_passcode failed')
+        return JsonResponse({
+            'error': f'Imeshindikana kuhifadhi passcode: {exc}',
+            'code': 'passcode_save_error',
+        }, status=500)
 
 
 @require_http_methods(['POST'])
@@ -341,21 +358,28 @@ def api_admin_passcode_reset(request):
     if not can_access_admin_panel(request.user):
         return JsonResponse({'error': 'Huna ruhusa'}, status=403)
 
-    body = _parse_body(request)
-    login_password = body.get('login_password') or body.get('password') or ''
-    new_code = (body.get('passcode') or body.get('new_passcode') or '').strip()
-    if not request.user.check_password(login_password):
-        return JsonResponse({'error': 'Password ya login si sahihi'}, status=403)
-    if len(new_code) < 4:
-        return JsonResponse({'error': 'Passcode angalau herufi/namba 4'}, status=400)
+    try:
+        body = _parse_body(request)
+        login_password = body.get('login_password') or body.get('password') or ''
+        new_code = (body.get('passcode') or body.get('new_passcode') or '').strip()
+        if not request.user.check_password(login_password):
+            return JsonResponse({'error': 'Password ya login si sahihi'}, status=403)
+        if len(new_code) < 4:
+            return JsonResponse({'error': 'Passcode angalau herufi/namba 4'}, status=400)
 
-    set_passcode(new_code, user=request.user)
-    unlock_session(request)
-    return JsonResponse({
-        'status': 'success',
-        'configured': True,
-        'message': 'Passcode mpya imewekwa',
-    })
+        set_passcode(new_code, user=request.user)
+        unlock_session(request)
+        return JsonResponse({
+            'status': 'success',
+            'configured': True,
+            'message': 'Passcode mpya imewekwa',
+        })
+    except Exception as exc:
+        logger.exception('api_admin_passcode_reset failed')
+        return JsonResponse({
+            'error': f'Imeshindikana kuweka passcode upya: {exc}',
+            'code': 'passcode_reset_error',
+        }, status=500)
 
 
 def _serialize_user(user) -> dict:

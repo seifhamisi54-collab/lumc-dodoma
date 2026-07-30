@@ -40,6 +40,20 @@ def ensure_boundaries_admin_tables(apps, schema_editor):
                 continue
             if 'public' in schemas:
                 cur.execute(f'ALTER TABLE public."{table}" SET SCHEMA boundaries')
+                continue
+            # Table missing entirely — create empty shell so schema-qualified models work
+            if table == 'dashboard_systemsetting':
+                cur.execute(
+                    """
+                    CREATE TABLE boundaries.dashboard_systemsetting (
+                        id BIGSERIAL PRIMARY KEY,
+                        key VARCHAR(100) NOT NULL UNIQUE,
+                        value TEXT NOT NULL DEFAULT '',
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        updated_by_id INTEGER NULL
+                    )
+                    """
+                )
 
 
 class Migration(migrations.Migration):

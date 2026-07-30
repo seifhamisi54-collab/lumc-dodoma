@@ -9,6 +9,7 @@ deploy/db-dumps/*.dump
 
 # Python
 venv/
+.venv*/
 tutorial_env/
 __pycache__/
 *.py[cod]
