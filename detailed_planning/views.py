@@ -66,6 +66,42 @@ def _upload_permission_denied(request):
     return None
 
 
+def _download_permission_denied(request):
+    """Ruhusu kupakua ripoti kwa majukumu yenye ruhusa ya download (si admin pekee)."""
+    from accounts.permissions import can_download
+
+    if not request.user.is_authenticated:
+        return JsonResponse(
+            {'error': 'Ingia kwanza ili kupakua ripoti', 'code': 'login_required'},
+            status=401,
+        )
+    if not (can_download(request.user) or request.user.is_superuser):
+        return JsonResponse(
+            {
+                'error': 'Huna ruhusa ya kupakua ripoti. Wasiliana na msimamizi.',
+                'code': 'forbidden',
+            },
+            status=403,
+        )
+    return None
+
+
+def _report_content_type(obj) -> str:
+    content_map = {
+        'pdf': 'application/pdf',
+        'doc': 'application/msword',
+        'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'csv': 'text/csv',
+    }
+    fmt = (getattr(obj, 'file_format', None) or '').strip().lower()
+    if fmt in content_map:
+        return content_map[fmt]
+    name = getattr(obj, 'original_filename', None) or getattr(obj, 'file_path', None) or ''
+    ext = os.path.splitext(str(name))[1].lower().lstrip('.')
+    return content_map.get(ext, 'application/octet-stream')
+
+
 def _clean(value):
     if not value or str(value).lower() in ('undefined', 'null', 'none', ''):
         return None
@@ -1204,31 +1240,30 @@ def api_report_upload(request):
 
 
 def _file_download_response(obj):
-    """Pakua faili kutoka storage kwa QuarterReport / MeetingMinutes / PlanningReport."""
-    content_map = {
-        'pdf': 'application/pdf',
-        'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'csv': 'text/csv',
-    }
-    ctype = content_map.get(getattr(obj, 'file_format', '') or 'pdf', 'application/octet-stream')
+    """Pakua faili asili (PDF/DOCX/XLSX) — kamwe si JSON body isipokuwa kosa."""
+    ctype = _report_content_type(obj)
+    filename = obj.original_filename or os.path.basename(obj.file_path or '') or 'ripoti.pdf'
     if not obj.file_path or not default_storage.exists(obj.file_path):
         abs_path = obj.file_path
         if abs_path and os.path.isfile(abs_path):
-            return FileResponse(
+            resp = FileResponse(
                 open(abs_path, 'rb'),
                 content_type=ctype,
                 as_attachment=True,
-                filename=obj.original_filename,
+                filename=filename,
             )
-        return JsonResponse({'error': 'Faili haijapatikana'}, status=404)
+            resp['X-Content-Type-Options'] = 'nosniff'
+            return resp
+        return JsonResponse({'error': 'Faili haijapatikana kwenye seva', 'code': 'file_missing'}, status=404)
     file_handle = default_storage.open(obj.file_path, 'rb')
-    return FileResponse(
+    resp = FileResponse(
         file_handle,
         content_type=ctype,
         as_attachment=True,
-        filename=obj.original_filename,
+        filename=filename,
     )
+    resp['X-Content-Type-Options'] = 'nosniff'
+    return resp
 
 
 @require_GET
@@ -1274,6 +1309,9 @@ def api_quarter_report_upload(request):
 
 @require_GET
 def api_quarter_report_download(request, report_id):
+    denied = _download_permission_denied(request)
+    if denied:
+        return denied
     try:
         obj = QuarterReport.objects.get(pk=report_id)
     except QuarterReport.DoesNotExist:
@@ -1332,6 +1370,9 @@ def api_meeting_minutes_upload(request):
 
 @require_GET
 def api_meeting_minutes_download(request, report_id):
+    denied = _download_permission_denied(request)
+    if denied:
+        return denied
     try:
         obj = MeetingMinutes.objects.get(pk=report_id)
     except MeetingMinutes.DoesNotExist:
@@ -1355,30 +1396,15 @@ def api_meeting_minutes_delete(request, report_id):
 
 @require_GET
 def api_report_download(request, report_id):
-    """Pakua PDF ya ripoti."""
+    """Pakua faili ya ripoti (PDF/Word) — attachment, si JSON."""
+    denied = _download_permission_denied(request)
+    if denied:
+        return denied
     try:
         report = PlanningReport.objects.get(pk=report_id)
     except PlanningReport.DoesNotExist:
         return JsonResponse({'error': 'Ripoti haijapatikana'}, status=404)
-
-    if not report.file_path or not default_storage.exists(report.file_path):
-        abs_path = report.file_path
-        if abs_path and os.path.isfile(abs_path):
-            return FileResponse(
-                open(abs_path, 'rb'),
-                content_type='application/pdf',
-                as_attachment=True,
-                filename=report.original_filename,
-            )
-        return JsonResponse({'error': 'Faili haijapatikana'}, status=404)
-
-    file_handle = default_storage.open(report.file_path, 'rb')
-    return FileResponse(
-        file_handle,
-        content_type='application/pdf',
-        as_attachment=True,
-        filename=report.original_filename,
-    )
+    return _file_download_response(report)
 
 
 @require_GET

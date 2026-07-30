@@ -1447,6 +1447,70 @@
     const initialRegion = '{{ region_name|escapejs }}';
     const PLANNING_API = '/api/planning/';
     const CAN_UPLOAD = {% if can_upload %}true{% else %}false{% endif %};
+
+    function downloadReportFile(url, fallbackName) {
+        if (!url) {
+            Swal.fire('Hitilafu', 'Kiungo cha ripoti hakipo', 'error');
+            return;
+        }
+        Swal.fire({ title: 'Inapakua...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        fetch(url, { credentials: 'same-origin' })
+            .then(function(r) {
+                var ct = (r.headers.get('Content-Type') || '').toLowerCase();
+                var cd = r.headers.get('Content-Disposition') || '';
+                if (!r.ok) {
+                    return r.text().then(function(text) {
+                        Swal.close();
+                        var msg = 'Imeshindikana kupakua ripoti (' + r.status + ')';
+                        try {
+                            var body = JSON.parse(text);
+                            if (body && (body.error || body.message)) {
+                                msg = body.error || body.message;
+                            }
+                        } catch (e) {}
+                        Swal.fire('Hitilafu', msg, 'error');
+                    });
+                }
+                // JSON error body disguised as 200, or HTML login page
+                if ((ct.indexOf('application/json') !== -1 && cd.indexOf('attachment') === -1)
+                    || ct.indexOf('text/html') !== -1) {
+                    return r.text().then(function(text) {
+                        Swal.close();
+                        var msg = 'Imeshindikana kupakua ripoti';
+                        try {
+                            var body = JSON.parse(text);
+                            if (body && (body.error || body.message)) {
+                                msg = body.error || body.message;
+                            }
+                        } catch (e) {
+                            if (ct.indexOf('text/html') !== -1) {
+                                msg = 'Ingia kwanza ili kupakua ripoti';
+                            }
+                        }
+                        Swal.fire('Hitilafu', msg, 'error');
+                    });
+                }
+                return r.blob().then(function(blob) {
+                    Swal.close();
+                    var filename = fallbackName || 'ripoti.pdf';
+                    var m = /filename\*=UTF-8''([^;]+)|filename=\"?([^\";]+)\"?/i.exec(cd);
+                    if (m) {
+                        filename = decodeURIComponent((m[1] || m[2] || filename).trim());
+                    }
+                    var a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    setTimeout(function() { URL.revokeObjectURL(a.href); }, 2000);
+                });
+            })
+            .catch(function(err) {
+                Swal.close();
+                Swal.fire('Hitilafu', 'Hitilafu ya upakuaji: ' + (err && err.message ? err.message : err), 'error');
+            });
+    }
     let ccroPage = 1;
     const ccroPageSize = 50;
     let genderPieChart = null;
@@ -2574,16 +2638,22 @@
                     const deleteBtn = CAN_UPLOAD
                         ? `<button class="btn-delete" onclick="deleteMpangoReport('${r.id}', ${JSON.stringify(r.title)})" title="Futa"><i class="fas fa-trash"></i></button>`
                         : '';
+                    const safeName = escapeHtml(r.original_filename || (r.title ? (r.title + '.pdf') : 'ripoti.pdf'));
                     tbody.innerHTML += `<tr>
                         <td>${r.title}</td>
                         <td>${r.village_name || '—'}</td>
                         <td>${formatReportDate(r.created_at)}</td>
                         <td class="action-buttons">
-                            <a class="btn-view" href="${r.download_url}" target="_blank" title="Angalia"><i class="fas fa-eye"></i></a>
-                            <a class="btn-pdf" href="${r.download_url}" download title="Pakua"><i class="fas fa-download"></i></a>
+                            <button type="button" class="btn-view" data-dl-url="${r.download_url}" data-dl-name="${safeName}" title="Angalia / Pakua"><i class="fas fa-eye"></i></button>
+                            <button type="button" class="btn-pdf" data-dl-url="${r.download_url}" data-dl-name="${safeName}" title="Pakua"><i class="fas fa-download"></i></button>
                             ${deleteBtn}
                         </td>
                     </tr>`;
+                });
+                tbody.querySelectorAll('[data-dl-url]').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        downloadReportFile(btn.getAttribute('data-dl-url'), btn.getAttribute('data-dl-name') || 'ripoti.pdf');
+                    });
                 });
             })
             .catch(err => console.error('Reports:', err));
@@ -2957,17 +3027,23 @@
                     const delBtn = CAN_UPLOAD
                         ? `<button type="button" class="btn-delete" data-tz-del="${r.id}" data-tz-title="${escapeHtml(r.title)}"><i class="fas fa-trash"></i></button>`
                         : '';
+                    const safeName = escapeHtml(r.original_filename || (r.title ? (r.title + '.pdf') : 'ripoti.pdf'));
                     return `<tr>
                         <td><strong>${escapeHtml(r.title)}</strong></td>
                         <td>${escapeHtml(meta)}</td>
                         <td>${escapeHtml(r.original_filename || '—')}</td>
                         <td>${formatReportDate(r.created_at)}</td>
                         <td class="action-buttons">
-                            <a class="btn-pdf" href="${r.download_url}" target="_blank" rel="noopener"><i class="fas fa-download"></i> Pakua</a>
+                            <button type="button" class="btn-pdf" data-dl-url="${r.download_url}" data-dl-name="${safeName}"><i class="fas fa-download"></i> Pakua</button>
                             ${delBtn}
                         </td>
                     </tr>`;
                 }).join('');
+                tbody.querySelectorAll('[data-dl-url]').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        downloadReportFile(btn.getAttribute('data-dl-url'), btn.getAttribute('data-dl-name') || 'ripoti.pdf');
+                    });
+                });
                 tbody.querySelectorAll('[data-tz-del]').forEach(btn => {
                     btn.addEventListener('click', () => {
                         deleteTzReport(btn.getAttribute('data-tz-del'), btn.getAttribute('data-tz-title') || '');
