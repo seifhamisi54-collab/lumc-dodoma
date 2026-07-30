@@ -65,6 +65,15 @@ DEFAULT_USERS = [
         'is_staff': False,
         'is_superuser': False,
     },
+    {
+        'username': 'Joseph.Ndalu',
+        'email': '',
+        'password': 'Nlupc2026!',
+        'first_name': 'Joseph Ndalu',
+        'role': 'data_management_officer',
+        'is_staff': True,
+        'is_superuser': False,
+    },
 ]
 
 

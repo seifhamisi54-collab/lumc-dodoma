@@ -25,6 +25,7 @@ DEFAULT_USERS = [
     "seif.hamisi",
     "afisa.wilaya",
     "mtazamaji",
+    "Joseph.Ndalu",
     "1701",
 ]
 
