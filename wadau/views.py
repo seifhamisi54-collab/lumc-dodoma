@@ -96,11 +96,11 @@ def _payload_from_data(data, request=None):
         stype = Stakeholder.StakeholderType.COMMUNITY
 
     category = (
-        data.get('category') or Stakeholder.StakeholderCategory.STAKEHOLDER_PLATFORM
+        data.get('category') or Stakeholder.StakeholderCategory.PUBLIC_INSTITUTIONS
     ).strip()
     valid_categories = {c[0] for c in Stakeholder.StakeholderCategory.choices}
     if category not in valid_categories:
-        category = Stakeholder.StakeholderCategory.STAKEHOLDER_PLATFORM
+        category = Stakeholder.StakeholderCategory.PUBLIC_INSTITUTIONS
 
     is_active = data.get('is_active', True)
     if isinstance(is_active, str):

@@ -24,10 +24,6 @@ class Stakeholder(models.Model):
             'planning_companies',
             'Kampuni za Upangaji (Planning Companies)',
         )
-        STAKEHOLDER_PLATFORM = (
-            'stakeholder_platform',
-            'Maandalizi ya Jukwaa la Wadau (Stakeholder Platform Preparation)',
-        )
         NGOS = (
             'ngos',
             'NGOs — Local and International',
@@ -64,7 +60,7 @@ class Stakeholder(models.Model):
     category = models.CharField(
         max_length=40,
         choices=StakeholderCategory.choices,
-        default=StakeholderCategory.STAKEHOLDER_PLATFORM,
+        default=StakeholderCategory.PUBLIC_INSTITUTIONS,
         db_index=True,
         verbose_name='Kundi la Wadau',
     )

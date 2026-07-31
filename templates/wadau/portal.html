@@ -573,7 +573,7 @@
                     return;
                 }
 
-                // Group by category so the 7 formats appear separate
+                // Group by category so the 6 formats appear separate
                 let html = '';
                 cats.forEach(c => {
                     const group = rows.filter(s => s.category === c.value);
@@ -610,7 +610,7 @@
                 document.getElementById('f-fy').value = s.financial_year || currentFy();
                 document.getElementById('f-name').value = s.name || '';
                 document.getElementById('f-organization').value = s.organization || '';
-                document.getElementById('f-category').value = s.category || 'stakeholder_platform';
+                document.getElementById('f-category').value = s.category || 'public_institutions';
                 document.getElementById('f-type').value = s.stakeholder_type || 'community';
                 document.getElementById('f-role').value = s.role || '';
                 document.getElementById('f-phone').value = s.phone || '';
