@@ -80,6 +80,33 @@
     #wd-form-panel.open { display: block; }
     .table-scroll { overflow-x: auto; }
     .wd-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .wd-cat-tabs {
+        display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px;
+    }
+    .wd-cat-tab {
+        border: 1px solid #c7d2fe; background: #eef2ff; color: #3730a3;
+        border-radius: 999px; padding: 7px 12px; font-size: 12px; font-weight: 700;
+        cursor: pointer; font-family: inherit;
+    }
+    .wd-cat-tab:hover { background: #e0e7ff; }
+    .wd-cat-tab.active {
+        background: #4338ca; color: #fff; border-color: #4338ca;
+    }
+    .wd-cat-tab .cnt {
+        display: inline-block; margin-left: 6px; min-width: 18px;
+        padding: 1px 6px; border-radius: 999px; font-size: 10px;
+        background: rgba(255,255,255,0.22);
+    }
+    .wd-cat-tab:not(.active) .cnt { background: #c7d2fe; color: #312e81; }
+    .wd-group-h {
+        margin: 18px 0 8px; padding: 8px 12px; border-radius: 10px;
+        background: linear-gradient(90deg, #eef2ff, #fff);
+        border: 1px solid #e0e7ff; color: #312e81;
+        font-family: 'Outfit', sans-serif; font-size: 0.95rem; font-weight: 700;
+    }
+    .wd-group-h .cnt {
+        float: right; font-size: 12px; font-weight: 700; color: #6366f1;
+    }
 </style>
 {% endblock %}
 
@@ -142,6 +169,15 @@
                 <select id="wd-village" disabled><option value="">-- Chagua Kijiji --</option></select>
             </div>
             <div>
+                <label>Kundi la Wadau</label>
+                <select id="wd-filter-category">
+                    <option value="">Makundi yote</option>
+                    {% for value, label in stakeholder_categories %}
+                    <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
                 <label>Aina ya Mdau</label>
                 <select id="wd-filter-type">
                     <option value="">Aina zote</option>
@@ -193,6 +229,14 @@
             <div>
                 <label>Shirika / Taasisi</label>
                 <input id="f-organization" placeholder="Mf. Ofisi ya Ardhi">
+            </div>
+            <div>
+                <label>Kundi la Wadau *</label>
+                <select id="f-category">
+                    {% for value, label in stakeholder_categories %}
+                    <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
             </div>
             <div>
                 <label>Aina ya Mdau</label>
@@ -253,25 +297,16 @@
             <h2 style="margin:0;flex:1;"><i class="fas fa-users"></i> Orodha ya Wadau</h2>
             <button type="button" class="wd-btn" id="btn-new"><i class="fas fa-plus"></i> Sajili Mdau</button>
         </div>
-        <div class="table-scroll">
-            <table class="wd-table">
-                <thead>
-                    <tr>
-                        <th>Mwaka</th>
-                        <th>Jina</th>
-                        <th>Shirika</th>
-                        <th>Aina</th>
-                        <th>Mawasiliano</th>
-                        <th>Eneo</th>
-                        <th>Wajibu</th>
-                        <th>Hali</th>
-                        <th>Vitendo</th>
-                    </tr>
-                </thead>
-                <tbody id="wd-tbody">
-                    <tr><td colspan="9" class="wd-empty">Inapakia...</td></tr>
-                </tbody>
-            </table>
+        <div class="wd-cat-tabs" id="wd-cat-tabs">
+            <button type="button" class="wd-cat-tab active" data-category="">Zote <span class="cnt" id="tab-cnt-all">0</span></button>
+            {% for value, label in stakeholder_categories %}
+            <button type="button" class="wd-cat-tab" data-category="{{ value }}" title="{{ label }}">
+                {{ label|truncatechars:42 }} <span class="cnt" data-cnt="{{ value }}">0</span>
+            </button>
+            {% endfor %}
+        </div>
+        <div id="wd-grouped-list">
+            <div class="wd-empty">Inapakia...</div>
         </div>
     </div>
 </div>
@@ -424,6 +459,19 @@
 
     const DEFAULT_FY = '{{ default_financial_year|default:"2026/2027" }}';
 
+    // Prefer labels from the filter <select> (already escaped by Django)
+    function categoryMeta() {
+        const sel = document.getElementById('wd-filter-category');
+        const out = [];
+        if (!sel) return out;
+        for (let i = 0; i < sel.options.length; i++) {
+            const o = sel.options[i];
+            if (!o.value) continue;
+            out.push({ value: o.value, label: o.textContent });
+        }
+        return out;
+    }
+
     function currentFy() {
         return (document.getElementById('wd-fy') || {}).value || DEFAULT_FY;
     }
@@ -443,6 +491,7 @@
         const district = document.getElementById('wd-district').value;
         const ward = document.getElementById('wd-ward').value;
         const village = document.getElementById('wd-village').value;
+        const category = document.getElementById('wd-filter-category').value;
         const type = document.getElementById('wd-filter-type').value;
         const active = document.getElementById('wd-filter-active').value;
         const q = document.getElementById('wd-q').value.trim();
@@ -451,6 +500,7 @@
         if (district) p.set('district_name', district);
         if (ward) p.set('ward_name', ward);
         if (village) p.set('village_name', village);
+        if (category) p.set('category', category);
         if (type) p.set('stakeholder_type', type);
         if (active !== '') p.set('is_active', active);
         if (q) p.set('q', q);
@@ -466,6 +516,10 @@
         document.getElementById('f-fy').value = currentFy();
         document.getElementById('f-name').value = '';
         document.getElementById('f-organization').value = '';
+        const catSel = document.getElementById('f-category');
+        const filterCat = document.getElementById('wd-filter-category').value;
+        if (filterCat) catSel.value = filterCat;
+        else catSel.selectedIndex = 0;
         document.getElementById('f-type').selectedIndex = 0;
         document.getElementById('f-role').value = '';
         document.getElementById('f-phone').value = '';
@@ -488,6 +542,7 @@
             financial_year: document.getElementById('f-fy').value.trim() || currentFy(),
             name: document.getElementById('f-name').value.trim(),
             organization: document.getElementById('f-organization').value.trim(),
+            category: document.getElementById('f-category').value,
             stakeholder_type: document.getElementById('f-type').value,
             role: document.getElementById('f-role').value.trim(),
             phone: document.getElementById('f-phone').value.trim(),
@@ -501,9 +556,70 @@
         };
     }
 
+    function escapeHtml(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function rowHtml(s) {
+        const eneo = [s.village_name, s.ward_name, s.district_name, s.region_name].filter(Boolean).join(' / ') || '—';
+        const contact = [s.phone, s.email].filter(Boolean).map(escapeHtml).join('<br>') || '—';
+        return `<tr>
+            <td><span class="wd-chip">${escapeHtml(s.financial_year || '—')}</span></td>
+            <td><strong>${escapeHtml(s.name)}</strong></td>
+            <td>${escapeHtml(s.organization || '—')}</td>
+            <td><span class="wd-chip">${escapeHtml(s.stakeholder_type_label || s.stakeholder_type)}</span></td>
+            <td>${contact}</td>
+            <td>${escapeHtml(eneo)}</td>
+            <td>${escapeHtml(s.role || '—')}</td>
+            <td><span class="wd-status ${s.is_active ? '' : 'off'}">${s.is_active ? 'Hai' : 'Si hai'}</span></td>
+            <td class="wd-actions">
+                <button type="button" class="wd-btn edit" data-edit="${s.id}" title="Hariri"><i class="fas fa-edit"></i></button>
+                <button type="button" class="wd-btn danger" data-del="${s.id}" title="Futa"><i class="fas fa-trash"></i></button>
+            </td>
+        </tr>`;
+    }
+
+    function tableWrap(rowsHtml) {
+        return `<div class="table-scroll"><table class="wd-table">
+            <thead>
+                <tr>
+                    <th>Mwaka</th>
+                    <th>Jina</th>
+                    <th>Shirika</th>
+                    <th>Aina</th>
+                    <th>Mawasiliano</th>
+                    <th>Eneo</th>
+                    <th>Wajibu</th>
+                    <th>Hali</th>
+                    <th>Vitendo</th>
+                </tr>
+            </thead>
+            <tbody>${rowsHtml}</tbody>
+        </table></div>`;
+    }
+
+    function updateTabCounts(byCategory, total) {
+        const all = document.getElementById('tab-cnt-all');
+        if (all) all.textContent = total || 0;
+        categoryMeta().forEach(c => {
+            const el = document.querySelector('[data-cnt="' + c.value + '"]');
+            if (el) el.textContent = (byCategory && byCategory[c.value]) || 0;
+        });
+    }
+
+    function setActiveTab(category) {
+        document.querySelectorAll('#wd-cat-tabs .wd-cat-tab').forEach(btn => {
+            btn.classList.toggle('active', (btn.getAttribute('data-category') || '') === (category || ''));
+        });
+    }
+
     function loadList() {
-        const tbody = document.getElementById('wd-tbody');
-        tbody.innerHTML = '<tr><td colspan="9" class="wd-empty">Inapakia...</td></tr>';
+        const wrap = document.getElementById('wd-grouped-list');
+        wrap.innerHTML = '<div class="wd-empty">Inapakia...</div>';
         fetch(API + '?' + filterParams().toString(), { credentials: 'same-origin' })
             .then(r => r.json())
             .then(data => {
@@ -511,33 +627,42 @@
                 if (t.total != null) document.getElementById('kpi-total').textContent = t.total;
                 if (t.active != null) document.getElementById('kpi-active').textContent = t.active;
                 if (t.inactive != null) document.getElementById('kpi-inactive').textContent = t.inactive;
+                updateTabCounts(t.by_category || {}, t.total || 0);
+                setActiveTab(document.getElementById('wd-filter-category').value);
 
                 const rows = data.results || [];
                 if (!rows.length) {
-                    tbody.innerHTML = '<tr><td colspan="9" class="wd-empty">Hakuna wadau. Bofya <strong>Sajili Mdau</strong>.</td></tr>';
+                    wrap.innerHTML = '<div class="wd-empty">Hakuna wadau. Bofya <strong>Sajili Mdau</strong>.</div>';
                     return;
                 }
-                tbody.innerHTML = rows.map(s => {
-                    const eneo = [s.village_name, s.ward_name, s.district_name, s.region_name].filter(Boolean).join(' / ') || '—';
-                    const contact = [s.phone, s.email].filter(Boolean).join('<br>') || '—';
-                    return `<tr>
-                        <td><span class="wd-chip">${s.financial_year || '—'}</span></td>
-                        <td><strong>${s.name}</strong></td>
-                        <td>${s.organization || '—'}</td>
-                        <td><span class="wd-chip">${s.stakeholder_type_label || s.stakeholder_type}</span></td>
-                        <td>${contact}</td>
-                        <td>${eneo}</td>
-                        <td>${s.role || '—'}</td>
-                        <td><span class="wd-status ${s.is_active ? '' : 'off'}">${s.is_active ? 'Hai' : 'Si hai'}</span></td>
-                        <td class="wd-actions">
-                            <button type="button" class="wd-btn edit" data-edit="${s.id}" title="Hariri"><i class="fas fa-edit"></i></button>
-                            <button type="button" class="wd-btn danger" data-del="${s.id}" title="Futa"><i class="fas fa-trash"></i></button>
-                        </td>
-                    </tr>`;
-                }).join('');
+
+                const activeCat = document.getElementById('wd-filter-category').value;
+                const cats = categoryMeta();
+                const labelBy = {};
+                cats.forEach(c => { labelBy[c.value] = c.label; });
+
+                if (activeCat) {
+                    wrap.innerHTML = tableWrap(rows.map(rowHtml).join(''));
+                    return;
+                }
+
+                // Group by category so the 7 formats appear separate
+                let html = '';
+                cats.forEach(c => {
+                    const group = rows.filter(s => s.category === c.value);
+                    if (!group.length) return;
+                    html += `<div class="wd-group-h">${escapeHtml(c.label)} <span class="cnt">${group.length}</span></div>`;
+                    html += tableWrap(group.map(rowHtml).join(''));
+                });
+                const unknown = rows.filter(s => !labelBy[s.category]);
+                if (unknown.length) {
+                    html += `<div class="wd-group-h">Mengine <span class="cnt">${unknown.length}</span></div>`;
+                    html += tableWrap(unknown.map(rowHtml).join(''));
+                }
+                wrap.innerHTML = html || '<div class="wd-empty">Hakuna wadau.</div>';
             })
             .catch(() => {
-                tbody.innerHTML = '<tr><td colspan="9" class="wd-empty">Hitilafu ya kupakia data</td></tr>';
+                wrap.innerHTML = '<div class="wd-empty">Hitilafu ya kupakia data</div>';
             });
     }
 
@@ -558,6 +683,7 @@
                 document.getElementById('f-fy').value = s.financial_year || currentFy();
                 document.getElementById('f-name').value = s.name || '';
                 document.getElementById('f-organization').value = s.organization || '';
+                document.getElementById('f-category').value = s.category || 'stakeholder_platform';
                 document.getElementById('f-type').value = s.stakeholder_type || 'community';
                 document.getElementById('f-role').value = s.role || '';
                 document.getElementById('f-phone').value = s.phone || '';
@@ -628,7 +754,7 @@
             });
     });
 
-    document.getElementById('wd-tbody').addEventListener('click', e => {
+    document.getElementById('wd-grouped-list').addEventListener('click', e => {
         const editBtn = e.target.closest('[data-edit]');
         const delBtn = e.target.closest('[data-del]');
         if (editBtn) {
@@ -667,12 +793,25 @@
         }
     });
 
+    document.getElementById('wd-cat-tabs').addEventListener('click', e => {
+        const btn = e.target.closest('.wd-cat-tab');
+        if (!btn) return;
+        const cat = btn.getAttribute('data-category') || '';
+        document.getElementById('wd-filter-category').value = cat;
+        setActiveTab(cat);
+        loadList();
+    });
+
     setupCascade({
         region: 'wd-region', district: 'wd-district', ward: 'wd-ward', village: 'wd-village',
         onChange: loadList,
     });
     setupCascade({
         region: 'f-region', district: 'f-district', ward: 'f-ward', village: 'f-village',
+    });
+    document.getElementById('wd-filter-category').addEventListener('change', () => {
+        setActiveTab(document.getElementById('wd-filter-category').value);
+        loadList();
     });
     document.getElementById('wd-filter-type').addEventListener('change', loadList);
     document.getElementById('wd-filter-active').addEventListener('change', loadList);

@@ -31,6 +31,8 @@ def _stakeholder_to_dict(obj):
         'organization': obj.organization or '',
         'stakeholder_type': obj.stakeholder_type,
         'stakeholder_type_label': obj.get_stakeholder_type_display(),
+        'category': obj.category,
+        'category_label': obj.get_category_display(),
         'phone': obj.phone or '',
         'email': obj.email or '',
         'role': obj.role or '',
@@ -52,6 +54,7 @@ def _apply_filters(qs, request):
     ward = (request.GET.get('ward_name') or request.GET.get('ward') or '').strip()
     village = (request.GET.get('village_name') or request.GET.get('village') or '').strip()
     stype = (request.GET.get('stakeholder_type') or request.GET.get('type') or '').strip()
+    category = (request.GET.get('category') or '').strip()
     fy = (request.GET.get('financial_year') or request.GET.get('fy') or '').strip()
     q = (request.GET.get('q') or '').strip()
     active = request.GET.get('is_active')
@@ -66,6 +69,8 @@ def _apply_filters(qs, request):
         qs = qs.filter(village_name__iexact=village)
     if stype:
         qs = qs.filter(stakeholder_type=stype)
+    if category:
+        qs = qs.filter(category=category)
     if fy:
         qs = qs.filter(financial_year=normalize_financial_year(fy))
     if active in ('0', '1', 'true', 'false'):
@@ -79,6 +84,7 @@ def _apply_filters(qs, request):
             | Q(role__icontains=q)
             | Q(village_name__icontains=q)
             | Q(financial_year__icontains=q)
+            | Q(category__icontains=q)
         )
     return qs
 
@@ -88,6 +94,13 @@ def _payload_from_data(data, request=None):
     valid_types = {c[0] for c in Stakeholder.StakeholderType.choices}
     if stype not in valid_types:
         stype = Stakeholder.StakeholderType.COMMUNITY
+
+    category = (
+        data.get('category') or Stakeholder.StakeholderCategory.STAKEHOLDER_PLATFORM
+    ).strip()
+    valid_categories = {c[0] for c in Stakeholder.StakeholderCategory.choices}
+    if category not in valid_categories:
+        category = Stakeholder.StakeholderCategory.STAKEHOLDER_PLATFORM
 
     is_active = data.get('is_active', True)
     if isinstance(is_active, str):
@@ -105,6 +118,7 @@ def _payload_from_data(data, request=None):
         'name': (data.get('name') or '').strip(),
         'organization': (data.get('organization') or '').strip(),
         'stakeholder_type': stype,
+        'category': category,
         'phone': (data.get('phone') or '').strip(),
         'email': (data.get('email') or '').strip(),
         'role': (data.get('role') or '').strip(),
@@ -129,7 +143,12 @@ def _type_stats(qs=None):
         row['stakeholder_type']: row['c']
         for row in qs.values('stakeholder_type').annotate(c=Count('id'))
     }
+    by_category = {
+        row['category']: row['c']
+        for row in qs.values('category').annotate(c=Count('id'))
+    }
     agg['by_type'] = by_type
+    agg['by_category'] = by_category
     return agg
 
 
@@ -143,6 +162,7 @@ def wadau_portal(request):
     return render(request, 'wadau/portal.html', {
         'stats': stats,
         'stakeholder_types': Stakeholder.StakeholderType.choices,
+        'stakeholder_categories': Stakeholder.StakeholderCategory.choices,
         'current_financial_year': fy,
         'default_financial_year': DEFAULT_FINANCIAL_YEAR,
     })
@@ -164,6 +184,10 @@ def api_stakeholders(request):
             'count': len(rows),
             'totals': _type_stats(filtered_base),
             'results': rows,
+            'categories': [
+                {'value': v, 'label': lbl}
+                for v, lbl in Stakeholder.StakeholderCategory.choices
+            ],
         })
 
     data = _parse_body(request)
@@ -198,7 +222,7 @@ def api_stakeholder_detail(request, stakeholder_id):
     if request.method == 'PATCH':
         base = _stakeholder_to_dict(obj)
         for key in (
-            'name', 'organization', 'stakeholder_type', 'phone', 'email', 'role',
+            'name', 'organization', 'stakeholder_type', 'category', 'phone', 'email', 'role',
             'financial_year', 'region_name', 'district_name', 'ward_name', 'village_name',
             'notes', 'is_active',
         ):

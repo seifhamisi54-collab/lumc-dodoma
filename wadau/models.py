@@ -6,7 +6,7 @@ from dashboard.financial_year import DEFAULT_FINANCIAL_YEAR, FY_MAX_LENGTH
 
 
 class Stakeholder(models.Model):
-    """Mdau / Stakeholder â€” orodha ya wadau wa mradi / eneo."""
+    """Mdau / Stakeholder — orodha ya wadau wa mradi / eneo."""
 
     class StakeholderType(models.TextChoices):
         GOVERNMENT = 'government', 'Serikali / Ofisi'
@@ -17,6 +17,37 @@ class Stakeholder(models.Model):
         ACADEMIC = 'academic', 'Taasisi ya Elimu'
         DONOR = 'donor', 'Mfadhili / Mshirika'
         OTHER = 'other', 'Mwingine'
+
+    class StakeholderCategory(models.TextChoices):
+        """Makundi ya wadau kulingana na orodha rasmi (Word docs)."""
+        PLANNING_COMPANIES = (
+            'planning_companies',
+            'Kampuni za Upangaji (Planning Companies)',
+        )
+        STAKEHOLDER_PLATFORM = (
+            'stakeholder_platform',
+            'Maandalizi ya Jukwaa la Wadau (Stakeholder Platform Preparation)',
+        )
+        NGOS = (
+            'ngos',
+            'NGOs — Local and International',
+        )
+        HIGHER_EDUCATION = (
+            'higher_education',
+            'Taasisi za Elimu ya Juu (Higher Education Institutions)',
+        )
+        FINANCIAL_INSTITUTIONS = (
+            'financial_institutions',
+            'Taasisi za Kifedha (Financial Institutions)',
+        )
+        PUBLIC_INSTITUTIONS = (
+            'public_institutions',
+            'Taasisi, Mashirika ya Umma (Institutions / Public Corporations)',
+        )
+        SECTORAL_MINISTRIES = (
+            'sectoral_ministries',
+            'Wizara za Kisekta (Sectoral Ministries)',
+        )
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255, verbose_name='Jina')
@@ -29,6 +60,13 @@ class Stakeholder(models.Model):
         default=StakeholderType.COMMUNITY,
         db_index=True,
         verbose_name='Aina ya Mdau',
+    )
+    category = models.CharField(
+        max_length=40,
+        choices=StakeholderCategory.choices,
+        default=StakeholderCategory.STAKEHOLDER_PLATFORM,
+        db_index=True,
+        verbose_name='Kundi la Wadau',
     )
     phone = models.CharField(max_length=40, blank=True, default='', verbose_name='Simu')
     email = models.EmailField(blank=True, default='', verbose_name='Barua pepe')
@@ -55,12 +93,13 @@ class Stakeholder(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['name', 'organization']
+        ordering = ['category', 'name', 'organization']
         verbose_name = 'Mdau'
         verbose_name_plural = 'Wadau'
         indexes = [
             models.Index(fields=['region_name', 'district_name', 'ward_name']),
             models.Index(fields=['financial_year']),
+            models.Index(fields=['category']),
         ]
 
     def __str__(self):
